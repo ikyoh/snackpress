@@ -1,0 +1,19 @@
+{
+  "name": "snackpress",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.11.0",
+  "scripts": {
+    "dev": "pnpm --filter @snackpress/web dev",
+    "build": "pnpm --filter @snackpress/web build",
+    "test": "pnpm --filter @snackpress/web test",
+    "test:e2e": "playwright test",
+    "api:dev": "uv run python scripts/serve.py",
+    "types:generate": "uv run python scripts/openapi.py && openapi-typescript packages/api-client/openapi.json -o packages/api-client/schema.d.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1",
+    "openapi-typescript": "^7.10.1",
+    "prettier": "^3.9.10"
+  }
+}

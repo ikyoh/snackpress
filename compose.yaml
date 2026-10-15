@@ -1,0 +1,4 @@
+name: snackpress
+
+include:
+  - infra/compose.yaml

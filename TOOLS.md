@@ -1,0 +1,35 @@
+# Les outils Snackpress
+
+Périmètre demandé le 15 octobre 2026. Les 14 outils ont un formulaire, un traitement réel, des fichiers téléchargeables et un aperçu PDF/image. Les résultats incluent leurs réglages et leurs limites en JSON. Le catalogue est la page d’accueil ; la recherche et les filtres servent à retrouver les outils.
+
+| Outil | Entrée et résultat | Contrat et limites |
+|---|---|---|
+| Burger | PDF de 1 ou 2 pages → BAT A4 et fiche technique PDF | Présentation rasterisée à 120 dpi, ajustée sur A4 ; couleurs non contractuelles, pas un fichier d’impression. |
+| Chili Dog | PDF → rapport PDF et inventaire JSON des formats, boîtes, polices, images et couleurs | Inspection des déclarations et ressources référencées ; pas de certificat PDF/X, de mesure de résolution effective ni de garantie sur les ressources inline. |
+| Donut | PDF de 1 à 20 pages ou PNG/JPEG → PDF ou PNG avec bords prolongés/miroir | Raster RGB à 72–300 dpi. La zone visible devient le format fini ; anciennes boîtes de coupe ignorées explicitement. Largeur physique déclarée pour une image. Sortie PNG pour une page seulement. Chaque bord doit être relu. |
+| Tiramisu | Deux PDF → superposition, carte des différences, rapport et JSON page par page | Raster RGB à 72–150 dpi, aligné en haut à gauche, sans recalage. Tolérance sur le maximum des écarts RGB. Les pages absentes et les écarts de dimensions sont signalés. |
+| Taco | Format à plat et type de pli → schéma 1:1 et fiche des panneaux | Accordéon : panneaux égaux. Roulé : retrait progressif selon l’emboîtement. Portefeuille : 4 panneaux, volets extérieurs réduits. Aucun ordre de lecture automatique ; validation du façonnier requise. |
+| Pizza | Format fini, fond perdu et sécurité → gabarit 1:1 et légende | TrimBox et BleedBox définies. Guides visibles et fond perdu coloré ; gabarit technique à retirer du visuel final. |
+| Burrito | Format, ourlet, fourreau et entraxe → plan 1:1 et coordonnées des œillets | Ourlet intérieur sur 4 côtés ; fourreau ajouté au-dessus ; entraxe ajusté pour ne pas dépasser le maximum demandé ; centres dédoublonnés aux coins. Aucun visuel modifié. |
+| Club Sandwich | Pages intérieures, grammage/main ou calibre → estimation du dos et PDF | Feuilles = pages / 2 ; calibre en µm = grammage × main, ou calibre mesuré ; bloc en mm = feuilles × calibre / 1 000 ; marge de colle ajoutée. Hors couverture et compression ; confirmer au relieur. |
+| Fortune Cookie | Réglages et fond PDF facultatif d’une page → série PDF de 1 à 100 exemplaires | Texte, numérotation et QR ou Code 128. `{n}` dans le contenu du code est remplacé par le numéro avec préfixe. Une page par exemplaire ; surfaces blanches réservées aux champs variables. Fond utilisé sans redimensionnement, au format de sa TrimBox. Codes à tester sur une épreuve. |
+| Poké | PDF → espaces couleur, tons directs et estimation CMJN par page | Estimation écran après rendu RGB, avec K = 1 − max(R,G,B), puis retrait du noir. Moyennes par canal et somme maximale estimée. Ni séparation RIP, ni TAC certifié, ni consommation d’encre réelle. |
+| Sushi | Format, contour et positions des rainages → PDF vectoriel et convention | Rectangle/cercle, traits de 0,1 mm, sans remplissage, surimpression activée. Deux tons directs nommés, par défaut `CutContour` et `Crease`. Marge technique de 5 mm autour du contour. Convention à confirmer à l’atelier. |
+| Kebab | Papier, quantité, couleurs, finitions et notes → fiche PDF | Déclarations et instructions ; aucun choix de fabrication validé automatiquement. |
+| Layer Cake | PDF → répétition ou livret piqué, plus fiche de tirage | Répétition : moteur géométrique natif existant, PDF de 1 ou 2 pages, sans changement d’échelle ; atelier détaillé conservé. Livret : 4–80 pages, multiple de 4, pages ajustées proportionnellement aux demi-feuilles, sans chasse. Ordre des feuilles documenté ; retournement et pliage à éprouver sur presse. |
+| Bento | De 1 à 8 PDF → fusion, extraction, réordre ou rotation | Jusqu’à 80 pages par source et 200 en sortie. Fusion selon l’ordre des fichiers, modifiable dans l’écran. Autres opérations sur un seul fichier. Pages et plages à partir de 1 ; le réordre doit contenir chaque page une fois. PDF non chiffrés ; signatures, formulaires, annotations et métadonnées de document non conservés. |
+
+## Exploitation locale
+
+- 25 Mo par fichier, 50 Mo par traitement, 100 travaux conservés au maximum.
+- Processus PDF séparés : 2 simultanés, 30 secondes murales et 25 secondes CPU ; fichier de sortie individuel limité à 150 Mo. Mémoire virtuelle limitée à 1 Gio sur Linux, threads de calcul limités à 1.
+- Rendus limités en pixels : 20 millions pour Donut, 8 millions par page pour Tiramisu, 4 millions pour l’estimation Poké. Un fichier trop grand est refusé avec une action proposée ; il n’est pas rééchantillonné silencieusement.
+- PDF non chiffrés. Jusqu’à 80 pages pour l’inspection, la comparaison et les outils généraux ; limites plus étroites indiquées ci-dessus.
+- Sources et résultats stockés dans le répertoire privé `.data`, purge au démarrage puis chaque minute après 24 heures. Suppression immédiate d’un résultat depuis son écran.
+- Usage local individuel ; les identifiants aléatoires de travaux ne remplacent pas une authentification pour un déploiement public.
+
+Les exemples fournis sont synthétiques : carte recto verso, version modifiée, fond d’une page et livret de huit pages. Aucun fichier client n’est inclus.
+
+## Validation avant production
+
+Les tests automatisés couvrent les exports des 14 outils et des cas connus de géométrie, pixels, pagination, numérotation et ressources PDF. Ils ne remplacent pas un corpus professionnel ni les essais du façonnier, du relieur et de la presse. Les résultats raster ne constituent pas une épreuve couleur contractuelle.

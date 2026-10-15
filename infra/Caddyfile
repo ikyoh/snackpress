@@ -1,0 +1,24 @@
+{
+    admin off
+    persist_config off
+    auto_https off
+}
+
+:8080 {
+    request_body {
+        # 50 MiB of files plus multipart overhead (API enforces per-file limits).
+        max_size 54MB
+    }
+    handle /api/* {
+        reverse_proxy api:8000
+    }
+    handle {
+        root * /srv
+        try_files {path} /index.html
+        file_server
+    }
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy same-origin
+    }
+}

@@ -1,0 +1,20 @@
+node_modules/
+.venv/
+.bootstrap/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+.data/
+playwright-report/
+test-results/
+.env
+.env.*
+!.env.example
+.codex/
+# Separate nested checkout; not part of this project's source tree.
+/snackpress/
+.DS_Store
+.impeccable/questions/
+*.tsbuildinfo
