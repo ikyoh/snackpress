@@ -1,0 +1,32 @@
+# Jelastic Docker Engine: TLS terminates at the platform's shared load balancer.
+# Requires Docker Compose >= 2.24.4 for !override.
+name: snackpress
+
+x-logging: &logging
+  driver: local
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+services:
+  api:
+    extends:
+      file: infra/compose.yaml
+      service: api
+    stop_grace_period: 45s
+    logging: *logging
+
+  web:
+    extends:
+      file: infra/compose.yaml
+      service: web
+    depends_on:
+      api:
+        condition: service_healthy
+    # Replace the local binding instead of adding a second port publication.
+    ports: !override
+      - '${SNACKPRESS_BIND_HOST:-0.0.0.0}:${SNACKPRESS_PORT:-8080}:8080'
+    logging: *logging
+
+volumes:
+  pdf-data:

@@ -96,6 +96,43 @@ Références de configuration : [ordre de démarrage Compose](https://docs.docke
 
 Validation Docker du 15 octobre 2026 : images construites et exécutées sous Linux amd64 via Docker Desktop, deux services sains, import/export PDF et BAT vérifiés, téléversement de 50 Mio accepté, migration Alembic exécutée et données conservées après recréation des conteneurs. Les 19 parcours navigateur ont été validés : 17 au premier passage, puis les 2 parcours ayant dépassé leur délai au chargement initial ont réussi lors d’une reprise avec un seul worker.
 
+## Déploiement Jelastic avec Docker Compose
+
+Le fichier `compose.prod.yaml` est destiné à Docker Engine dans Jelastic. Il reprend les images, les contrôles de santé, les limites de ressources et les protections des conteneurs locaux. Le port web est publié sur `0.0.0.0:8080` pour être accessible au proxy Jelastic ; l’API n’a aucun port publié. Les journaux Docker sont limités à trois fichiers de 10 Mo par service. Docker Compose **2.24.4 ou ultérieur** est nécessaire pour remplacer le port local avec `!override`.
+
+Sur le nœud Jelastic, depuis la racine du dépôt :
+
+```sh
+docker compose version
+docker compose -f compose.prod.yaml config --quiet
+docker compose -f compose.prod.yaml up --build -d --wait
+curl --fail http://127.0.0.1:8080/api/health
+```
+
+Ce fichier s’utilise seul avec `-f compose.prod.yaml`, sans ajouter `-f compose.yaml`. Le nom de projet reste `snackpress` : il réutilise les services et le volume `snackpress_pdf-data` d’un déploiement effectué auparavant avec `docker compose up` depuis la racine. Ne pas arrêter les anciens services avec `down --volumes`. Si l’ancien lancement utilisait `-p`, `COMPOSE_PROJECT_NAME` ou directement `-f infra/compose.yaml`, reprendre son nom de projet avec `-p` pour réutiliser son volume. Vérifier le nom avec `docker compose ls` avant de basculer.
+
+Dans le tableau de bord Jelastic :
+
+1. Ajouter **sur le nœud Docker Engine**, dans les variables Jelastic, `JELASTIC_EXPOSE=8080`. Cette variable concerne le routage de la plateforme ; l’ajouter uniquement dans les services Compose ne configure pas Jelastic.
+2. Redémarrer le nœud pour appliquer le routage.
+3. Activer le **SSL intégré** dans la topologie de l’environnement si l’accès utilise le répartiteur partagé, sans IP publique directe. Jelastic termine HTTPS ; Caddy sert le trafic interne en HTTP.
+4. Ouvrir https://snackpress.jcloud.ik-server.com/ puis https://snackpress.jcloud.ik-server.com/api/health. Aucun DNS personnel ni nom de domaine dans Caddy n’est nécessaire pour cette adresse.
+
+Commandes d’exploitation :
+
+```sh
+docker compose -f compose.prod.yaml ps
+docker compose -f compose.prod.yaml logs --tail=100 -f
+docker compose -f compose.prod.yaml up --build -d --wait  # Mise à jour
+docker compose -f compose.prod.yaml down                 # Arrêt, données conservées
+```
+
+Le port hôte est configurable avec `SNACKPRESS_PORT` ; adapter aussi `JELASTIC_EXPOSE` si sa valeur change. `SNACKPRESS_BIND_HOST` permet de choisir l’interface publiée (par défaut `0.0.0.0`). Les valeurs peuvent être définies dans le fichier `.env` à la racine du dépôt. Conserver une seule instance de l’API avec son volume SQLite et prévoir une sauvegarde de ce volume. La purge des travaux après 24 h reste active.
+
+**Limite applicative :** ce fichier prépare l’hébergement, mais Snackpress ne possède pas encore d’authentification. Protéger l’accès au niveau du proxy ou du réseau avant d’y déposer des documents privés ou d’ouvrir le service à plusieurs utilisateurs.
+
+Références : [ports et variable JELASTIC_EXPOSE](https://www.virtuozzo.com/application-management-docs/container-ports/), [SSL intégré Jelastic](https://www.virtuozzo.com/application-management-docs/built-in-ssl/), [remplacement des ports Compose](https://docs.docker.com/reference/compose-file/merge/).
+
 ## Moteur d’imposition en CLI
 
 ```sh
