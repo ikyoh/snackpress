@@ -537,8 +537,7 @@ input[type='checkbox'] {
   width: min(100%, 435px);
   margin: 0 auto;
 }
-.sheet-svg,
-.pdf-canvas {
+.sheet-svg {
   display: block;
   width: 100%;
   max-height: 760px;
@@ -1057,17 +1056,6 @@ footer > span:first-child {
   .flip-note {
     padding: 15px 18px;
   }
-}
-.pdf-render {
-  position: relative;
-}
-.pdf-loading {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  color: #687d5f;
-  font-size: 12px;
 }
 input.sr-only {
   width: 1px;

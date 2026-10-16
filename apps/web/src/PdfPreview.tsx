@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { FileText, LoaderCircle, Maximize, Minimize, Scan, ZoomIn, ZoomOut } from 'lucide-react'
+import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist'
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import type { Job } from './api'
@@ -62,54 +65,221 @@ export function useArtwork(job: Job | null) {
 }
 
 export function PdfPreview({ url, page: number }: { url: string; page: number }) {
+  const viewer = useRef<HTMLDivElement>(null)
+  const stage = useRef<HTMLDivElement>(null)
   const ref = useRef<HTMLCanvasElement>(null)
+  const [pdf, setPdf] = useState<PDFDocumentProxy | null>(null)
+  const [bounds, setBounds] = useState({ width: 0, height: 0 })
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
+  const [zoom, setZoom] = useState(1)
   const [ready, setReady] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   const [error, setError] = useState('')
+  const [fullscreenError, setFullscreenError] = useState('')
+
+  useEffect(() => {
+    const element = stage.current
+    if (!element) return
+    const observer = new ResizeObserver(([entry]) => {
+      setBounds({ width: entry.contentRect.width, height: entry.contentRect.height })
+    })
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const update = () => setExpanded(document.fullscreenElement === viewer.current)
+    document.addEventListener('fullscreenchange', update)
+    return () => document.removeEventListener('fullscreenchange', update)
+  }, [])
+
   useEffect(() => {
     setError('')
+    setPdf(null)
     setReady(false)
+    setZoom(1)
     const task = getDocument(url)
     let disposed = false
+    void task.promise
+      .then((document) => {
+        if (!disposed) setPdf(document)
+      })
+      .catch(() => {
+        if (!disposed)
+          setError(
+            'Impossible d’afficher le PDF. Téléchargez-le pour l’ouvrir dans votre lecteur PDF.',
+          )
+      })
+    return () => {
+      disposed = true
+      void task.destroy()
+    }
+  }, [url])
+
+  useEffect(() => {
+    if (!pdf || !bounds.width || !bounds.height) return
+    let disposed = false
+    let render: RenderTask | undefined
+    setReady(false)
+    setError('')
     void (async () => {
       try {
-        const pdf = await task.promise
         const page = await pdf.getPage(number)
+        if (disposed) return
         const natural = page.getViewport({ scale: 1 })
-        const viewport = page.getViewport({
-          scale: Math.min(1.4, 1500 / Math.max(natural.width, natural.height)),
-        })
+        const fit = Math.min(
+          (bounds.width - 48) / natural.width,
+          (bounds.height - 48) / natural.height,
+        )
+        const scale = Math.max(0.05, fit) * zoom
+        // Render offscreen: rapid page changes never paint over the active page.
+        const canvas = document.createElement('canvas')
+        const density = Math.min(Math.max(window.devicePixelRatio || 1, 2), 3)
+        const renderScale = Math.min(
+          scale * density,
+          Math.sqrt(16_000_000 / (natural.width * natural.height)),
+        )
+        const viewport = page.getViewport({ scale: renderScale })
+        canvas.width = Math.ceil(viewport.width)
+        canvas.height = Math.ceil(viewport.height)
+        render = page.render({ canvas, viewport })
+        await render.promise
         if (disposed || !ref.current) return
-        ref.current.width = viewport.width
-        ref.current.height = viewport.height
-        await page.render({ canvas: ref.current, viewport }).promise
-        if (!disposed) setReady(true)
+        ref.current.width = canvas.width
+        ref.current.height = canvas.height
+        ref.current.getContext('2d')!.drawImage(canvas, 0, 0)
+        ref.current.style.width = `${natural.width * scale}px`
+        ref.current.style.height = `${natural.height * scale}px`
+        setDimensions({ width: (natural.width * 25.4) / 72, height: (natural.height * 25.4) / 72 })
+        setReady(true)
       } catch {
         if (!disposed)
           setError(
-            'Impossible d’afficher le PDF généré. Vous pouvez le télécharger et le contrôler dans votre lecteur PDF.',
+            'Impossible d’afficher cette page. Téléchargez le PDF pour le contrôler dans votre lecteur.',
           )
       }
     })()
     return () => {
       disposed = true
-      void task.destroy()
+      render?.cancel()
     }
-  }, [url, number])
-  return error ? (
-    <p role="alert">{error}</p>
-  ) : (
-    <div className="pdf-render">
-      <canvas
-        className="pdf-canvas"
-        ref={ref}
-        data-ready={ready}
-        aria-busy={!ready}
-        aria-label={`PDF imposé, page ${number}`}
-        style={{ opacity: ready ? 1 : 0 }}
-      />
-      {!ready && (
-        <p className="pdf-loading" role="status">
-          Affichage du PDF…
+  }, [pdf, number, bounds, zoom])
+
+  async function toggleFullscreen() {
+    setFullscreenError('')
+    try {
+      if (document.fullscreenElement === viewer.current) await document.exitFullscreen()
+      else await viewer.current?.requestFullscreen()
+    } catch {
+      setFullscreenError('Le plein écran est indisponible dans ce navigateur.')
+    }
+  }
+
+  const mm = (value: number) => value.toLocaleString('fr-FR', { maximumFractionDigits: 1 })
+  return (
+    <div
+      className="pdf-viewer"
+      ref={viewer}
+      style={
+        {
+          '--pdf-page-ratio': dimensions.width ? dimensions.height / dimensions.width : 1.414,
+        } as CSSProperties
+      }
+    >
+      <div className="pdf-viewer-toolbar" role="group" aria-label="Affichage du PDF">
+        <span className="pdf-viewer-title">
+          <FileText size={16} /> Aperçu PDF
+        </span>
+        <div className="pdf-viewer-actions">
+          <button
+            type="button"
+            aria-label="Réduire le zoom"
+            title="Réduire le zoom"
+            disabled={!pdf || zoom <= 0.5}
+            onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+          >
+            <ZoomOut size={17} />
+          </button>
+          <output className="pdf-zoom" aria-label="Zoom de l’aperçu">
+            {Math.round(zoom * 100)} %
+          </output>
+          <button
+            type="button"
+            aria-label="Agrandir le zoom"
+            title="Agrandir le zoom"
+            disabled={!pdf || zoom >= 3}
+            onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
+          >
+            <ZoomIn size={17} />
+          </button>
+          <span className="pdf-toolbar-separator" />
+          <button
+            type="button"
+            aria-label="Ajuster à l’écran"
+            title="Ajuster à l’écran"
+            disabled={!pdf}
+            onClick={() => setZoom(1)}
+          >
+            <Scan size={17} />
+            <span className="pdf-fit-label">Ajuster</span>
+          </button>
+          <button
+            type="button"
+            aria-label={expanded ? 'Quitter le plein écran' : 'Afficher en plein écran'}
+            title={expanded ? 'Quitter le plein écran' : 'Afficher en plein écran'}
+            onClick={() => void toggleFullscreen()}
+          >
+            {expanded ? <Minimize size={17} /> : <Maximize size={17} />}
+          </button>
+        </div>
+      </div>
+      <div
+        className="pdf-viewport"
+        ref={stage}
+        tabIndex={0}
+        role="region"
+        aria-label="Document PDF, zone de défilement"
+        aria-busy={!ready && !error}
+      >
+        <div className="pdf-paper-space">
+          <canvas
+            className="pdf-canvas"
+            ref={ref}
+            data-ready={ready}
+            aria-label={`Aperçu PDF, page ${number}`}
+            role="img"
+            style={{ visibility: ready && !error ? 'visible' : 'hidden' }}
+          />
+        </div>
+        {error ? (
+          <div className="pdf-viewer-state pdf-viewer-error" role="alert">
+            <FileText size={28} />
+            <p>{error}</p>
+            <a href={url} download>
+              Télécharger le PDF
+            </a>
+          </div>
+        ) : (
+          !ready && (
+            <div className="pdf-viewer-state" role="status">
+              <LoaderCircle size={26} className="spin" />
+              <p>Préparation de l’aperçu…</p>
+            </div>
+          )
+        )}
+      </div>
+      <div className="pdf-viewer-footer">
+        <span>
+          Page {number}
+          {pdf ? ` sur ${pdf.numPages}` : ''}
+        </span>
+        <span>
+          {ready ? `${mm(dimensions.width)} × ${mm(dimensions.height)} mm` : 'Aperçu du document'}
+        </span>
+      </div>
+      {fullscreenError && (
+        <p className="pdf-fullscreen-error" role="status">
+          {fullscreenError}
         </p>
       )}
     </div>

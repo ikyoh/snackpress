@@ -860,11 +860,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   </div>
                   <div className="artifact-stage">
                     {selected?.media_type === 'application/pdf' ? (
-                      <PdfPreview
-                        key={`${activeArtifact}-${page}`}
-                        url={assetUrl(result.id, activeArtifact)}
-                        page={page}
-                      />
+                      <PdfPreview url={assetUrl(result.id, activeArtifact)} page={page} />
                     ) : selected?.media_type === 'image/png' ? (
                       <img src={assetUrl(result.id, activeArtifact)} alt={selected.label} />
                     ) : null}

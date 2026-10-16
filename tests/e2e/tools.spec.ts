@@ -93,7 +93,44 @@ test('livret piqué : huit pages et navigation du résultat', async ({ page }) =
   await expect(page.locator('.page-navigation')).toContainText('1 / 4')
   await page.getByRole('button', { name: 'Page suivante' }).click()
   await expect(page.locator('.page-navigation')).toContainText('2 / 4')
+  await expect(page.locator('.pdf-viewer-footer')).toContainText('Page 2 sur 4')
   await page.getByRole('button', { name: 'Supprimer ce travail' }).click()
+})
+
+test('aperçu PDF : zoom, ajustement, plein écran et mobile', async ({ page }) => {
+  await page.goto('/?tool=taco')
+  await page.getByRole('button', { name: 'Lancer l’outil', exact: true }).click()
+  const canvas = page.locator('canvas[data-ready=true]')
+  await expect(canvas).toBeVisible({ timeout: 15000 })
+  await expect(page.locator('.pdf-viewer-footer')).toContainText('327 × 240 mm')
+  const initialWidth = await canvas.evaluate((el) => el.getBoundingClientRect().width)
+  await page.getByRole('button', { name: 'Agrandir le zoom', exact: true }).click()
+  await expect(page.getByLabel('Zoom de l’aperçu')).toHaveText('125 %')
+  await expect
+    .poll(() => canvas.evaluate((el) => el.getBoundingClientRect().width))
+    .toBeGreaterThan(initialWidth)
+  await page.getByRole('button', { name: 'Ajuster à l’écran', exact: true }).click()
+  await expect(page.getByLabel('Zoom de l’aperçu')).toHaveText('100 %')
+  await page.getByRole('button', { name: 'Afficher en plein écran', exact: true }).click()
+  await expect
+    .poll(() => page.evaluate(() => document.fullscreenElement?.className))
+    .toBe('pdf-viewer')
+  await page.getByRole('button', { name: 'Quitter le plein écran', exact: true }).click()
+  await expect(canvas).toBeVisible()
+  await page.locator('.pdf-viewer').screenshot({ path: 'test-results/pdf-viewer-desktop.png' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(canvas).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.locator('.pdf-viewer').screenshot({ path: 'test-results/pdf-viewer-mobile.png' })
+})
+
+test('aperçu PDF indisponible : téléchargement toujours accessible', async ({ page }) => {
+  await page.route('**/api/tool-jobs/*/files/*.pdf', (route) => route.abort())
+  await page.goto('/?tool=taco')
+  await page.getByRole('button', { name: 'Lancer l’outil', exact: true }).click()
+  await expect(page.locator('.pdf-viewer-error')).toBeVisible({ timeout: 15000 })
+  await expect(page.getByRole('link', { name: 'Télécharger le PDF', exact: true })).toBeVisible()
+  await expect(page.locator('.artifact-downloads > a').first()).toBeVisible()
 })
 
 test('Fortune Cookie : plusieurs numérotations personnalisées et déplacement', async ({ page }) => {
