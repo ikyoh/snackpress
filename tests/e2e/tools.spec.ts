@@ -44,7 +44,9 @@ for (const [id, name, needsFile] of tools) {
     await page.locator('.artifact-downloads > a').first().click()
     expect((await downloadEvent).suggestedFilename()).toMatch(/^snackpress-/)
     await page.getByRole('button', { name: 'Supprimer ce travail' }).click()
-    await expect(page.locator('.tool-empty')).toBeVisible()
+    await expect(
+      page.locator(id === 'fortune-cookie' ? '.fortune-preview' : '.tool-empty'),
+    ).toBeVisible()
     expect(errors).toEqual([])
   })
 }
@@ -92,4 +94,40 @@ test('livret piqué : huit pages et navigation du résultat', async ({ page }) =
   await page.getByRole('button', { name: 'Page suivante' }).click()
   await expect(page.locator('.page-navigation')).toContainText('2 / 4')
   await page.getByRole('button', { name: 'Supprimer ce travail' }).click()
+})
+
+test('Fortune Cookie : plusieurs numérotations personnalisées et déplacement', async ({ page }) => {
+  await page.goto('/?tool=fortune-cookie')
+  await page.getByLabel('Nombre d’exemplaires').fill('2')
+  await page.getByLabel('Code', { exact: true }).selectOption('none')
+  await page.getByRole('button', { name: 'Ajouter une numérotation' }).click()
+  const second = page.getByRole('group', { name: 'Numérotation 2', exact: true })
+  await second.getByLabel('Position X').fill('35')
+  await second.getByLabel('Position Y').fill('25')
+  await second.getByLabel('Taille').fill('18')
+  await second.getByLabel('Police').selectOption('Courier')
+  await second.getByLabel('Couleur').fill('#ff0000')
+  await second.getByLabel('Rotation').fill('45')
+  const number = page.getByLabel('Déplacer la numérotation 2')
+  await number.scrollIntoViewIfNeeded()
+  const box = (await number.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width / 2 + 25, box.y + box.height / 2 + 10)
+  await page.mouse.up()
+  expect(Number(await second.getByLabel('Position X').inputValue())).toBeGreaterThan(35)
+  await page.screenshot({ path: 'test-results/fortune-desktop.png', fullPage: true })
+  const response = page.waitForResponse((r) => r.url().includes('/api/tools/fortune-cookie/run'))
+  await page.getByRole('button', { name: 'Lancer l’outil', exact: true }).click()
+  const result = await response
+  expect(result.status(), await result.text()).toBe(201)
+  const request = result.request().postData()!
+  expect(request).toContain('"font":"Courier"')
+  expect(request).toContain('"rotation":45')
+  await expect(page.locator('canvas[data-ready=true]')).toBeVisible()
+  await page.getByRole('button', { name: 'Supprimer la numérotation 1', exact: true }).click()
+  await expect(page.locator('.fortune-draggable')).toHaveCount(1)
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.screenshot({ path: 'test-results/fortune-mobile.png', fullPage: true })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })

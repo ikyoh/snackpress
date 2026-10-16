@@ -26,6 +26,7 @@ import App from './App'
 import { request } from './api'
 import { Button } from './components/ui/button'
 import { PdfPreview } from './PdfPreview'
+import { FortunePreview, FortuneSettings, newNumbering, type Numbering } from './FortuneEditor'
 import type { components } from '../../../packages/api-client/schema'
 import './studio.css'
 
@@ -400,6 +401,12 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
   const [values, setValues] = useState<Values>(() =>
     Object.fromEntries(tool.fields.map((f) => [f.key, f.default])),
   )
+  const [numberings, setNumberings] = useState<Numbering[]>([newNumbering(55)])
+  function changeNumberings(next: Numbering[]) {
+    setNumberings(next)
+    setResult(null)
+    setError('')
+  }
   const [files, setFiles] = useState<File[]>([])
   const [result, setResult] = useState<Result | null>(null)
   const [activeArtifact, setActiveArtifact] = useState('')
@@ -484,7 +491,10 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
     setBusy(true)
     try {
       const data = new FormData()
-      data.append('settings', JSON.stringify(values))
+      data.append(
+        'settings',
+        JSON.stringify(tool.id === 'fortune-cookie' ? { ...values, numberings } : values),
+      )
       files.forEach((f) => data.append('files', f))
       const response = await request<Result>(`/api/tools/${tool.id}/run`, {
         method: 'POST',
@@ -709,6 +719,14 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                 </div>
               </section>
             )}
+            {tool.id === 'fortune-cookie' && (
+              <FortuneSettings
+                items={numberings}
+                width={Number(values.width)}
+                height={Number(values.height)}
+                onChange={changeNumberings}
+              />
+            )}
             {tool.id === 'layer-cake' && (
               <a className="advanced-workshop" href={toolUrl('imposition')}>
                 <LayoutGrid size={17} />
@@ -742,7 +760,20 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
               </button>
             )}
           </div>
-          {!result ? (
+          {!result && tool.id === 'fortune-cookie' ? (
+            <FortunePreview
+              items={numberings}
+              width={Number(values.width) || 85}
+              height={Number(values.height) || 55}
+              serial={
+                String(values.prefix) + String(values.start).padStart(Number(values.digits), '0')
+              }
+              text={String(values.text)}
+              file={files[0]}
+              disabled={busy}
+              onChange={changeNumberings}
+            />
+          ) : !result ? (
             <div className="tool-empty">
               <div className={`tool-empty-symbol ${accentMap[tool.category]}`}>
                 {busy ? (

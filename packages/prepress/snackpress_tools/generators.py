@@ -9,7 +9,7 @@ from reportlab.lib.colors import CMYKColorSep
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 
-from .catalog import ToolResult
+from .catalog import Numbering, ToolResult
 from .common import CORAL, INK, artifact, new_canvas, open_pdf, render_page, report
 
 
@@ -417,20 +417,15 @@ def fortune(folder, files, p):
             c.scale(scale, 1)
             bar.drawOn(c, 0, 0)
             c.restoreState()
-        c.setFillColor(colors.white)
-        c.rect(
-            5 * mm,
-            5 * mm,
-            min((p.width - 10) * mm, pdf_text_width(serial, 8, "SnackBold") + 2 * mm),
-            5 * mm,
-            fill=1,
-            stroke=0,
-        )
-        c.setFillColor(INK)
-        c.setFont("SnackBold", 8)
-        if pdf_text_width(serial, 8, "SnackBold") > (p.width - 12) * mm:
-            raise ValueError("La numérotation dépasse la largeur du support.")
-        c.drawString(6 * mm, 6 * mm, serial)
+        numberings = p.numberings if p.numberings is not None else [Numbering(y=p.height - 6)]
+        for numbering in numberings:
+            c.saveState()
+            c.translate(numbering.x * mm, (p.height - numbering.y) * mm)
+            c.rotate(-numbering.rotation)
+            c.setFillColor(colors.HexColor(numbering.color))
+            c.setFont(numbering.font, numbering.size)
+            c.drawString(0, 0, serial)
+            c.restoreState()
         c.showPage()
     c.save()
     if files:

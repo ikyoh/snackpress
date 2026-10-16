@@ -77,6 +77,15 @@ class Club(Params):
     glue: float = Field(default=0.5, ge=0, le=5)
 
 
+class Numbering(Params):
+    x: float = Field(default=6, ge=0, le=500)
+    y: float = Field(default=49, ge=0, le=500)
+    color: str = Field(default="#183d36", pattern=r"^#[0-9a-fA-F]{6}$")
+    size: float = Field(default=8, ge=1, le=300)
+    font: Literal["Snack", "SnackBold", "Helvetica", "Times-Roman", "Courier"] = "SnackBold"
+    rotation: float = Field(default=0, ge=-360, le=360)
+
+
 class Fortune(Params):
     width: float = Field(default=85, ge=40, le=500)
     height: float = Field(default=55, ge=40, le=500)
@@ -87,6 +96,16 @@ class Fortune(Params):
     text: str = Field(default="Votre invitation", max_length=200)
     code: Literal["qr", "code128", "none"] = "qr"
     payload: str = Field(default="https://example.com/{n}", max_length=500)
+    numberings: list[Numbering] | None = None
+
+    @model_validator(mode="after")
+    def positions(self):
+        for numbering in self.numberings or []:
+            if numbering.x > self.width or numbering.y > self.height:
+                raise ValueError(
+                    "Le point de placement de chaque numérotation doit rester sur le support."
+                )
+        return self
 
 
 class Poke(Params):

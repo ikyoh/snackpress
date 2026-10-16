@@ -910,3 +910,74 @@
     transform: none;
   }
 }
+
+@font-face {
+  font-family: FortuneVera;
+  src: url('/fonts/Vera.ttf') format('truetype');
+  font-display: swap;
+}
+@font-face {
+  font-family: FortuneVeraBold;
+  src: url('/fonts/VeraBd.ttf') format('truetype');
+  font-display: swap;
+}
+.fortune-settings {
+  padding: 0 20px 24px;
+}
+.fortune-settings > p,
+.fortune-preview > p {
+  font-size: 13px;
+  line-height: 1.6;
+}
+.tool-controls .fortune-numbering {
+  border: 0;
+  border-top: 1px solid #d8c8e2;
+  padding: 16px 0;
+  margin-top: 20px;
+  min-width: 0;
+}
+.fortune-numbering legend {
+  font-weight: 800;
+  padding-right: 10px;
+}
+.fortune-numbering .text-button {
+  margin-top: 12px;
+}
+.fortune-numbering input[type='color'] {
+  width: 100%;
+  min-height: 42px;
+  padding: 4px;
+  cursor: pointer;
+}
+.fortune-numbering input,
+.fortune-numbering select {
+  width: 100%;
+  min-width: 0;
+}
+.fortune-preview {
+  padding: 24px;
+}
+.fortune-preview h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.fortune-sheet {
+  display: block;
+  width: 100%;
+  margin: 24px 0 16px;
+  border: 1px solid #b6a4c2;
+  touch-action: none;
+  user-select: none;
+}
+.fortune-draggable {
+  pointer-events: bounding-box;
+  cursor: move;
+}
+.fortune-draggable:hover {
+  text-decoration: underline;
+}
+@media (max-width: 600px) {
+  .fortune-preview {
+    padding: 16px;
+  }
+}

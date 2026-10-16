@@ -172,3 +172,78 @@ def test_poke_known_red_screen_estimate(tmp_path):
     data = json.loads((out / "couleurs.json").read_text())
     assert data["pages"][0]["mean_cmyk_percent"] == pytest.approx([0, 100, 100, 0])
     assert data["pages"][0]["color_spaces"] == ["/DeviceRGB"]
+
+
+def test_fortune_multiple_numberings_styles_and_sequence(tmp_path):
+    placements = [
+        {"x": 12, "y": 20, "color": "#ff0000", "size": 18, "font": "Courier", "rotation": 90},
+        {"x": 40, "y": 35, "color": "#0000ff", "size": 12, "font": "Times-Roman", "rotation": -30},
+        {"x": 5, "y": 50, "color": "#00ff00", "size": 10, "font": "Snack", "rotation": 0},
+    ]
+    run(
+        tmp_path,
+        "fortune-cookie",
+        [],
+        {
+            "count": 2,
+            "start": 9,
+            "code": "none",
+            "text": "",
+            "numberings": placements,
+        },
+    )
+    with pdfium.PdfDocument(str(tmp_path / "serie.pdf")) as doc:
+        for index, page in enumerate(doc):
+            assert page.get_textpage().get_text_range().count(f"SP-{9 + index:04d}") == 3
+    with pikepdf.open(tmp_path / "serie.pdf") as doc:
+        operations = pikepdf.parse_content_stream(doc.pages[0])
+        colors = [list(args) for args, op in operations if str(op) == "rg"]
+        assert [1, 0, 0] in colors and [0, 0, 1] in colors and [0, 1, 0] in colors
+        matrices = [list(map(float, args)) for args, op in operations if str(op) == "cm"]
+        assert any(
+            m[:4] == pytest.approx([0, -1, 1, 0])
+            and m[4:] == pytest.approx([12 * 72 / 25.4, 35 * 72 / 25.4], abs=0.001)
+            for m in matrices
+        )
+        fonts = {str(font.BaseFont) for _, font in doc.pages[0].Resources.Font.items()}
+        assert "/Courier" in fonts and "/Times-Roman" in fonts
+    settings = json.loads((tmp_path / "reglages.json").read_text())["settings"]
+    assert settings["numberings"] == placements
+
+
+def test_fortune_numberings_without_fixed_limit_and_empty_list(tmp_path):
+    run(
+        tmp_path,
+        "fortune-cookie",
+        [],
+        {
+            "count": 1,
+            "code": "none",
+            "numberings": [{"x": 5, "y": 20}] * 125,
+        },
+    )
+    with pikepdf.open(tmp_path / "serie.pdf") as doc:
+        operations = pikepdf.parse_content_stream(doc.pages[0])
+        assert (
+            sum(str(op) == "Tj" and bytes(args[0]) == b"SP-0001" for args, op in operations) == 125
+        )
+    run(tmp_path, "fortune-cookie", [], {"count": 1, "code": "none", "numberings": []})
+    with pdfium.PdfDocument(str(tmp_path / "serie.pdf")) as doc:
+        assert "SP-0001" not in doc[0].get_textpage().get_text_range()
+
+
+@pytest.mark.parametrize(
+    "placement",
+    [
+        {"x": 86},
+        {"y": 56},
+        {"size": 0},
+        {"color": "red"},
+        {"font": "unknown"},
+        {"rotation": 361},
+        {"x": float("nan")},
+    ],
+)
+def test_fortune_invalid_numbering(placement):
+    with pytest.raises(ValueError):
+        MODELS["fortune-cookie"](numberings=[placement])
