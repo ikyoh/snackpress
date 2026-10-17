@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-10-17T17:39:08.126Z",
         "reason": "Codex review: legacy .tool-limit border-left is overridden by candy.css .tool-limit border: 2px solid #fff9e7 loaded after studio.css; no one-sided accent is rendered."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "apps/web/src/[Ss]tudio.css"
+        ],
+        "createdAt": "2026-10-17T19:00:52.401Z",
+        "reason": "Agent: pre-existing .tool-limit border-left is overridden by the uniform border in candy.css loaded after studio.css; verified in the Burger browser screenshot."
       }
     ]
   }

@@ -24,6 +24,7 @@ import {
 import App from './App'
 import { AccountButton } from './Account'
 import { Configurations } from './Configurations'
+import { BurgerEditor, burgerDefaults, burgerLabels, type BurgerOptions } from './BurgerEditor'
 import { request } from './api'
 import { Button } from './components/ui/button'
 import { PdfPreview } from './PdfPreview'
@@ -97,7 +98,7 @@ function ToolIcon({ tool, size = 22 }: { tool: Tool; size?: number }) {
         <span
           className="food-sprite"
           style={{
-            backgroundPosition: `${((index % 4) * 100) / 3}% ${(Math.floor(index / 4) * 100) / 3}%`,
+            backgroundPosition: `${5 + (index % 4) * 30}% ${5 + Math.floor(index / 4) * 30}%`,
           }}
         />
       ) : (
@@ -410,6 +411,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
   const [values, setValues] = useState<Values>(() =>
     Object.fromEntries(tool.fields.map((f) => [f.key, f.default])),
   )
+  const [burger, setBurger] = useState<BurgerOptions>(burgerDefaults)
   const [numberings, setNumberings] = useState<Numbering[]>([newNumbering(55)])
   function changeNumberings(next: Numbering[]) {
     setNumberings(next)
@@ -429,11 +431,37 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
   const previewable =
     result?.artifacts?.filter((a) => ['application/pdf', 'image/png'].includes(a.media_type)) || []
   const totalPages = selected?.pages || 1
-  const ready = files.length >= tool.min_files && files.length <= tool.max_files
+  const burgerRoles = burgerLabels(burger)
+  const maxFiles = tool.id === 'burger' ? burgerRoles.length : tool.max_files
+  const ready =
+    tool.id === 'burger'
+      ? files.length === maxFiles && burger.expected_files > 0
+      : files.length >= tool.min_files && files.length <= tool.max_files
+  const settings =
+    tool.id === 'fortune-cookie'
+      ? { ...values, numberings }
+      : tool.id === 'burger'
+        ? { ...values, ...burger }
+        : values
+  function changeBurger(next: BurgerOptions) {
+    // Keep only the populated prefix whose files retain the same production roles.
+    if (JSON.stringify(burgerRoles) !== JSON.stringify(burgerLabels(next))) {
+      const retained: File[] = []
+      for (const role of burgerLabels(next)) {
+        const file = files[burgerRoles.indexOf(role)]
+        if (!file) break
+        retained.push(file)
+      }
+      setFiles(retained)
+    }
+    setBurger(next)
+    setResult(null)
+    setError('')
+  }
   const livePreview = useLivePreview({
     toolId: tool.id,
     files,
-    settings: tool.id === 'fortune-cookie' ? { ...values, numberings } : values,
+    settings,
     available: ready,
     paused: busy || !!result,
     valid: () => formRef.current?.checkValidity() ?? false,
@@ -456,9 +484,9 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
     setError('')
   }
   function addFiles(incoming: File[]) {
-    const next = tool.max_files === 1 ? incoming.slice(0, 1) : [...files, ...incoming]
-    if (next.length > tool.max_files) {
-      setError(`Cet outil accepte au maximum ${tool.max_files} fichier(s).`)
+    const next = maxFiles === 1 ? incoming.slice(0, 1) : [...files, ...incoming]
+    if (next.length > maxFiles) {
+      setError(`Cet outil accepte au maximum ${maxFiles} fichier(s).`)
       return
     }
     if (
@@ -508,10 +536,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
     setBusy(true)
     try {
       const data = new FormData()
-      data.append(
-        'settings',
-        JSON.stringify(tool.id === 'fortune-cookie' ? { ...values, numberings } : values),
-      )
+      data.append('settings', JSON.stringify(settings))
       files.forEach((f) => data.append('files', f))
       const response = await request<Result>(`/api/tools/${tool.id}/run`, {
         method: 'POST',
@@ -605,6 +630,16 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
             <SlidersHorizontal size={15} />
           </div>
           <fieldset disabled={busy}>
+            {tool.id === 'burger' && (
+              <BurgerEditor
+                options={burger}
+                tools={tools}
+                onChange={changeBurger}
+                renderField={(field, value, update) => (
+                  <Setting field={field} value={value} update={update} />
+                )}
+              />
+            )}
             {tool.max_files > 0 && (
               <section className="tool-upload-section">
                 <h2>
@@ -619,7 +654,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   type="file"
                   ref={fileRef}
                   accept={tool.accept}
-                  multiple={tool.max_files > 1}
+                  multiple={maxFiles > 1}
                   className="sr-only"
                   aria-label="Choisir les fichiers"
                   onChange={(e) => {
@@ -636,13 +671,15 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                           ? i === 0
                             ? 'Version A'
                             : 'Version B'
-                          : `Fichier ${i + 1}`}
+                          : tool.id === 'burger'
+                            ? burgerRoles[i]
+                            : `Fichier ${i + 1}`}
                       </small>
                       <strong title={file.name}>{file.name}</strong>
                       <small>{(file.size / 1024 / 1024).toFixed(2)} Mo</small>
                     </div>
                     <div className="file-actions">
-                      {tool.id === 'bento' && (
+                      {['bento', 'burger'].includes(tool.id) && (
                         <>
                           <button
                             type="button"
@@ -666,7 +703,11 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                         type="button"
                         aria-label={`Retirer le fichier ${i + 1}`}
                         onClick={() => {
-                          setFiles(files.filter((_, n) => n !== i))
+                          setFiles(
+                            tool.id === 'burger'
+                              ? files.slice(0, i)
+                              : files.filter((_, n) => n !== i),
+                          )
                           setResult(null)
                         }}
                       >
@@ -675,7 +716,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                     </div>
                   </div>
                 ))}
-                {(files.length < tool.max_files || tool.max_files === 1) && (
+                {(files.length < maxFiles || maxFiles === 1) && (
                   <button
                     type="button"
                     className={`tool-uploader ${drag ? 'dragging' : ''}`}
@@ -694,7 +735,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                     <Upload size={20} />
                     <strong>
                       {files.length
-                        ? tool.max_files === 1
+                        ? maxFiles === 1
                           ? 'Remplacer le fichier'
                           : 'Ajouter un fichier'
                         : 'Déposer votre fichier ici'}
@@ -715,10 +756,23 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
             )}
             <Configurations
               toolId={tool.id}
-              settings={tool.id === 'fortune-cookie' ? { ...values, numberings } : values}
+              settings={settings}
               onLoad={(saved) => {
                 const { numberings: savedNumberings, ...fields } = saved
-                setValues(fields as Values)
+                if (tool.id === 'burger') {
+                  const options = Object.fromEntries(
+                    Object.entries(burgerDefaults).map(([key, fallback]) => [
+                      key,
+                      fields[key] ?? fallback,
+                    ]),
+                  ) as BurgerOptions
+                  changeBurger(options)
+                  setValues(
+                    Object.fromEntries(
+                      tool.fields.map((f) => [f.key, fields[f.key] ?? f.default]),
+                    ) as Values,
+                  )
+                } else setValues(fields as Values)
                 if (tool.id === 'fortune-cookie')
                   setNumberings(
                     (savedNumberings as Numbering[] | null) || [
@@ -781,7 +835,9 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
               </Button>
               <p>
                 {tool.min_files > 0 && !ready
-                  ? `Importez ${tool.min_files === 2 ? 'les deux fichiers' : 'votre fichier'} pour commencer.`
+                  ? tool.id === 'burger'
+                    ? `${files.length} / ${maxFiles} fichier(s) importé(s). Complétez les emplacements attendus.`
+                    : `Importez ${tool.min_files === 2 ? 'les deux fichiers' : 'votre fichier'} pour commencer.`
                   : 'L’aperçu est automatique. Générez ensuite le fichier complet.'}
               </p>
             </div>

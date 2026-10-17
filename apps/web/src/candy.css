@@ -313,8 +313,9 @@ input[type='checkbox'] {
   display: block;
   width: 100%;
   height: 100%;
-  background-image: url('/candy/snacks.webp');
-  background-size: 400% 400%;
+  background-image: url('/candy/snacks-spaced.webp');
+  /* Zoom into each padded cell while keeping its transparent safety margin. */
+  background-size: 600% 600%;
   background-repeat: no-repeat;
   filter: drop-shadow(0 6px 4px #78489218);
 }
@@ -1460,22 +1461,6 @@ footer > span:first-child {
   .button:hover {
     transform: none;
   }
-}
-/* Keep neighbouring sprites outside the visible icon cell. */
-.candy-art[data-snack='fortune-cookie'] .food-sprite {
-  clip-path: inset(0 0 9% 0);
-}
-.candy-art[data-snack='poke'] .food-sprite {
-  clip-path: inset(0 0 8% 0);
-}
-.candy-art[data-snack='sushi'] .food-sprite {
-  clip-path: inset(0 0 10% 4%);
-}
-.candy-art[data-snack='burrito'] .food-sprite {
-  clip-path: inset(0 0 0 3%);
-}
-.candy-art[data-snack='pizza'] .food-sprite {
-  clip-path: inset(0 0 2% 0);
 }
 @media (max-width: 420px) {
   .candy-hero-art {

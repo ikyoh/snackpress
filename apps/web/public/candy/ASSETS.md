@@ -6,7 +6,14 @@ Fichiers utilisés dans l’application :
 
 - `hero-printshop.webp` : nouveau visuel du bandeau, « La fabrique à PDF », choisi le 17 octobre 2026 ; presse rose et violette, planche de snacks et repères de coupe. Généré avec `image_gen.imagegen`, PNG de 1536 × 1024 pixels converti en WebP qualité 88 avec alpha préservé.
 - `hero.webp` : ancienne illustration du bandeau, conservée comme variante ; WebP qualité 88 avec alpha préservé.
-- `snacks.webp` : planche de sprites 4 × 4, dérivée du PNG généré de 1254 × 1254 pixels ; WebP qualité 92 avec alpha préservé. Affichage par positionnement CSS, sans modification de l’illustration.
+- `snacks.webp` : planche de sprites originale 4 × 4, conservée comme source ; les dessins dépassent parfois de leurs cellules.
+- `snacks-spaced.webp` : planche utilisée dans l’application, réorganisée le 17 octobre 2026 avec l’outil intégré `image_gen.imagegen`, puis convertie en WebP qualité 92 avec alpha préservé (1254 × 1254 pixels). Les 16 snacks gardent leur ordre et disposent de marges transparentes. Le CSS agrandit la planche à 600 % et cadre le centre de chaque cellule avec des positions à 5 %, 35 %, 65 % et 95 %. Aucun masque propre à un snack n’est nécessaire.
+
+## Correction de l’espacement des snacks
+
+Édition de la planche originale avec l’outil intégré, en deux passes. La première passe améliorait les marges mais laissait encore le gâteau déborder sur la troisième rangée ; seule la seconde est utilisée. Prompt final :
+
+> Technical sprite atlas correction. Keep same exact sixteen illustrated foods and reading order, same square transparent canvas. Shrink EVERY food drastically by 30% relative to its current size, without changing its design, and put each exactly at center of one of sixteen equal cells in a perfect 4x4 grid. Every food must be small with large empty transparent margins all around it. At least 25% empty padding of a cell width at ALL FOUR edges of every cell. The rainbow cake must be entirely INSIDE bottom-left cell, with huge gap above it. All sixteen objects must occupy only central 50-60% of their cell. Strict 4x4 equally spaced grid, centers at 12.5%,37.5%,62.5%,87.5% of canvas. Much more empty space than input. No new objects, no grid lines. Truly transparent background. Preserve each food identity, perspective, color and original polished look.
 
 ## Prompt du héros
 

@@ -4,7 +4,7 @@ Périmètre demandé le 15 octobre 2026. Les 14 outils ont un formulaire, un tra
 
 | Outil | Entrée et résultat | Contrat et limites |
 |---|---|---|
-| Burger | PDF de 1 ou 2 pages → BAT A4 et fiche technique PDF | Présentation rasterisée à 120 dpi, ajustée sur A4 ; couleurs non contractuelles, pas un fichier d’impression. |
+| Burger | PDF visuels + un PDF par finition + gabarit facultatif → BAT A4 et fiche technique PDF | Nombre de fichiers réglable ; carte recto verso : 2 PDF d’une page ; brochure : 4 pages de couverture et intérieur contrôlé. Jusqu’à 200 pages source, rendu à 120 dpi maximum ajusté sur A4 ; couleurs non contractuelles. |
 | Chili Dog | PDF → rapport PDF et inventaire JSON des formats, boîtes, polices, images et couleurs | Inspection des déclarations et ressources référencées ; pas de certificat PDF/X, de mesure de résolution effective ni de garantie sur les ressources inline. |
 | Donut | PDF de 1 à 20 pages ou PNG/JPEG → PDF ou PNG avec bords prolongés/miroir | Raster RGB à 72–300 dpi. La zone visible devient le format fini ; anciennes boîtes de coupe ignorées explicitement. Largeur physique déclarée pour une image. Sortie PNG pour une page seulement. Chaque bord doit être relu. |
 | Tiramisu | Deux PDF → superposition, carte des différences, rapport et JSON page par page | Raster RGB à 72–150 dpi, aligné en haut à gauche, sans recalage. Tolérance sur le maximum des écarts RGB. Les pages absentes et les écarts de dimensions sont signalés. |
@@ -20,6 +20,10 @@ Périmètre demandé le 15 octobre 2026. Les 14 outils ont un formulaire, un tra
 | Bento | De 1 à 8 PDF → fusion, extraction, réordre ou rotation | Jusqu’à 80 pages par source et 200 en sortie. Fusion selon l’ordre des fichiers, modifiable dans l’écran. Autres opérations sur un seul fichier. Pages et plages à partir de 1 ; le réordre doit contenir chaque page une fois. PDF non chiffrés ; signatures, formulaires, annotations et métadonnées de document non conservés. |
 
 ## Exploitation locale
+
+Dans Burger, choisissez la composition avant l’import : nombre de fichiers visuels, puis finitions nommées (vernis, dorure, blanc de soutien ou autre). Importez les PDF dans l’ordre indiqué ; les flèches permettent de corriger leur affectation. Pour une brochure, les premiers fichiers de couverture doivent totaliser 4 pages et les fichiers suivants le nombre de pages intérieures annoncé. Les finitions viennent ensuite, avec un PDF distinct pour chacune.
+
+Le gabarit Burger peut reprendre les réglages et configurations personnelles de Pizza, Taco ou Burrito, ou provenir de leur PDF exporté (une page). La TrimBox sert à placer un visuel au format fini ; un visuel au format complet du gabarit est également accepté. Chaque visuel reçoit une page de présentation et une page supplémentaire avec les repères. Les dimensions incompatibles sont refusées. Les pages de finition sont présentées séparément dans le BAT.
 
 - 25 Mo par fichier, 50 Mo par traitement, 100 travaux conservés au maximum.
 - Processus PDF séparés : 2 simultanés, 30 secondes murales et 25 secondes CPU ; fichier de sortie individuel limité à 150 Mo. Mémoire virtuelle limitée à 1 Gio sur Linux, threads de calcul limités à 1.

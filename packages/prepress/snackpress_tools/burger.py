@@ -1,0 +1,179 @@
+"""Presentation proofs with explicit production inputs and registered template guides."""
+
+import pikepdf
+from reportlab.lib.units import mm
+from reportlab.lib.utils import ImageReader
+
+from .catalog import MODELS, ToolResult
+from .common import INK, artifact, dimensions, new_canvas, open_pdf, render_page, report
+
+
+def input_labels(p):
+    if p.document_type == "card":
+        labels = ["Recto", "Verso"]
+    elif p.document_type == "brochure":
+        labels = [f"Couverture — fichier {i + 1}" for i in range(p.cover_files)]
+        labels += [f"Intérieur — fichier {i + 1}" for i in range(p.expected_files - p.cover_files)]
+    else:
+        labels = [f"Visuel {i + 1}" for i in range(p.expected_files)]
+    return labels + [f"Finition : {name}" for name in p.finishes]
+
+
+def template(folder, files, p):
+    if p.template_tool == "none":
+        return None
+    if p.template_tool == "pdf":
+        path = files[-1]
+        with open_pdf(path, max_pages=1) as doc:
+            page = doc.pages[0]
+            w, h = dimensions(page)
+            crop, trim = page.cropbox, page.trimbox
+            if int(page.obj.get("/Rotate", 0)) % 360 == 0:
+                unit = float(page.obj.get("/UserUnit", 1)) / mm
+                ox, oy = float(trim[0] - crop[0]) * unit, float(trim[1] - crop[1]) * unit
+                fw, fh = float(trim[2] - trim[0]) * unit, float(trim[3] - trim[1]) * unit
+                if ox >= 0 and oy >= 0 and ox + fw <= w + 0.01 and oy + fh <= h + 0.01:
+                    return path, (w, h), (ox, oy, fw, fh)
+        return path, (w, h), (0, 0, w, h)
+    from .generators import burrito, pizza, taco
+
+    settings = MODELS[p.template_tool].model_validate(p.template_settings)
+    work = folder / "gabarit-burger"
+    work.mkdir()
+    result = {"pizza": pizza, "taco": taco, "burrito": burrito}[p.template_tool](work, [], settings)
+    path = work / result.artifacts[0].name
+    # Keep vector strokes (cut, fold, safety, eyelets); omit fills and panel labels.
+    with pikepdf.open(path, allow_overwriting_input=True) as doc:
+        commands, in_text = [], False
+        for operands, operator in pikepdf.parse_content_stream(doc.pages[0]):
+            op = str(operator)
+            if op == "BT":
+                in_text = True
+            elif op == "ET":
+                in_text = False
+            elif not in_text:
+                if op in {"f", "F", "f*"}:
+                    operator = pikepdf.Operator("n")
+                elif op in {"B", "B*", "b", "b*"}:
+                    operator = pikepdf.Operator("S" if op.startswith("B") else "s")
+                commands.append((operands, operator))
+        doc.pages[0].Contents = doc.make_stream(pikepdf.unparse_content_stream(commands))
+        w, h = dimensions(doc.pages[0])
+        doc.save(path)
+    origin = (
+        settings.bleed if p.template_tool == "pizza" else 15 if p.template_tool == "taco" else 0
+    )
+    return path, (w, h), (origin, origin, settings.width, settings.height)
+
+
+def generate(folder, files, p):
+    labels = input_labels(p)
+    expected = len(labels) + (p.template_tool == "pdf")
+    if len(files) != expected:
+        raise ValueError(
+            f"BAT : {expected} fichier(s) attendu(s) : {p.expected_files} visuel(s), "
+            f"{len(p.finishes)} finition(s) et {int(p.template_tool == 'pdf')} gabarit PDF."
+        )
+    counts, sizes = [], []
+    for source in files[: len(labels)]:
+        with open_pdf(source, max_pages=200) as doc:
+            counts.append(len(doc.pages))
+            sizes.append([dimensions(page) for page in doc.pages])
+    if sum(counts) > 200:
+        raise ValueError("Le BAT accepte au maximum 200 pages source, finitions comprises.")
+    if p.document_type == "card" and counts[:2] != [1, 1]:
+        raise ValueError("La carte recto verso attend deux PDF d’une page chacun.")
+    if p.document_type == "brochure":
+        if sum(counts[: p.cover_files]) != 4:
+            raise ValueError("La couverture de la brochure doit contenir exactement 4 pages.")
+        if sum(counts[p.cover_files : p.expected_files]) != p.interior_pages:
+            raise ValueError(f"L’intérieur doit contenir exactement {p.interior_pages} pages.")
+    guide = template(folder, files, p)
+    guide_image = None
+    if guide:
+        path, (gw, gh), (ox, oy, fw, fh) = guide
+        guide_image, _ = render_page(path, 0, dpi=min(120, 1100 * 25.4 / max(gw, gh)))
+    path = folder / "bat.pdf"
+    c = new_canvas(path, 210, 297)
+    specs = [
+        ("Projet", p.title),
+        ("Client", p.client or "Non renseigné"),
+        ("Papier", p.paper),
+        ("Fichiers visuels attendus / reçus", f"{p.expected_files} / {p.expected_files}"),
+        ("Gabarit", p.template_tool),
+        ("Finitions", ", ".join(p.finishes) or "Aucune"),
+    ]
+    for file_index, (source, label, count) in enumerate(zip(files, labels, counts)):
+        specs.append((label, f"Fichier {file_index + 1} — {count} page(s)"))
+        for index in range(count):
+            w, h = sizes[file_index][index]
+            image, _ = render_page(source, index, dpi=min(120, 1100 * 25.4 / max(w, h)))
+            marked = guide is not None and file_index < p.expected_files
+            full = marked and abs(w - gw) <= 1 and abs(h - gh) <= 1
+            if marked and not full and not (abs(w - fw) <= 1 and abs(h - fh) <= 1):
+                raise ValueError(
+                    f"{label}, page {index + 1} : format {w:.2f} × {h:.2f} mm incompatible "
+                    f"avec le gabarit ({fw:g} × {fh:g} mm finis ou {gw:g} × {gh:g} mm à plat)."
+                )
+            for with_guides in [False, True] if marked else [False]:
+                bw, bh = (gw, gh) if with_guides else (w, h)
+                scale = min(174 / bw, 184 / bh)
+                x, y = (210 - bw * scale) / 2, 65 + (184 - bh * scale) / 2
+                c.setFillColor(INK)
+                c.setFont("SnackBold", 18)
+                c.drawString(18 * mm, 272 * mm, p.title)
+                c.setFont("Snack", 9)
+                c.drawString(18 * mm, 260 * mm, f"{label} — page {index + 1}/{count}")
+                c.drawString(
+                    18 * mm,
+                    254 * mm,
+                    "Visuel avec repères de gabarit" if with_guides else "Visuel seul",
+                )
+                ix, iy = (ox, oy) if with_guides and not full else (0, 0)
+                c.drawImage(
+                    ImageReader(image),
+                    (x + ix * scale) * mm,
+                    (y + iy * scale) * mm,
+                    width=w * scale * mm,
+                    height=h * scale * mm,
+                )
+                if with_guides:
+                    c.saveState()
+                    c.setBlendMode("Multiply")
+                    c.drawImage(
+                        ImageReader(guide_image),
+                        x * mm,
+                        y * mm,
+                        width=gw * scale * mm,
+                        height=gh * scale * mm,
+                    )
+                    c.restoreState()
+                c.setFont("Snack", 8)
+                c.drawString(18 * mm, 38 * mm, "BAT DE PRÉSENTATION — COULEURS NON CONTRACTUELLES")
+                c.drawString(
+                    18 * mm,
+                    31 * mm,
+                    f"Source : {w:.2f} × {h:.2f} mm ; aperçu à {scale * 100:.1f} %",
+                )
+                c.drawString(18 * mm, 22 * mm, f"Client : {p.client[:75] or 'Non renseigné'}")
+                c.showPage()
+    c.save()
+    sheet = folder / "fiche-technique.pdf"
+    report(
+        sheet,
+        "Fiche technique du BAT",
+        specs + [("Commentaires", p.notes or "Aucun")],
+        "Présentation rasterisée. Repères superposés à l’échelle du document. "
+        "Chaque finition dispose de son propre fichier et de ses pages de contrôle.",
+    )
+    return ToolResult(
+        tool="burger",
+        summary="BAT A4 et fiche technique prêts.",
+        metrics={
+            "Faces": sum(counts[: p.expected_files]),
+            "Fichiers visuels": p.expected_files,
+            "Finitions": len(p.finishes),
+            "Pages du BAT": artifact(path, "BAT").pages,
+        },
+        artifacts=[artifact(path, "BAT A4"), artifact(sheet, "Fiche technique")],
+    )

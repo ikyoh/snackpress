@@ -7,62 +7,15 @@ from reportlab.graphics.shapes import Drawing
 from reportlab.lib import colors
 from reportlab.lib.colors import CMYKColorSep
 from reportlab.lib.units import mm
-from reportlab.lib.utils import ImageReader
 
 from .catalog import Numbering, ToolResult
-from .common import CORAL, INK, artifact, new_canvas, open_pdf, render_page, report
+from .common import CORAL, INK, artifact, new_canvas, open_pdf, report
 
 
 def burger(folder, files, p):
-    with open_pdf(files[0], max_pages=2) as doc:
-        count = len(doc.pages)
-    path = folder / "bat.pdf"
-    c = new_canvas(path, 210, 297)
-    specs = [("Projet", p.title), ("Client", p.client or "Non renseigné"), ("Papier", p.paper)]
-    for index in range(count):
-        img, (w, h) = render_page(files[0], index, dpi=120)
-        c.setFillColor(INK)
-        c.setFont("SnackBold", 18)
-        c.drawString(18 * mm, 272 * mm, p.title)
-        c.setFont("Snack", 10)
-        face = "Recto" if index == 0 else "Verso"
-        c.drawString(18 * mm, 260 * mm, f"{face} — {w:.2f} × {h:.2f} mm")
-        scale = min(174 / w, 190 / h)
-        dw, dh = w * scale, h * scale
-        c.drawImage(
-            ImageReader(img),
-            (210 - dw) / 2 * mm,
-            (65 + (190 - dh) / 2) * mm,
-            width=dw * mm,
-            height=dh * mm,
-        )
-        c.setFont("Snack", 8)
-        c.drawString(18 * mm, 38 * mm, "BAT DE PRÉSENTATION — COULEURS NON CONTRACTUELLES")
-        c.drawString(
-            18 * mm,
-            31 * mm,
-            "Aperçu ajusté à la page A4. Ne pas utiliser comme fichier d’impression.",
-        )
-        c.drawString(18 * mm, 22 * mm, f"Client : {p.client[:75] or 'Non renseigné'}")
-        c.showPage()
-        specs.append((face, f"Zone visible {w:.2f} × {h:.2f} mm ; aperçu à {scale * 100:.1f} %"))
-    c.save()
-    sheet = folder / "fiche-technique.pdf"
-    report(
-        sheet,
-        "Fiche technique du BAT",
-        specs + [("Commentaires", p.notes or "Aucun")],
-        (
-            "Présentation rasterisée. Couleurs non contractuelles. Validation "
-            "du BAT à organiser séparément."
-        ),
-    )
-    return ToolResult(
-        tool="burger",
-        summary=f"BAT A4 de {count} face(s) et fiche technique prêts.",
-        metrics={"Faces": count},
-        artifacts=[artifact(path, "BAT A4"), artifact(sheet, "Fiche technique")],
-    )
+    from .burger import generate
+
+    return generate(folder, files, p)
 
 
 def pizza(folder, files, p):
@@ -176,6 +129,11 @@ def taco(folder, files, p):
     )
     c.save()
     sheet = folder / "fiche-pliage.pdf"
+    with pikepdf.open(path, allow_overwriting_input=True) as pdf:
+        pdf.pages[0].TrimBox = pikepdf.Array(
+            [border * mm, border * mm, (border + p.width) * mm, (border + p.height) * mm]
+        )
+        pdf.save(path)
     report(
         sheet,
         "Taco — plan de panneaux",
@@ -231,6 +189,9 @@ def burrito(folder, files, p):
     )
     c.save()
     sheet = folder / "fiche-bache.pdf"
+    with pikepdf.open(path, allow_overwriting_input=True) as pdf:
+        pdf.pages[0].TrimBox = pikepdf.Array([0, 0, p.width * mm, p.height * mm])
+        pdf.save(path)
     report(
         sheet,
         "Burrito — plan technique",

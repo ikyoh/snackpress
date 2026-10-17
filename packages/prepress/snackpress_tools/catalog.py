@@ -12,6 +12,37 @@ class Burger(Params):
     client: str = Field(default="", max_length=120)
     paper: str = Field(default="À confirmer", max_length=120)
     notes: str = Field(default="", max_length=3000)
+    document_type: Literal["custom", "card", "brochure"] = "custom"
+    expected_files: int = Field(default=1, ge=1, le=80)
+    cover_files: int = Field(default=1, ge=1, le=79)
+    interior_pages: int = Field(default=4, ge=1, le=200)
+    finishes: list[str] = Field(default_factory=list, max_length=12)
+    template_tool: Literal["none", "pizza", "taco", "burrito", "pdf"] = "none"
+    template_settings: dict = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def production(self):
+        if self.document_type == "card" and self.expected_files != 2:
+            raise ValueError("Une carte recto verso attend 2 fichiers, un par face.")
+        if self.document_type == "brochure" and self.cover_files >= self.expected_files:
+            raise ValueError(
+                "Prévoyez des fichiers de couverture et au moins un fichier intérieur."
+            )
+        if self.document_type == "brochure" and self.cover_files > 4:
+            raise ValueError("La couverture de 4 pages accepte au maximum 4 fichiers.")
+        self.finishes = [name.strip() for name in self.finishes]
+        if any(not name or len(name) > 80 for name in self.finishes):
+            raise ValueError("Chaque finition doit avoir un nom de 1 à 80 caractères.")
+        if len({name.casefold() for name in self.finishes}) != len(self.finishes):
+            raise ValueError("Chaque finition doit avoir un nom distinct.")
+        models = {"pizza": Pizza, "taco": Taco, "burrito": Burrito}
+        if self.template_tool in models:
+            self.template_settings = (
+                models[self.template_tool].model_validate(self.template_settings).model_dump()
+            )
+        elif self.template_settings:
+            raise ValueError("Sélectionnez Pizza, Taco ou Burrito pour ces réglages de gabarit.")
+        return self
 
 
 class Chili(Params):
@@ -229,9 +260,11 @@ DEFINITIONS = [
         name="Burger",
         category="Présenter",
         min_files=1,
-        max_files=1,
-        description="Un BAT A4 pour présenter le recto, le verso et les spécifications.",
-        limit="BAT de présentation, couleurs non contractuelles. PDF source : 1 ou 2 pages.",
+        max_files=93,
+        description="Un BAT A4 avec visuels, gabarits et fichiers de finition séparés.",
+        limit=(
+            "BAT de présentation, couleurs non contractuelles. Jusqu’à 200 pages source au total."
+        ),
         fields=[
             text("title", "Titre du BAT", "Bon à tirer"),
             text("client", "Client / projet"),
