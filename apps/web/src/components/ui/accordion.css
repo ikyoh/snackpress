@@ -1,0 +1,40 @@
+.accordion-item {
+  border-bottom: 1px solid #ddd5dd;
+}
+.accordion-header {
+  margin: 0;
+}
+.accordion-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 18px 4px;
+  text-align: left;
+  font-weight: 750;
+}
+.accordion-trigger:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.accordion-chevron {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  transition: transform 200ms;
+}
+.accordion-trigger[data-state='open'] > .accordion-chevron {
+  transform: rotate(180deg);
+}
+.accordion-content {
+  overflow: hidden;
+}
+.accordion-content-inner {
+  padding: 0 4px 20px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .accordion-chevron {
+    transition: none;
+  }
+}

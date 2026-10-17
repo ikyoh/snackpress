@@ -2,6 +2,12 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useAccount } from './Account'
 import { post, request } from './api'
 import { Button } from './components/ui/button'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from './components/ui/accordion'
 import type { components } from '../../../packages/api-client/schema'
 import './print-catalog.css'
 
@@ -791,6 +797,8 @@ function CatalogManager({
   const source = usePrintCatalog()
   const [draft, setDraft] = useState<PrintCatalog | null>(null)
   const [selectedId, setSelectedId] = useState('')
+  const [expandedMaterialId, setExpandedMaterialId] = useState('')
+  const [expandedFinishId, setExpandedFinishId] = useState('')
   const [variantIndex, setVariantIndex] = useState(0)
   const [tab, setTab] = useState('products')
   const [category, setCategory] = useState('')
@@ -1161,96 +1169,101 @@ function CatalogManager({
               ) : tab === 'materials' ? (
                 <section className="print-edit">
                   <h2>Bibliothèque des supports matières</h2>
-                  {draft.materials.map((m, i) => (
-                    <fieldset className="print-block" key={m.id}>
-                      <legend>{m.name}</legend>
-                      <div className="tool-fields">
-                        <Text
-                          label="Nom du support"
-                          value={m.name}
-                          onChange={(name) =>
-                            setDraft({
-                              ...draft,
-                              materials: draft.materials.map((m, n) =>
-                                n === i ? { ...m, name } : m,
-                              ),
-                            })
-                          }
-                        />
-                        <Text
-                          label="Famille de matière"
-                          value={m.family}
-                          onChange={(family) =>
-                            setDraft({
-                              ...draft,
-                              materials: draft.materials.map((m, n) =>
-                                n === i ? { ...m, family } : m,
-                              ),
-                            })
-                          }
-                        />
-                        <Num
-                          label="Grammage (g/m², 0 si non renseigné)"
-                          value={m.gsm || 0}
-                          max={3000}
-                          onChange={(gsm) =>
-                            setDraft({
-                              ...draft,
-                              materials: draft.materials.map((m, n) =>
-                                n === i ? { ...m, gsm: gsm || null } : m,
-                              ),
-                            })
-                          }
-                        />
-                        <Num
-                          label="Épaisseur (mm, 0 si non renseignée)"
-                          value={m.thickness || 0}
-                          max={100}
-                          onChange={(thickness) =>
-                            setDraft({
-                              ...draft,
-                              materials: draft.materials.map((m, n) =>
-                                n === i ? { ...m, thickness: thickness || null } : m,
-                              ),
-                            })
-                          }
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        disabled={
-                          draft.products.some((p) => p.material_ids.includes(m.id)) ||
-                          draft.finishes.some((f) => f.material_ids.includes(m.id))
-                        }
-                        onClick={() =>
-                          setDraft({
-                            ...draft,
-                            materials: draft.materials.filter((_, n) => n !== i),
-                          })
-                        }
-                      >
-                        Retirer le support
-                      </button>
-                    </fieldset>
-                  ))}
+                  <Accordion
+                    type="single"
+                    collapsible
+                    value={expandedMaterialId}
+                    onValueChange={setExpandedMaterialId}
+                  >
+                    {draft.materials.map((m, i) => (
+                      <AccordionItem key={m.id} value={m.id}>
+                        <AccordionTrigger>{m.name}</AccordionTrigger>
+                        <AccordionContent>
+                          <div className="tool-fields">
+                            <Text
+                              label="Nom du support"
+                              value={m.name}
+                              onChange={(name) =>
+                                setDraft({
+                                  ...draft,
+                                  materials: draft.materials.map((m, n) =>
+                                    n === i ? { ...m, name } : m,
+                                  ),
+                                })
+                              }
+                            />
+                            <Text
+                              label="Famille de matière"
+                              value={m.family}
+                              onChange={(family) =>
+                                setDraft({
+                                  ...draft,
+                                  materials: draft.materials.map((m, n) =>
+                                    n === i ? { ...m, family } : m,
+                                  ),
+                                })
+                              }
+                            />
+                            <Num
+                              label="Grammage (g/m², 0 si non renseigné)"
+                              value={m.gsm || 0}
+                              max={3000}
+                              onChange={(gsm) =>
+                                setDraft({
+                                  ...draft,
+                                  materials: draft.materials.map((m, n) =>
+                                    n === i ? { ...m, gsm: gsm || null } : m,
+                                  ),
+                                })
+                              }
+                            />
+                            <Num
+                              label="Épaisseur (mm, 0 si non renseignée)"
+                              value={m.thickness || 0}
+                              max={100}
+                              onChange={(thickness) =>
+                                setDraft({
+                                  ...draft,
+                                  materials: draft.materials.map((m, n) =>
+                                    n === i ? { ...m, thickness: thickness || null } : m,
+                                  ),
+                                })
+                              }
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            disabled={
+                              draft.products.some((p) => p.material_ids.includes(m.id)) ||
+                              draft.finishes.some((f) => f.material_ids.includes(m.id))
+                            }
+                            onClick={() =>
+                              setDraft({
+                                ...draft,
+                                materials: draft.materials.filter((_, n) => n !== i),
+                              })
+                            }
+                          >
+                            Retirer le support
+                          </button>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
                   <button
                     type="button"
-                    onClick={() =>
-                      setDraft({
-                        ...draft,
-                        materials: [
-                          ...draft.materials,
-                          {
-                            id: newId(),
-                            name: 'Nouveau support',
-                            family: 'Papier',
-                            gsm: null,
-                            thickness: null,
-                            description: '',
-                          },
-                        ],
-                      })
-                    }
+                    onClick={() => {
+                      const material: Material = {
+                        id: newId(),
+                        name: 'Nouveau support',
+                        family: 'Papier',
+                        gsm: null,
+                        thickness: null,
+                        description: '',
+                      }
+                      setDraft({ ...draft, materials: [...draft.materials, material] })
+                      setExpandedMaterialId(material.id)
+                    }}
                   >
                     Ajouter un support
                   </button>
@@ -1258,91 +1271,101 @@ function CatalogManager({
               ) : (
                 <section className="print-edit">
                   <h2>Façonnages et finitions</h2>
-                  {draft.finishes.map((f, i) => (
-                    <fieldset className="print-block" key={f.id}>
-                      <legend>{f.name}</legend>
-                      <Text
-                        label="Nom de la finition"
-                        value={f.name}
-                        onChange={(name) =>
-                          setDraft({
-                            ...draft,
-                            finishes: draft.finishes.map((f, n) => (n === i ? { ...f, name } : f)),
-                          })
-                        }
-                      />
-                      <label className="checkbox-label">
-                        <input
-                          type="checkbox"
-                          checked={f.mask}
-                          onChange={(e) =>
-                            setDraft({
-                              ...draft,
-                              finishes: draft.finishes.map((f, n) =>
-                                n === i ? { ...f, mask: e.target.checked } : f,
-                              ),
-                            })
-                          }
-                        />
-                        <span>Demander un PDF de masque séparé</span>
-                      </label>
-                      <Checks
-                        title="Supports compatibles (aucun = tous)"
-                        rows={draft.materials}
-                        selected={f.material_ids}
-                        onChange={(material_ids) =>
-                          setDraft({
-                            ...draft,
-                            finishes: draft.finishes.map((f, n) =>
-                              n === i ? { ...f, material_ids } : f,
-                            ),
-                          })
-                        }
-                      />
-                      <Checks
-                        title="Finitions incompatibles"
-                        rows={draft.finishes.filter((row) => row.id !== f.id)}
-                        selected={f.excludes}
-                        onChange={(excludes) =>
-                          setDraft({
-                            ...draft,
-                            finishes: draft.finishes.map((f, n) =>
-                              n === i ? { ...f, excludes } : f,
-                            ),
-                          })
-                        }
-                      />
-                      <button
-                        type="button"
-                        disabled={
-                          draft.products.some((p) => p.finish_ids.includes(f.id)) ||
-                          draft.finishes.some((row) => row.excludes.includes(f.id))
-                        }
-                        onClick={() =>
-                          setDraft({ ...draft, finishes: draft.finishes.filter((_, n) => n !== i) })
-                        }
-                      >
-                        Retirer la finition
-                      </button>
-                    </fieldset>
-                  ))}
+                  <Accordion
+                    type="single"
+                    collapsible
+                    value={expandedFinishId}
+                    onValueChange={setExpandedFinishId}
+                  >
+                    {draft.finishes.map((f, i) => (
+                      <AccordionItem key={f.id} value={f.id}>
+                        <AccordionTrigger>{f.name}</AccordionTrigger>
+                        <AccordionContent>
+                          <Text
+                            label="Nom de la finition"
+                            value={f.name}
+                            onChange={(name) =>
+                              setDraft({
+                                ...draft,
+                                finishes: draft.finishes.map((f, n) =>
+                                  n === i ? { ...f, name } : f,
+                                ),
+                              })
+                            }
+                          />
+                          <label className="checkbox-label">
+                            <input
+                              type="checkbox"
+                              checked={f.mask}
+                              onChange={(e) =>
+                                setDraft({
+                                  ...draft,
+                                  finishes: draft.finishes.map((f, n) =>
+                                    n === i ? { ...f, mask: e.target.checked } : f,
+                                  ),
+                                })
+                              }
+                            />
+                            <span>Demander un PDF de masque séparé</span>
+                          </label>
+                          <Checks
+                            title="Supports compatibles (aucun = tous)"
+                            rows={draft.materials}
+                            selected={f.material_ids}
+                            onChange={(material_ids) =>
+                              setDraft({
+                                ...draft,
+                                finishes: draft.finishes.map((f, n) =>
+                                  n === i ? { ...f, material_ids } : f,
+                                ),
+                              })
+                            }
+                          />
+                          <Checks
+                            title="Finitions incompatibles"
+                            rows={draft.finishes.filter((row) => row.id !== f.id)}
+                            selected={f.excludes}
+                            onChange={(excludes) =>
+                              setDraft({
+                                ...draft,
+                                finishes: draft.finishes.map((f, n) =>
+                                  n === i ? { ...f, excludes } : f,
+                                ),
+                              })
+                            }
+                          />
+                          <button
+                            type="button"
+                            disabled={
+                              draft.products.some((p) => p.finish_ids.includes(f.id)) ||
+                              draft.finishes.some((row) => row.excludes.includes(f.id))
+                            }
+                            onClick={() =>
+                              setDraft({
+                                ...draft,
+                                finishes: draft.finishes.filter((_, n) => n !== i),
+                              })
+                            }
+                          >
+                            Retirer la finition
+                          </button>
+                        </AccordionContent>
+                      </AccordionItem>
+                    ))}
+                  </Accordion>
                   <button
                     type="button"
-                    onClick={() =>
-                      setDraft({
-                        ...draft,
-                        finishes: [
-                          ...draft.finishes,
-                          {
-                            id: newId(),
-                            name: 'Nouvelle finition',
-                            mask: false,
-                            material_ids: [],
-                            excludes: [],
-                          },
-                        ],
-                      })
-                    }
+                    onClick={() => {
+                      const finish: Finish = {
+                        id: newId(),
+                        name: 'Nouvelle finition',
+                        mask: false,
+                        material_ids: [],
+                        excludes: [],
+                      }
+                      setDraft({ ...draft, finishes: [...draft.finishes, finish] })
+                      setExpandedFinishId(finish.id)
+                    }}
                   >
                     Ajouter une finition
                   </button>
