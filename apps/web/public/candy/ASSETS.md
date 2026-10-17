@@ -4,7 +4,8 @@ Création le 15 octobre 2026 avec l’outil intégré `image_gen.imagegen`, en m
 
 Fichiers utilisés dans l’application :
 
-- `hero.webp` : illustration du bandeau, dérivée du PNG généré de 1536 × 1024 pixels ; WebP qualité 88 avec alpha préservé.
+- `hero-printshop.webp` : nouveau visuel du bandeau, « La fabrique à PDF », choisi le 17 octobre 2026 ; presse rose et violette, planche de snacks et repères de coupe. Généré avec `image_gen.imagegen`, PNG de 1536 × 1024 pixels converti en WebP qualité 88 avec alpha préservé.
+- `hero.webp` : ancienne illustration du bandeau, conservée comme variante ; WebP qualité 88 avec alpha préservé.
 - `snacks.webp` : planche de sprites 4 × 4, dérivée du PNG généré de 1254 × 1254 pixels ; WebP qualité 92 avec alpha préservé. Affichage par positionnement CSS, sans modification de l’illustration.
 
 ## Prompt du héros

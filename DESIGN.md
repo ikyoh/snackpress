@@ -27,3 +27,5 @@ Commandes bombées qui s’enfoncent au clic, cartes légèrement soulevées au 
 ## Illustrations
 
 Génération intégrée image_gen, fichiers WebP avec transparence conservée dans `apps/web/public/candy`. La planche de 16 snacks est affichée par cellules CSS ; les 14 premières correspondent aux outils. Le héros et les prompts sont documentés dans `apps/web/public/candy/ASSETS.md`.
+
+Le hero choisi le 17 octobre 2026 est « La fabrique à PDF » : presse miniature rose et violette imprimant une planche de snacks avec repères de coupe, burger et donut autour. Fichier `hero-printshop.webp`, affiché entièrement sans recadrage. La mention « Prototype local » est retirée des en-têtes.

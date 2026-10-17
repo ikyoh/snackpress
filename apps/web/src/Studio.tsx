@@ -119,7 +119,6 @@ function Header() {
         <a className="active-nav" href="/">
           Tous les outils
         </a>
-        <span className="prototype">Prototype local</span>
       </div>
       <AccountButton />
       <span className="header-note">
@@ -205,7 +204,7 @@ function Catalog({ tools }: { tools: Tool[] }) {
           </div>
         </div>
         <div className="candy-hero-art" aria-hidden="true">
-          <img src="/candy/hero.webp" alt="" fetchPriority="high" />
+          <img src="/candy/hero-printshop.webp" alt="" width="1536" height="1024" fetchPriority="high" />
           <span className="candy-spark spark-one">
             <Sparkles />
           </span>

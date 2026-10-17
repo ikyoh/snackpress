@@ -224,7 +224,6 @@ export default function App() {
           <a className="active-nav" href="/">
             Tous les outils
           </a>
-          <span className="prototype">Prototype local</span>
         </div>
         <AccountButton />
         <button className="help-button" aria-label="Mode d’emploi" onClick={() => setHelp(true)}>
