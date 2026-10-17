@@ -8,6 +8,8 @@ Univers original de confiserie et de snacks de jeu : rose framboise, violet cass
 
 Lilita One donne la voix ronde des titres et du nom ; Nunito variable porte les textes et les mesures. Polices auto-hébergées. Texte principal prune foncé sur les surfaces pâles ; texte blanc réservé aux commandes suffisamment foncées. Les couleurs des cartes varient par outil, pas par statut de validation.
 
+Le logo est un « S feuilleté » : ruban rose framboise vers violet, avec un coin jaune replié évoquant une feuille d’impression. Source vectorielle : `apps/web/public/snackpress.svg`. Dans les en-têtes, il apparaît à 32 px dans une pastille pâle `#fff5fc`. Les favicons SVG/ICO/PNG et l’icône Apple reprennent le même dessin sur ce fond pâle.
+
 ## Catalogue
 
 Titre « Les PDF ? Un jeu d’enfant. », illustration gourmande, lien réel vers le catalogue et trois gestes qui décrivent le parcours : choisir l’outil, ajouter ses réglages, récupérer le fichier. Les 14 cartes portent une illustration correspondant à leur nom, une description métier et une action clairement identifiable. Recherche, filtres et liens fonctionnent comme auparavant. Aucun score, vie, récompense ou indicateur de progression inventé.

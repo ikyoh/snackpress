@@ -15,7 +15,6 @@ import {
   Search,
   SlidersHorizontal,
   Sparkles,
-  Candy,
   Play,
   WandSparkles,
   Trash2,
@@ -112,7 +111,7 @@ function Header() {
     <header className="topbar studio-header">
       <a href="/" className="brand" aria-label="Snackpress, tous les outils">
         <span className="brand-symbol">
-          <Candy size={27} strokeWidth={2.5} />
+          <img src="/snackpress.svg" width="32" height="32" alt="" />
         </span>
         snackpress<span className="brand-dot">.</span>
       </a>

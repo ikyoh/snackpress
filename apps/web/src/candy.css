@@ -61,7 +61,7 @@ html {
   width: 45px;
   height: 45px;
   border-radius: 15px;
-  background: linear-gradient(150deg, #ffb2d8, #ec4ba8);
+  background: #fff5fc;
   border: 2px solid #ffd6ee;
   color: white;
   box-shadow:
@@ -69,6 +69,10 @@ html {
     0 3px 5px #4b12682b;
   transform: rotate(-7deg);
   margin-right: 12px;
+}
+.brand-symbol img {
+  display: block;
+  flex-shrink: 0;
 }
 .brand-dot {
   color: #ffe169;

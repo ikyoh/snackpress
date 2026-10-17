@@ -3,7 +3,6 @@ import {
   ArrowDownToLine,
   ArrowRight,
   Check,
-  Candy,
   ChevronDown,
   FileText,
   FlipHorizontal2,
@@ -217,7 +216,7 @@ export default function App() {
       <header className="topbar">
         <a href="/" className="brand" aria-label="Snackpress, accueil">
           <span className="brand-symbol">
-            <Candy size={27} strokeWidth={2.5} />
+            <img src="/snackpress.svg" width="32" height="32" alt="" />
           </span>
           snackpress<span className="brand-dot">.</span>
         </a>
