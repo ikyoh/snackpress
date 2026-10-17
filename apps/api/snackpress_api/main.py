@@ -8,15 +8,19 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Request, UploadFile
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from snackpress_imposition.geometry import Plan, Settings, calculate
 from snackpress_imposition.pdf import DocumentInfo
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, delete, select
 from sqlalchemy.orm import Session
 
-from .database import Base, Job
+from .accounts import router as accounts_router
+from .configurations import router as configurations_router
+from .database import AccountToken, Base, Job, LoginSession
+from .previews import router as previews_router
 from .tools import router as tools_router
 
 DATA = Path(os.environ.get("SNACKPRESS_DATA", ".data")).resolve()
@@ -31,8 +35,18 @@ busy: set[str] = set()
 
 def purge():
     with Session(engine) as db:
+        from .accounts import now
+
+        db.execute(delete(AccountToken).where(AccountToken.expires_at <= now()))
+        db.execute(delete(LoginSession).where(LoginSession.expires_at <= now()))
         expired = db.scalars(
-            select(Job).where(Job.created_at < datetime.now() - timedelta(hours=24))
+            select(Job).where(
+                (Job.created_at < datetime.now() - timedelta(hours=24))
+                | (
+                    (Job.status == "preview")
+                    & (Job.created_at < datetime.now() - timedelta(minutes=30))
+                )
+            )
         )
         for job in expired:
             if job.id not in busy:
@@ -42,6 +56,11 @@ def purge():
         known = set(db.scalars(select(Job.id)))
     # Interrupted imports can leave an orphan folder before a database row exists.
     for folder in DATA.iterdir():
+        if folder.name == "mail-outbox":
+            for mail in folder.glob("*.eml"):
+                if mail.stat().st_mtime < datetime.now().timestamp() - 3600:
+                    mail.unlink(missing_ok=True)
+            continue
         if folder.is_dir() and folder.name not in known and folder.name not in busy:
             if datetime.fromtimestamp(folder.stat().st_mtime) < datetime.now() - timedelta(
                 hours=24
@@ -71,6 +90,41 @@ async def lifespan(app):
 
 app = FastAPI(title="Snackpress", version="0.2.0", lifespan=lifespan)
 app.include_router(tools_router)
+app.include_router(previews_router)
+app.include_router(accounts_router)
+app.include_router(configurations_router)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(request: Request, exc: RequestValidationError):
+    # Do not reflect passwords, bearer links or private settings in error responses.
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": [{"loc": e["loc"], "msg": e["msg"], "type": e["type"]} for e in exc.errors()]
+        },
+    )
+
+
+@app.middleware("http")
+async def private_account_responses(request: Request, call_next):
+    private = request.url.path.startswith(("/api/auth", "/api/configurations"))
+    if private:
+        size = 0
+        chunks = []
+        async for chunk in request.stream():
+            size += len(chunk)
+            chunks.append(chunk)
+            if size > 80 * 1024:
+                return JSONResponse(
+                    status_code=413, content={"detail": "Requête trop volumineuse."}
+                )
+        request._body = b"".join(chunks)
+    response = await call_next(request)
+    if private:
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+    return response
 
 
 class JobResponse(BaseModel):
@@ -140,7 +194,7 @@ def health():
 async def upload(file: UploadFile):
     purge()
     # Quota for the local prototype, including concurrent uploads.
-    if sum(1 for p in DATA.iterdir() if p.is_dir()) >= 100:
+    if sum(1 for p in DATA.iterdir() if p.is_dir() and p.name != "mail-outbox") >= 100:
         raise HTTPException(
             429,
             "Limite de 100 travaux atteinte. Supprimez des travaux ou attendez leur expiration.",

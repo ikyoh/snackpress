@@ -7,6 +7,7 @@ test('import, géométrie, verso, export et suppression', async ({ page }) => {
   await expect(page.getByText('Tout commence par votre PDF.')).toBeVisible()
   await page.getByRole('button', { name: 'Essayer avec une carte exemple' }).click()
   await expect(page.getByText('Exemple — Studio Papier.pdf')).toBeVisible()
+  await page.getByRole('button', { name: 'Plan', exact: true }).click()
   await expect(page.getByRole('img', { name: /Recto : 21 poses/ })).toBeVisible()
   await page.getByRole('tab', { name: 'Verso', exact: true }).click()
   await expect(page.getByRole('img', { name: /Verso : 21 poses/ })).toBeVisible()
@@ -25,21 +26,17 @@ test('import, géométrie, verso, export et suppression', async ({ page }) => {
   expect(errors).toEqual([])
 })
 
-test('mobile, aide et modèle local', async ({ page }) => {
+test('mobile, aide et connexion pour sauvegarder', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/?tool=imposition')
   await page.getByRole('button', { name: 'Mode d’emploi' }).click()
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.keyboard.press('Escape')
   await expect(page.getByRole('dialog')).not.toBeVisible()
-  await page.getByText('Mes modèles', { exact: true }).click()
-  await page.getByRole('textbox', { name: 'Nom du modèle' }).fill('Presse SRA3')
-  await page.getByRole('button', { name: 'Enregistrer le modèle' }).click()
-  await page.reload()
-  await page.getByText('Mes modèles', { exact: true }).click()
-  await expect(
-    page.getByLabel('Charger un modèle').locator('option', { hasText: 'Presse SRA3' }),
-  ).toHaveCount(1)
+  await page.getByRole('button', { name: 'Se connecter pour sauvegarder' }).click()
+  await expect(page.getByRole('dialog', { name: 'Retrouvez vos réglages.' })).toBeVisible()
+  await expect(page.getByLabel('Adresse e-mail')).toBeVisible()
+  await page.keyboard.press('Escape')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
     true,
   )

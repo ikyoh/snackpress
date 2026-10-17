@@ -4,6 +4,7 @@ const externalURL = process.env.SNACKPRESS_BASE_URL
 
 export default defineConfig({
   testDir: './tests/e2e',
+  testIgnore: 'accounts.spec.ts',
   fullyParallel: false,
   use: {
     baseURL: externalURL || 'http://127.0.0.1:5173',

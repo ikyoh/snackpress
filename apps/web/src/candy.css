@@ -666,6 +666,13 @@ footer > span:first-child {
   color: #963a91;
   font-weight: 900;
 }
+.footer-credit-link {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.footer-credit-link:hover {
+  color: #6d287e;
+}
 .footer-light {
   color: #80548b;
 }

@@ -6,11 +6,68 @@ import pypdfium2 as pdfium
 import pytest
 from conftest import make_pdf
 from PIL import Image
-from snackpress_tools.catalog import CATALOG, MODELS, Burrito, Taco
+from snackpress_tools.catalog import CATALOG, MODELS, Burrito, Pizza, Taco
 from snackpress_tools.common import page_selection
 from snackpress_tools.documents import booklet_order
 from snackpress_tools.generators import eyelets, fold_widths
 from snackpress_tools.runner import run
+
+
+@pytest.mark.parametrize(
+    "shape,radius", [("rectangle", 0), ("rectangle", 10), ("circle", 0), ("ellipse", 0)]
+)
+def test_pizza_contours_and_boxes(tmp_path, shape, radius):
+    run(
+        tmp_path,
+        "pizza",
+        [],
+        {
+            "shape": shape,
+            "width": 80,
+            "height": 60,
+            "corner_radius": radius,
+        },
+    )
+    height = 80 if shape == "circle" else 60
+    with pikepdf.open(tmp_path / "gabarit.pdf") as doc:
+        box = [float(v) * 25.4 / 72 for v in doc.pages[0].TrimBox]
+        assert box == pytest.approx([3, 3, 83, height + 3])
+        assert doc.pages[0].BleedBox == doc.pages[0].MediaBox
+        commands = pikepdf.parse_content_stream(doc.pages[0])
+        assert any(str(op) == "c" for _, op in commands) == (
+            radius > 0 or shape in {"circle", "ellipse"}
+        )
+    with pdfium.PdfDocument(str(tmp_path / "gabarit.pdf")) as doc:
+        bitmap = doc[0].render(scale=4)
+        img = bitmap.to_pil().convert("RGB")
+
+        def pixel(x, y):
+            return img.getpixel((round(x * 72 / 25.4 * 4), round(y * 72 / 25.4 * 4)))
+
+        assert pixel(43, (height + 6) / 2) == (255, 255, 255)
+        # Sample the bleed just outside the curved cut, inside its bounding box.
+        sample = (
+            pixel(14, 14)
+            if shape == "circle"
+            else pixel(10, 14)
+            if shape == "ellipse"
+            else pixel(4, 4)
+        )
+        assert sample == (
+            (255, 255, 255) if shape == "rectangle" and radius == 0 else (247, 229, 220)
+        )
+        bitmap.close()
+    settings = json.loads((tmp_path / "reglages.json").read_text())["settings"]
+    assert settings["height"] == height
+
+
+def test_pizza_validates_curves_and_safety():
+    with pytest.raises(ValueError, match="rayon"):
+        Pizza(width=80, height=60, corner_radius=31)
+    with pytest.raises(ValueError, match="sécurité"):
+        Pizza(shape="circle", width=20, height=60, safety=10)
+    assert Pizza(width=80, height=60, corner_radius=30).corner_radius == 30
+    assert Pizza(shape="circle", width=80, height=10).height == 80
 
 
 @pytest.mark.parametrize("tool", list(CATALOG))

@@ -26,6 +26,40 @@ def service():
     return main
 
 
+async def stage_files(folder, files, tool_id):
+    svc = service()
+    total = 0
+    inputs = []
+    for index, upload in enumerate(files):
+        size = 0
+        tmp = folder / f"input-{index}.tmp"
+        with tmp.open("wb") as output:
+            while chunk := await upload.read(1024 * 1024):
+                total += len(chunk)
+                size += len(chunk)
+                if size > svc.MAX_BYTES or total > 50 * 1024 * 1024:
+                    raise HTTPException(413, "Limite : 25 Mo par fichier, 50 Mo au total.")
+                output.write(chunk)
+        with tmp.open("rb") as source:
+            head = source.read(1024).lstrip()
+        if head.startswith(b"%PDF-"):
+            suffix = ".pdf"
+        elif tool_id == "donut" and head.startswith(b"\x89PNG\r\n\x1a\n"):
+            suffix = ".png"
+        elif tool_id == "donut" and head.startswith(b"\xff\xd8\xff"):
+            suffix = ".jpg"
+        else:
+            raise HTTPException(
+                422,
+                "Fichier non reconnu. Importez un PDF"
+                + (", PNG ou JPEG." if tool_id == "donut" else "."),
+            )
+        target = folder / f"input-{index}{suffix}"
+        tmp.replace(target)
+        inputs.append(target.name)
+    return inputs
+
+
 @router.post("/api/tools/{tool_id}/run", response_model=ToolResult, status_code=201)
 async def run_tool(
     tool_id: str, settings: str = Form("{}"), files: list[UploadFile] = File(default=[])
@@ -43,42 +77,14 @@ async def run_tool(
     except ValidationError as exc:
         raise HTTPException(422, "; ".join(e["msg"] for e in exc.errors())) from exc
     svc.purge()
-    if sum(p.is_dir() for p in svc.DATA.iterdir()) >= 100:
+    if sum(p.is_dir() and p.name != "mail-outbox" for p in svc.DATA.iterdir()) >= 100:
         raise HTTPException(429, "Limite de 100 travaux atteinte. Supprimez des travaux.")
     job_id = uuid4().hex
     folder = svc.DATA / job_id
     folder.mkdir(mode=0o700)
     svc.busy.add(job_id)
     try:
-        total = 0
-        inputs = []
-        for index, upload in enumerate(files):
-            size = 0
-            tmp = folder / f"input-{index}.tmp"
-            with tmp.open("wb") as output:
-                while chunk := await upload.read(1024 * 1024):
-                    total += len(chunk)
-                    size += len(chunk)
-                    if size > svc.MAX_BYTES or total > 50 * 1024 * 1024:
-                        raise HTTPException(413, "Limite : 25 Mo par fichier, 50 Mo au total.")
-                    output.write(chunk)
-            with tmp.open("rb") as source:
-                head = source.read(1024).lstrip()
-            if head.startswith(b"%PDF-"):
-                suffix = ".pdf"
-            elif tool_id == "donut" and head.startswith(b"\x89PNG\r\n\x1a\n"):
-                suffix = ".png"
-            elif tool_id == "donut" and head.startswith(b"\xff\xd8\xff"):
-                suffix = ".jpg"
-            else:
-                raise HTTPException(
-                    422,
-                    "Fichier non reconnu. Importez un PDF"
-                    + (", PNG ou JPEG." if tool_id == "donut" else "."),
-                )
-            target = folder / f"input-{index}{suffix}"
-            tmp.replace(target)
-            inputs.append(target.name)
+        inputs = await stage_files(folder, files, tool_id)
         (folder / "tool-request.json").write_text(
             json.dumps({"tool": tool_id, "files": inputs, "settings": params.model_dump()})
         )

@@ -1,0 +1,212 @@
+.account-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  min-height: 44px;
+  border: 2px solid #e6b9f2;
+  border-radius: 24px;
+  background: #fff8ff;
+  color: #603078;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.account-button:hover {
+  background: #f4e4fb;
+}
+.account-button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+.account-dialog {
+  margin: auto;
+  width: min(460px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  padding: 36px 28px 26px;
+  border: 3px solid #e5c7ef;
+  border-radius: 24px;
+  background: #fffaff;
+  color: #503061;
+  box-shadow: 0 18px 60px #38134b40;
+}
+.account-dialog::backdrop {
+  background: #35134599;
+}
+.account-dialog h2 {
+  font-family: 'Lilita One', sans-serif;
+  font-size: 30px;
+  line-height: 1.15;
+  margin: 8px 18px 12px 0;
+}
+.account-dialog .field {
+  margin: 18px 0;
+}
+.account-dialog form > .button {
+  width: 100%;
+  margin-top: 8px;
+}
+.account-intro {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.account-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  color: #603078;
+  cursor: pointer;
+}
+.account-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-top: 16px;
+}
+.account-links button,
+.configuration-actions > button:not(.button),
+.configuration-delete > button:not(.button) {
+  min-height: 44px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  color: #783d92;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.account-links button:hover,
+.configuration-actions > button:not(.button):hover {
+  color: #a01c75;
+}
+.account-footnote,
+.configuration-hint {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #755382;
+}
+.account-footnote {
+  margin: 20px 0 0;
+}
+.account-error,
+.account-message {
+  padding: 12px;
+  border-radius: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.account-error {
+  background: #ffe9ec;
+  color: #92233c;
+}
+.account-message {
+  background: #e9f6e9;
+  color: #27562d;
+}
+.personal-configurations {
+  padding: 22px 0;
+  margin: 0 26px;
+  border-bottom: 1px solid #e7d6ee;
+}
+.personal-configurations h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 17px;
+}
+.personal-configurations p {
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 10px 0;
+}
+.personal-configurations .field {
+  margin-top: 14px;
+}
+.configuration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 16px;
+  margin-top: 14px;
+}
+.configuration-actions .button {
+  min-height: 44px;
+}
+.configuration-actions > button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.configuration-modified {
+  font-weight: 800;
+  color: #92551a;
+}
+.configuration-delete,
+.configuration-import {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid #e7d6ee;
+}
+.configuration-delete {
+  color: #92233c;
+}
+.configuration-delete .button {
+  margin-right: 14px;
+}
+.settings-panel .personal-configurations {
+  margin: 0;
+}
+@media (max-width: 640px) {
+  .topbar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .account-button {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+  .account-dialog {
+    padding: 30px 20px 22px;
+  }
+  .personal-configurations {
+    margin: 0 18px;
+  }
+  .personal-configurations .button {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 760px) {
+  .topbar:has(.account-button) {
+    height: auto;
+    min-height: 77px;
+    padding: 14px 18px;
+    gap: 12px;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+  }
+  .topbar:has(.account-button) .brand {
+    font-size: 26px;
+  }
+  .topbar:has(.account-button) .brand-symbol {
+    margin-right: 8px;
+  }
+  .topbar:has(.account-button):not(.studio-header) .account-button span {
+    display: none;
+  }
+  .topbar:has(.account-button) .help-button {
+    margin-left: 0;
+  }
+}

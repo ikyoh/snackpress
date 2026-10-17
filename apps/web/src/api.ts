@@ -19,17 +19,33 @@ export const defaults: Settings = {
   crop_marks: true,
   confirm_trim: false,
 }
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message)
+  }
+}
 export async function request<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init)
+  const headers = new Headers(init?.headers)
+  if (init?.method && !['GET', 'HEAD'].includes(init.method.toUpperCase())) {
+    headers.set('X-Snackpress-Request', '1')
+  }
+  const response = await fetch(url, { ...init, headers, credentials: 'same-origin' })
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
     const detail = body.detail
-    throw new Error(
+    if (response.status === 401 && url.startsWith('/api/configurations')) {
+      window.dispatchEvent(new Event('snackpress-session-expired'))
+    }
+    throw new ApiError(
       typeof detail === 'string'
         ? detail
         : Array.isArray(detail)
           ? detail.map((item: { msg: string }) => item.msg.replace('Value error, ', '')).join(' ')
           : 'Le service est indisponible. Vérifiez que l’API est démarrée.',
+      response.status,
     )
   }
   if (response.status === 204) return undefined as T
@@ -43,7 +59,14 @@ export const post = (data: unknown, signal?: AbortSignal): RequestInit => ({
 })
 export function readProfiles(): Record<string, Settings> {
   try {
-    return JSON.parse(localStorage.getItem('snackpress-profiles') || '{}')
+    const saved: unknown = JSON.parse(localStorage.getItem('snackpress-profiles') || '{}')
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return {}
+    return Object.fromEntries(
+      Object.entries(saved).filter(
+        ([name, settings]) =>
+          name.trim() && settings && typeof settings === 'object' && !Array.isArray(settings),
+      ),
+    ) as Record<string, Settings>
   } catch {
     return {}
   }

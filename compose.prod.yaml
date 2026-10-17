@@ -13,6 +13,8 @@ services:
     extends:
       file: infra/compose.yaml
       service: api
+    environment:
+      SNACKPRESS_PUBLIC_URL: ${SNACKPRESS_PUBLIC_URL:-https://snackpress.jcloud.ik-server.com}
     stop_grace_period: 45s
     logging: *logging
 

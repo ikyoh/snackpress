@@ -12,17 +12,20 @@ import {
   LoaderCircle,
   Plus,
   RotateCw,
-  Save,
   ScanLine,
   Trash2,
   Upload,
   X,
 } from 'lucide-react'
 import { Button } from './components/ui/button'
-import { defaults, post, readProfiles, request } from './api'
+import { defaults, post, request } from './api'
 import type { Job, Plan, Settings } from './api'
 import { PdfPreview, useArtwork } from './PdfPreview'
+import { AccountButton } from './Account'
+import { Configurations } from './Configurations'
+import { LivePreview, useLivePreview } from './LivePreview'
 
+const previewFiles: File[] = []
 const format = (n: number) => n.toLocaleString('fr-FR', { maximumFractionDigits: 2 })
 const sheets: Record<string, [number, number]> = {
   A4: [210, 297],
@@ -79,9 +82,7 @@ export default function App() {
   const [exporting, setExporting] = useState(false)
   const [exported, setExported] = useState<Plan | null>(null)
   const [face, setFace] = useState<'front' | 'back'>('front')
-  const [view, setView] = useState<'plan' | 'pdf'>('plan')
-  const [profiles, setProfiles] = useState(readProfiles)
-  const [profileName, setProfileName] = useState('')
+  const [view, setView] = useState<'plan' | 'pdf'>('pdf')
   const [notice, setNotice] = useState('')
   const [help, setHelp] = useState(false)
   const [dragging, setDragging] = useState(false)
@@ -90,10 +91,17 @@ export default function App() {
   const { images, error: artworkError } = useArtwork(job)
   const duplex = job?.document.pages.length === 2
   const pending = loading || exporting
+  const livePreview = useLivePreview({
+    toolId: 'imposition',
+    files: previewFiles,
+    settings,
+    available: !!job,
+    sourceJobId: job?.id || '',
+    paused: pending || !!exported,
+  })
   const update = (patch: Partial<Settings>) => {
     setSettings((s) => ({ ...s, ...patch }))
     setExported(null)
-    setView('plan')
   }
 
   useEffect(() => {
@@ -138,7 +146,7 @@ export default function App() {
       const p = result.document.pages[0]
       setJob(result)
       setFace('front')
-      setView('plan')
+      setView('pdf')
       setExported(null)
       setSettings((s) => ({
         ...s,
@@ -191,23 +199,11 @@ export default function App() {
       setJob(null)
       setPlan(null)
       setExported(null)
-      setView('plan')
+      setView('pdf')
       setNotice('Le fichier et ses exports ont été supprimés.')
       setError('')
     } catch (e) {
       setError((e as Error).message)
-    }
-  }
-  function saveProfile() {
-    if (!profileName.trim()) return
-    const next = { ...profiles, [profileName.trim()]: { ...settings, confirm_trim: false } }
-    try {
-      localStorage.setItem('snackpress-profiles', JSON.stringify(next))
-      setProfiles(next)
-      setNotice(`Modèle « ${profileName.trim()} » enregistré sur cet appareil.`)
-      setProfileName('')
-    } catch {
-      setError('Le navigateur ne permet pas l’enregistrement local des modèles.')
     }
   }
   const selectedSheet =
@@ -231,6 +227,7 @@ export default function App() {
           </a>
           <span className="prototype">Prototype local</span>
         </div>
+        <AccountButton />
         <button className="help-button" aria-label="Mode d’emploi" onClick={() => setHelp(true)}>
           <HelpCircle size={17} />
           <span>Mode d’emploi</span>
@@ -547,52 +544,19 @@ export default function App() {
                   </label>
                 )}
               </section>
-              <details className="profiles">
-                <summary>
-                  <Save size={15} />
-                  Mes modèles <ChevronDown size={14} />
-                </summary>
-                <p className="field-hint">Réglages enregistrés sur cet appareil.</p>
-                {Object.keys(profiles).length > 0 && (
-                  <label className="field">
-                    <span>Charger un modèle</span>
-                    <select
-                      value=""
-                      onChange={(e) => {
-                        if (profiles[e.target.value])
-                          update({
-                            ...profiles[e.target.value],
-                            trim_width: settings.trim_width,
-                            trim_height: settings.trim_height,
-                            confirm_trim: settings.confirm_trim,
-                          })
-                      }}
-                    >
-                      <option value="">Choisir…</option>
-                      {Object.keys(profiles).map((name) => (
-                        <option key={name}>{name}</option>
-                      ))}
-                    </select>
-                  </label>
-                )}
-                <div className="profile-save">
-                  <input
-                    aria-label="Nom du modèle"
-                    placeholder="Nom du modèle"
-                    maxLength={60}
-                    value={profileName}
-                    onChange={(e) => setProfileName(e.target.value)}
-                  />
-                  <Button
-                    variant="outline"
-                    onClick={saveProfile}
-                    disabled={!profileName.trim()}
-                    aria-label="Enregistrer le modèle"
-                  >
-                    <Save size={16} />
-                  </Button>
-                </div>
-              </details>
+              <Configurations
+                toolId="imposition"
+                settings={{ ...settings }}
+                onLoad={(saved) =>
+                  update({
+                    ...(saved as Settings),
+                    ...(job
+                      ? { trim_width: settings.trim_width, trim_height: settings.trim_height }
+                      : {}),
+                    confirm_trim: false,
+                  })
+                }
+              />
             </fieldset>
           </aside>
           <section className="preview-panel" aria-label="Aperçu de l’imposition">
@@ -625,12 +589,12 @@ export default function App() {
                   Plan
                 </button>
                 <button
-                  disabled={!exported}
+                  disabled={!job}
                   className={view === 'pdf' ? 'selected' : ''}
                   onClick={() => setView('pdf')}
                 >
                   <FileText size={14} />
-                  PDF généré
+                  {exported ? 'PDF généré' : 'Aperçu PDF'}
                 </button>
               </div>
             </div>
@@ -679,6 +643,12 @@ export default function App() {
                     Importer un PDF
                   </Button>
                 </div>
+              ) : view === 'pdf' && !exported ? (
+                <LivePreview
+                  state={livePreview}
+                  pageNumber={face === 'front' ? 1 : 2}
+                  onPageChange={(page) => setFace(page === 1 ? 'front' : 'back')}
+                />
               ) : view === 'pdf' && exported ? (
                 <div className="sheet-holder">
                   <PdfPreview
@@ -884,7 +854,10 @@ export default function App() {
         )}
         <footer>
           <span>
-            snackpress. <span className="footer-light">Le prépresse, bien servi.</span>
+            Snackpress est proposé par{' '}
+            <a href="https://ikyoh.com" className="footer-credit-link">
+              ikyoh
+            </a>
           </span>
           <span>Prototype · Validation sur presse requise · Sans certification PDF/X</span>
         </footer>

@@ -2,7 +2,7 @@
 
 Atelier web local réunissant **14 outils prépresse** : Burger, Chili Dog, Donut, Tiramisu, Taco, Pizza, Burrito, Club Sandwich, Fortune Cookie, Poké, Sushi, Kebab, Layer Cake et Bento.
 
-La page d’accueil présente le catalogue avec recherche et filtres. Chaque outil dispose de ses réglages, de son traitement réel, d’un aperçu paginé et de fichiers téléchargeables. Les fonctions et limites sont détaillées dans [TOOLS.md](TOOLS.md).
+La page d’accueil présente le catalogue avec recherche et filtres. Chaque outil dispose de ses réglages, d’un aperçu PDF/image actualisé automatiquement, d’un traitement final et de fichiers téléchargeables. Les fonctions et limites sont détaillées dans [TOOLS.md](TOOLS.md).
 
 ## Démarrer
 
@@ -18,7 +18,7 @@ pnpm dev
 
 Atelier : http://127.0.0.1:5173. API : http://127.0.0.1:8000/docs. Les services écoutent uniquement sur l’interface locale ; Vite relaie `/api` vers FastAPI.
 
-L’atelier d’imposition détaillé reste accessible depuis Layer Cake ou directement à http://127.0.0.1:5173/?tool=imposition. Réglages et aperçu côte à côte, grille manuelle, fonds perdus, repères et modèles locaux y sont conservés.
+L’atelier d’imposition détaillé reste accessible depuis Layer Cake ou directement à http://127.0.0.1:5173/?tool=imposition. Réglages et aperçu côte à côte, grille manuelle, fonds perdus, repères et configurations personnelles y sont disponibles.
 
 ## Vérifier
 
@@ -29,6 +29,7 @@ pnpm test
 pnpm build
 pnpm exec playwright install chromium
 pnpm test:e2e
+pnpm test:e2e:accounts  # Comptes et e-mails locaux, serveurs et données de test isolés
 # Ou avec Google Chrome déjà installé :
 SNACKPRESS_BROWSER_CHANNEL=chrome pnpm test:e2e
 ```
@@ -51,11 +52,44 @@ Le catalogue et ses champs sont définis par l’API, avec validation Pydantic c
 - `tests` : géométrie, moteur PDF, outils, API et parcours navigateur.
 - `infra` : conteneurs locaux, Caddy et migration Alembic initiale.
 
+## Aperçus automatiques
+
+Les ateliers recalculent l’aperçu après une pause de 500 ms dans la saisie, dès que les fichiers requis sont présents. L’aperçu utilise les réglages actuels, conserve le dernier PDF affiché pendant le calcul et ignore les réponses devenues obsolètes. Les réglages invalides sont signalés sans effacer le dernier aperçu. « Actualiser l’aperçu » permet de recréer une session expirée. L’imposition propose l’aperçu PDF dès l’import, avec les commandes Recto/Verso, et conserve son mode Plan interactif. Fortune Cookie conserve aussi l’éditeur de placement des numérotations.
+
+**Les aperçus ne sont pas des fichiers finaux.** Donut, Tiramisu et Poké utilisent au maximum les deux premières pages et 96 dpi ; les mesures et comparaisons de l’aperçu sont donc partielles. Fortune Cookie montre au maximum deux exemplaires. Les autres outils utilisent leur moteur habituel. Le bouton « Générer le fichier final » réalise le traitement complet avec la résolution, les pages et la quantité demandées. L’atelier d’imposition conserve son bouton « Générer le PDF » et sa confirmation du format fini.
+
+Les fichiers sont importés une fois dans une session d’aperçu, puis les requêtes d’actualisation transmettent seulement les réglages. Les calculs interrompus sont annulés côté serveur. Chaque session conserve au maximum trois générations d’aperçu ; les rendus échoués sont supprimés. Les sessions sont supprimées à leur libération par le navigateur et expirent après 30 minutes d’inactivité, indépendamment des fichiers finaux conservés 24 h. La purge périodique et les limites de travaux, de taille, de processus et de temps restent actives. L’import autorise le traitement sur le serveur pour produire l’aperçu.
+
+## Comptes et configurations personnelles
+
+Les outils sont utilisables sans compte. Le bouton **Se connecter** permet de créer un compte : saisie de l’adresse e-mail, réception d’un lien valable 30 minutes, choix d’un mot de passe d’au moins 15 caractères, puis connexion. Le même compte retrouve ses configurations sur tous les appareils. Les liens sont à usage unique. « Mot de passe oublié ? » envoie un nouveau lien et invalide toutes les sessions après modification du mot de passe.
+
+Chaque outil, y compris l’atelier d’imposition, propose **Mes configurations** : enregistrer sous un nom, charger, mettre à jour, renommer, dupliquer, supprimer et définir une configuration par défaut. Pour dupliquer, saisir un autre nom puis cliquer sur Dupliquer. La configuration par défaut se charge à l’ouverture, si aucun réglage n’a été modifié pendant le chargement. Une modification concurrente sur un autre appareil est refusée : actualiser la liste puis charger la version voulue. Limite : 200 configurations par compte et noms uniques par outil. Les paramètres sont validés par les mêmes modèles que les traitements ; les numérotations Fortune Cookie sont incluses. Charger des réglages ne lance aucun traitement et ne transfère aucun PDF. L’imposition conserve les dimensions du document déjà importé et demande une nouvelle confirmation du format.
+
+Les anciens modèles d’imposition du navigateur peuvent être **importés explicitement dans le compte connecté**. Les originaux locaux sont conservés ; les collisions de noms reçoivent un suffixe. La liste, la sélection et les messages personnels sont effacés à la déconnexion ou au changement de compte ; les réglages en cours restent dans l’atelier.
+
+Comptes, configurations, sessions et liens sont conservés dans `jobs.db`, dans le même volume que les travaux. La purge des travaux après 24 h ne supprime pas les comptes ni les configurations ; les sessions expirent après sept jours. Sauvegarder le volume complet, y compris `jobs.db`. Au démarrage, les tables nouvelles sont créées automatiquement sans modifier les travaux existants ; la migration Alembic `0002` est aussi disponible.
+
+### Configurer les e-mails
+
+Copier `.env.example` en `.env` pour Docker Compose et renseigner :
+
+- `SNACKPRESS_PUBLIC_URL` : origine exacte du site, sans chemin ni slash final. HTTPS obligatoire hors `localhost` / `127.0.0.1`. Le port fait partie de l’origine. En développement Vite : `http://127.0.0.1:5173` ; Docker local : `http://127.0.0.1:8080` ; Jelastic : `https://snackpress.jcloud.ik-server.com`.
+- `SNACKPRESS_MAIL_FROM` : adresse d’expédition autorisée par le fournisseur.
+- `SNACKPRESS_SMTP_HOST`, `SNACKPRESS_SMTP_PORT`, `SNACKPRESS_SMTP_USERNAME`, `SNACKPRESS_SMTP_PASSWORD` : paramètres du fournisseur SMTP.
+- `SNACKPRESS_SMTP_SECURITY` : `starttls` (port 587) ou `ssl` (port 465). La connexion vérifie le certificat TLS.
+
+Le démarrage natif ne lit pas automatiquement `.env` : exporter les variables avant de lancer `scripts/serve.py`. Aucun secret n’est transmis au frontend. Sans SMTP configuré, l’inscription signale une indisponibilité ; les outils restent utilisables. Aucun compte n’est activé sans vérification de l’adresse.
+
+Pour le développement local uniquement : exporter `SNACKPRESS_MAIL_MODE=file` et `SNACKPRESS_PUBLIC_URL=http://127.0.0.1:5173`. Les messages sont écrits avec des permissions privées dans `.data/mail-outbox/*.eml` (ou `/data/mail-outbox` dans Docker) ; ouvrir le lien contenu dans le fichier. Ce mode refuse les origines distantes et n’est pas adapté à un serveur public. Les messages locaux sont purgés après une heure.
+
+Les sessions utilisent un cookie HttpOnly, SameSite Strict, Secure sous HTTPS. Les mots de passe utilisent scrypt avec sel aléatoire ; seuls les condensats des sessions et des liens sont stockés. Les écritures de compte et de configuration exigent un en-tête dédié et contrôlent l’origine. Les réponses personnelles ne sont pas mises en cache. Les demandes d’authentification sont limitées par adresse e-mail et IP dans le processus API ; garder une instance API et configurer le proxy de confiance Uvicorn pour que l’IP client soit transmise correctement. Ces limites se réinitialisent au redémarrage du processus.
+
 ## Fichiers et limites
 
 Stockage privé dans `.data` (ou `SNACKPRESS_DATA`), jamais dans le dépôt. Suppression immédiate depuis les ateliers ; purge automatique au démarrage puis chaque minute pour les travaux de plus de 24 h. Limites : 25 Mo par fichier, 50 Mo par traitement, 100 travaux, 2 processus PDF simultanés et 30 secondes par traitement. Les travaux interrompus doivent être relancés.
 
-**Usage local individuel.** Il n’existe pas encore de comptes, d’authentification ni d’autorisation multiutilisateur. Ne pas exposer publiquement. Les identifiants aléatoires servent à accéder aux fichiers pendant la session, pas à sécuriser un service partagé.
+**Accès aux documents :** les comptes protègent les configurations personnelles. Les outils et les liens de travaux restent accessibles sans connexion ; les identifiants aléatoires des fichiers ne constituent pas une autorisation par utilisateur. Protéger l’accès au service au niveau du proxy ou du réseau avant de traiter des documents privés sur un hébergement partagé.
 
 Les exports natifs d’imposition ne sont pas rasterisés. Les corrections de Donut, les comparaisons Tiramisu, les BAT Burger et les estimations Poké utilisent un rendu raster explicitement annoncé. Aucun outil ne certifie PDF/X ou le TAC ; les contrôles atelier indiqués restent nécessaires. Lire les limites propres à chaque outil dans [TOOLS.md](TOOLS.md).
 
@@ -129,7 +163,7 @@ docker compose -f compose.prod.yaml down                 # Arrêt, données cons
 
 Le port hôte est configurable avec `SNACKPRESS_PORT` ; adapter aussi `JELASTIC_EXPOSE` si sa valeur change. `SNACKPRESS_BIND_HOST` permet de choisir l’interface publiée (par défaut `0.0.0.0`). Les valeurs peuvent être définies dans le fichier `.env` à la racine du dépôt. Conserver une seule instance de l’API avec son volume SQLite et prévoir une sauvegarde de ce volume. La purge des travaux après 24 h reste active.
 
-**Limite applicative :** ce fichier prépare l’hébergement, mais Snackpress ne possède pas encore d’authentification. Protéger l’accès au niveau du proxy ou du réseau avant d’y déposer des documents privés ou d’ouvrir le service à plusieurs utilisateurs.
+**Limite applicative :** les comptes isolent les configurations, mais les travaux PDF ne sont pas rattachés à leur propriétaire. Protéger leur accès au niveau du proxy ou du réseau avant d’y déposer des documents privés.
 
 Références : [ports et variable JELASTIC_EXPOSE](https://www.virtuozzo.com/application-management-docs/container-ports/), [SSL intégré Jelastic](https://www.virtuozzo.com/application-management-docs/built-in-ssl/), [remplacement des ports Compose](https://docs.docker.com/reference/compose-file/merge/).
 
@@ -146,3 +180,15 @@ Les cas d’imposition avancés, la validation d’un corpus professionnel, les 
 ## Validation du 15 octobre 2026
 
 58 tests Python, 2 tests Vitest et 19 parcours Playwright réussis (Google Chrome installé). Chaque outil est testé jusqu’au rendu et au téléchargement ; le catalogue, le mobile, les modèles locaux et le livret de huit pages sont couverts. Compilation TypeScript/Vite, Ruff et configuration Compose vérifiés. Les écrans ordinateur/mobile et des résultats PDF synthétiques ont été contrôlés visuellement. Ces contrôles restent distincts de la validation d’un corpus professionnel et des épreuves sur presse.
+
+
+## Validation des comptes du 17 octobre 2026
+
+80 tests Python, 2 tests Vitest, compilation TypeScript/Vite et Ruff réussis. Les 23 parcours existants passent : 21 au premier passage, puis Donut et l’export d’imposition lors d’une reprise avec un seul worker après dépassement du délai initial. Les 2 nouveaux parcours Playwright dédiés couvrent l’inscription par lien e-mail local, l’activation, la connexion, le CRUD des configurations, le choix par défaut, un autre navigateur, les conflits de version, la déconnexion, l’import des anciens modèles et la récupération du compte. Les écrans de connexion et de configurations ont été vérifiés sur ordinateur et mobile. Les tests de comptes démarrent deux serveurs et une base temporaires isolés, sans envoyer de vrais e-mails ; ils nécessitent les ports 8015 et 5175 libres. La migration Alembic `0001` → `0002`, sa répétition et la configuration Compose production sont vérifiées. L’envoi SMTP réel reste à valider après configuration du fournisseur.
+
+Références pour les mécanismes d’authentification : [stockage des mots de passe](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html), [sessions](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html) et [récupération de compte](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html) de l’OWASP.
+
+
+## Validation des aperçus et de l’ovale du 17 octobre 2026
+
+100 tests Python réussis (99 dans la suite complète, puis le test ajouté d’annulation sur déconnexion), 2 tests Vitest, compilation TypeScript/Vite, Ruff et vérification des diffs. Les 27 parcours Playwright principaux et les 2 parcours comptes passent : aperçu automatique sans export implicite, regroupement des saisies rapides, réponse obsolète ignorée, conservation du dernier PDF sur réglage invalide, import unique des fichiers, aperçu réduit de Fortune Cookie avec série finale complète, recto-verso d’imposition et parcours existants. Les tests serveur couvrent les aperçus des 14 outils, les fichiers publiables, le stockage borné à trois générations, l’expiration, les limites et l’indépendance des exports finaux. L’ovale de Pizza est contrôlé en géométrie PDF, rendu raster et interface ordinateur/mobile.

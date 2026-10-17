@@ -64,7 +64,15 @@ export function useArtwork(job: Job | null) {
   return { images, error }
 }
 
-export function PdfPreview({ url, page: number }: { url: string; page: number }) {
+export function PdfPreview({
+  url,
+  page: number,
+  retainPrevious = false,
+}: {
+  url: string
+  page: number
+  retainPrevious?: boolean
+}) {
   const viewer = useRef<HTMLDivElement>(null)
   const stage = useRef<HTMLDivElement>(null)
   const ref = useRef<HTMLCanvasElement>(null)
@@ -73,6 +81,7 @@ export function PdfPreview({ url, page: number }: { url: string; page: number })
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 })
   const [zoom, setZoom] = useState(1)
   const [ready, setReady] = useState(false)
+  const [hasPainted, setHasPainted] = useState(false)
   const [expanded, setExpanded] = useState(false)
   const [error, setError] = useState('')
   const [fullscreenError, setFullscreenError] = useState('')
@@ -97,7 +106,10 @@ export function PdfPreview({ url, page: number }: { url: string; page: number })
     setError('')
     setPdf(null)
     setReady(false)
-    setZoom(1)
+    if (!retainPrevious) {
+      setZoom(1)
+      setHasPainted(false)
+    }
     const task = getDocument(url)
     let disposed = false
     void task.promise
@@ -114,7 +126,7 @@ export function PdfPreview({ url, page: number }: { url: string; page: number })
       disposed = true
       void task.destroy()
     }
-  }, [url])
+  }, [url, retainPrevious])
 
   useEffect(() => {
     if (!pdf || !bounds.width || !bounds.height) return
@@ -151,6 +163,7 @@ export function PdfPreview({ url, page: number }: { url: string; page: number })
         ref.current.style.width = `${natural.width * scale}px`
         ref.current.style.height = `${natural.height * scale}px`
         setDimensions({ width: (natural.width * 25.4) / 72, height: (natural.height * 25.4) / 72 })
+        setHasPainted(true)
         setReady(true)
       } catch {
         if (!disposed)
@@ -248,7 +261,10 @@ export function PdfPreview({ url, page: number }: { url: string; page: number })
             data-ready={ready}
             aria-label={`Aperçu PDF, page ${number}`}
             role="img"
-            style={{ visibility: ready && !error ? 'visible' : 'hidden' }}
+            style={{
+              visibility:
+                (ready || (retainPrevious && hasPainted)) && !error ? 'visible' : 'hidden',
+            }}
           />
         </div>
         {error ? (
@@ -261,7 +277,10 @@ export function PdfPreview({ url, page: number }: { url: string; page: number })
           </div>
         ) : (
           !ready && (
-            <div className="pdf-viewer-state" role="status">
+            <div
+              className={retainPrevious && hasPainted ? 'pdf-viewer-refresh' : 'pdf-viewer-state'}
+              role="status"
+            >
               <LoaderCircle size={26} className="spin" />
               <p>Préparation de l’aperçu…</p>
             </div>

@@ -41,6 +41,8 @@ class Taco(Params):
 
 
 class Pizza(Params):
+    shape: Literal["rectangle", "circle", "ellipse"] = "rectangle"
+    corner_radius: float = Field(default=0, ge=0, le=1000)
     width: float = Field(default=85, gt=0, le=2000)
     height: float = Field(default=55, gt=0, le=2000)
     bleed: float = Field(default=3, ge=0, le=30)
@@ -48,6 +50,12 @@ class Pizza(Params):
 
     @model_validator(mode="after")
     def inside(self):
+        if self.shape == "circle":
+            self.height = self.width
+        elif self.shape == "rectangle" and self.corner_radius * 2 > min(self.width, self.height):
+            raise ValueError(
+                "Le rayon des coins ne peut pas dépasser la moitié du plus petit côté."
+            )
         if self.safety * 2 >= min(self.width, self.height):
             raise ValueError("La zone de sécurité doit rester à l’intérieur du format fini.")
         return self
@@ -314,8 +322,24 @@ DEFINITIONS = [
         description="Créer un gabarit avec coupe, fond perdu et sécurité.",
         limit="Gabarit technique avec guides visibles, à retirer du fichier d’impression final.",
         fields=[
+            choice(
+                "shape",
+                "Forme",
+                [
+                    ("rectangle", "Carrée / rectangulaire"),
+                    ("circle", "Ronde"),
+                    ("ellipse", "Ovale"),
+                ],
+            ),
             number("width", "Largeur finie", 85, low=0.1),
             number("height", "Hauteur finie", 55, low=0.1),
+            number(
+                "corner_radius",
+                "Rayon des coins",
+                0,
+                high=1000,
+                help="0 = coins droits. Au maximum la moitié du plus petit côté.",
+            ),
             number("bleed", "Fond perdu", 3, high=30),
             number("safety", "Zone de sécurité", 4, high=100),
         ],

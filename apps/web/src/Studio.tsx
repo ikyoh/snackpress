@@ -23,9 +23,12 @@ import {
   X,
 } from 'lucide-react'
 import App from './App'
+import { AccountButton } from './Account'
+import { Configurations } from './Configurations'
 import { request } from './api'
 import { Button } from './components/ui/button'
 import { PdfPreview } from './PdfPreview'
+import { LivePreview, useLivePreview } from './LivePreview'
 import { FortunePreview, FortuneSettings, newNumbering, type Numbering } from './FortuneEditor'
 import type { components } from '../../../packages/api-client/schema'
 import './studio.css'
@@ -119,6 +122,7 @@ function Header() {
         </a>
         <span className="prototype">Prototype local</span>
       </div>
+      <AccountButton />
       <span className="header-note">
         <WandSparkles size={17} />
         Les bons outils. La vie plus facile.
@@ -318,7 +322,10 @@ function Catalog({ tools }: { tools: Tool[] }) {
       </div>
       <footer>
         <span>
-          snackpress. <span className="footer-light">Le prépresse, bien servi.</span>
+          Snackpress est proposé par{' '}
+          <a href="https://ikyoh.com" className="footer-credit-link">
+            ikyoh
+          </a>
         </span>
         <span>Usage local · Épreuve et validation atelier selon le traitement</span>
       </footer>
@@ -327,6 +334,10 @@ function Catalog({ tools }: { tools: Tool[] }) {
 }
 
 function visibleField(tool: string, field: string, values: Values) {
+  if (tool === 'pizza') {
+    if (values.shape === 'circle') return !['height', 'corner_radius'].includes(field)
+    if (values.shape === 'ellipse' && field === 'corner_radius') return false
+  }
   if (tool === 'club-sandwich') {
     if (['gsm', 'bulk'].includes(field)) return values.mode === 'bulk'
     if (field === 'caliper') return values.mode === 'caliper'
@@ -421,6 +432,14 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
     result?.artifacts?.filter((a) => ['application/pdf', 'image/png'].includes(a.media_type)) || []
   const totalPages = selected?.pages || 1
   const ready = files.length >= tool.min_files && files.length <= tool.max_files
+  const livePreview = useLivePreview({
+    toolId: tool.id,
+    files,
+    settings: tool.id === 'fortune-cookie' ? { ...values, numberings } : values,
+    available: ready,
+    paused: busy || !!result,
+    valid: () => formRef.current?.checkValidity() ?? false,
+  })
   function change(key: string, value: string | number) {
     setValues((old) => {
       const next = { ...old, [key]: value }
@@ -688,7 +707,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   </button>
                 )}
                 <p className="privacy-note">
-                  En lançant l’outil, vous autorisez le traitement sur le serveur local.
+                  L’import autorise le traitement sur le serveur pour l’aperçu et le fichier final.
                   Conservation maximale : 24 h.
                 </p>
                 <button type="button" className="example-button" onClick={() => void example()}>
@@ -696,6 +715,22 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                 </button>
               </section>
             )}
+            <Configurations
+              toolId={tool.id}
+              settings={tool.id === 'fortune-cookie' ? { ...values, numberings } : values}
+              onLoad={(saved) => {
+                const { numberings: savedNumberings, ...fields } = saved
+                setValues(fields as Values)
+                if (tool.id === 'fortune-cookie')
+                  setNumberings(
+                    (savedNumberings as Numbering[] | null) || [
+                      newNumbering(Number(fields.height)),
+                    ],
+                  )
+                setResult(null)
+                setError('')
+              }}
+            />
             {tool.fields.length > 0 && (
               <section className="tool-settings-section">
                 <h2>
@@ -708,7 +743,11 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                     .map((field) => (
                       <Setting
                         key={field.key}
-                        field={field}
+                        field={
+                          tool.id === 'pizza' && values.shape === 'circle' && field.key === 'width'
+                            ? { ...field, label: 'Diamètre fini' }
+                            : field
+                        }
                         value={values[field.key] ?? field.default}
                         update={(value) => change(field.key, value)}
                         disabled={
@@ -740,12 +779,12 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
             <div className="tool-run">
               <Button type="submit" disabled={busy || !ready}>
                 {busy ? <LoaderCircle size={16} className="spin" /> : <ArrowRight size={16} />}
-                {busy ? 'Traitement en cours…' : 'Lancer l’outil'}
+                {busy ? 'Traitement en cours…' : 'Générer le fichier final'}
               </Button>
               <p>
                 {tool.min_files > 0 && !ready
                   ? `Importez ${tool.min_files === 2 ? 'les deux fichiers' : 'votre fichier'} pour commencer.`
-                  : 'Le résultat sera disponible à droite.'}
+                  : 'L’aperçu est automatique. Générez ensuite le fichier complet.'}
               </p>
             </div>
           </fieldset>
@@ -760,42 +799,28 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
               </button>
             )}
           </div>
-          {!result && tool.id === 'fortune-cookie' ? (
-            <FortunePreview
-              items={numberings}
-              width={Number(values.width) || 85}
-              height={Number(values.height) || 55}
-              serial={
-                String(values.prefix) + String(values.start).padStart(Number(values.digits), '0')
-              }
-              text={String(values.text)}
-              file={files[0]}
-              disabled={busy}
-              onChange={changeNumberings}
-            />
-          ) : !result ? (
-            <div className="tool-empty">
-              <div className={`tool-empty-symbol ${accentMap[tool.category]}`}>
-                {busy ? (
-                  <LoaderCircle size={38} className="spin" />
-                ) : (
-                  <ToolIcon tool={tool} size={38} />
-                )}
-              </div>
-              <h2>{busy ? 'Votre fichier se prépare…' : 'La magie commence ici.'}</h2>
-              <p>
-                {busy
-                  ? 'Préparation du document et des fichiers de contrôle…'
-                  : tool.min_files > 0
-                    ? 'Importez vos fichiers, ajustez les réglages, puis lancez le traitement.'
-                    : 'Ajustez les dimensions et les consignes, puis lancez le traitement.'}
-              </p>
-              <span className="tool-empty-detail">
-                {busy
-                  ? 'Temps maximal : 30 secondes'
-                  : 'Aperçu · fichiers téléchargeables · limites explicites'}
-              </span>
-            </div>
+          {!result ? (
+            <>
+              {tool.id === 'fortune-cookie' && (
+                <details className="live-placement" open>
+                  <summary>Placement des numérotations</summary>
+                  <FortunePreview
+                    items={numberings}
+                    width={Number(values.width) || 85}
+                    height={Number(values.height) || 55}
+                    serial={
+                      String(values.prefix) +
+                      String(values.start).padStart(Number(values.digits), '0')
+                    }
+                    text={String(values.text)}
+                    file={files[0]}
+                    disabled={busy}
+                    onChange={changeNumberings}
+                  />
+                </details>
+              )}
+              <LivePreview state={livePreview} />
+            </>
           ) : (
             <>
               <div className="tool-success" role="status">
@@ -905,7 +930,10 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
       </div>
       <footer>
         <span>
-          snackpress. <span className="footer-light">{tool.name}, servi à l’atelier.</span>
+          Snackpress est proposé par{' '}
+          <a href="https://ikyoh.com" className="footer-credit-link">
+            ikyoh
+          </a>
         </span>
         <span>Fichiers privés · Conservation maximale de 24 h</span>
       </footer>

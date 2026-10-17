@@ -186,3 +186,25 @@
     padding: 10px 12px;
   }
 }
+
+.pdf-viewer-refresh {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  color: #653378;
+  background: #fffaff;
+  box-shadow: 0 4px 16px #43285224;
+  font-size: 13px;
+}
+.pdf-viewer-refresh p {
+  margin: 0;
+}
+.pdf-viewer-refresh svg {
+  width: 16px;
+  height: 16px;
+}

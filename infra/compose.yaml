@@ -1,9 +1,18 @@
-# Local single-user preview only. No public beta authentication is implemented.
+# Tools are public; personal configurations require a verified account.
 services:
   api:
     build:
       context: ..
       dockerfile: infra/Dockerfile.api
+    environment:
+      SNACKPRESS_PUBLIC_URL: ${SNACKPRESS_PUBLIC_URL:-http://127.0.0.1:8080}
+      SNACKPRESS_MAIL_MODE: ${SNACKPRESS_MAIL_MODE:-smtp}
+      SNACKPRESS_MAIL_FROM: ${SNACKPRESS_MAIL_FROM:-}
+      SNACKPRESS_SMTP_HOST: ${SNACKPRESS_SMTP_HOST:-}
+      SNACKPRESS_SMTP_PORT: ${SNACKPRESS_SMTP_PORT:-587}
+      SNACKPRESS_SMTP_SECURITY: ${SNACKPRESS_SMTP_SECURITY:-starttls}
+      SNACKPRESS_SMTP_USERNAME: ${SNACKPRESS_SMTP_USERNAME:-}
+      SNACKPRESS_SMTP_PASSWORD: ${SNACKPRESS_SMTP_PASSWORD:-}
     volumes:
       - pdf-data:/data
     init: true

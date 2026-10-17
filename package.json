@@ -9,7 +9,8 @@
     "test": "pnpm --filter @snackpress/web test",
     "test:e2e": "playwright test",
     "api:dev": "uv run python scripts/serve.py",
-    "types:generate": "uv run python scripts/openapi.py && openapi-typescript packages/api-client/openapi.json -o packages/api-client/schema.d.ts"
+    "types:generate": "uv run python scripts/openapi.py && openapi-typescript packages/api-client/openapi.json -o packages/api-client/schema.d.ts",
+    "test:e2e:accounts": "playwright test --config playwright.accounts.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1",

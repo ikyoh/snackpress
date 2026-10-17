@@ -69,21 +69,30 @@ def pizza(folder, files, p):
     path = folder / "gabarit.pdf"
     w, h = p.width + 2 * p.bleed, p.height + 2 * p.bleed
     c = new_canvas(path, w, h)
+
+    def contour(inset, *, fill=0, stroke=1):
+        x = (p.bleed + inset) * mm
+        width, height = (p.width - 2 * inset) * mm, (p.height - 2 * inset) * mm
+        if p.shape == "circle":
+            c.circle(x + width / 2, x + height / 2, width / 2, fill=fill, stroke=stroke)
+        elif p.shape == "ellipse":
+            c.ellipse(x, x, x + width, x + height, fill=fill, stroke=stroke)
+        elif p.corner_radius > 0:
+            radius = max(0, p.corner_radius - inset) * mm
+            c.roundRect(x, x, width, height, radius, fill=fill, stroke=stroke)
+        else:
+            c.rect(x, x, width, height, fill=fill, stroke=stroke)
+
     c.setFillColor(colors.HexColor("#f7e5dc"))
-    c.rect(0, 0, w * mm, h * mm, fill=1, stroke=0)
+    contour(-p.bleed, fill=1, stroke=0)
     c.setFillColor(colors.white)
-    c.rect(p.bleed * mm, p.bleed * mm, p.width * mm, p.height * mm, fill=1, stroke=0)
+    contour(0, fill=1, stroke=0)
     c.setStrokeColor(CORAL)
     c.setLineWidth(0.25 * mm)
-    c.rect(p.bleed * mm, p.bleed * mm, p.width * mm, p.height * mm)
+    contour(0)
     c.setStrokeColor(INK)
     c.setDash(2 * mm, 1 * mm)
-    c.rect(
-        (p.bleed + p.safety) * mm,
-        (p.bleed + p.safety) * mm,
-        (p.width - 2 * p.safety) * mm,
-        (p.height - 2 * p.safety) * mm,
-    )
+    contour(p.safety)
     c.save()
     with pikepdf.open(path, allow_overwriting_input=True) as pdf:
         page = pdf.pages[0]
@@ -97,10 +106,18 @@ def pizza(folder, files, p):
         sheet,
         "Pizza — gabarit technique",
         [
+            (
+                "Forme",
+                {"circle": "Ronde", "ellipse": "Ovale"}.get(p.shape, "Carrée / rectangulaire"),
+            ),
             ("Format fini", f"{p.width} × {p.height} mm"),
+            (
+                "Rayon des coins",
+                "Sans objet" if p.shape != "rectangle" else f"{p.corner_radius} mm",
+            ),
             ("Fond perdu", f"{p.bleed} mm, zone saumon"),
             ("Sécurité", f"{p.safety} mm, trait vert pointillé"),
-            ("Coupe", "Trait corail continu ; TrimBox définie"),
+            ("Coupe", "Trait corail continu ; TrimBox rectangulaire englobante"),
         ],
         "Guides visibles : gabarit de préparation, à retirer du document final.",
     )

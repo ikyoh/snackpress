@@ -17,6 +17,23 @@ const tools = [
   ['bento', 'Bento', true],
 ] as const
 
+test('pizza : forme ronde et coins arrondis', async ({ page }) => {
+  await page.goto('/?tool=pizza')
+  await page.getByLabel('Rayon des coins', { exact: true }).fill('10')
+  await page.getByLabel('Forme', { exact: true }).selectOption('circle')
+  await expect(page.getByLabel('Hauteur finie', { exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('Rayon des coins', { exact: true })).toHaveCount(0)
+  await page.getByLabel('Diamètre fini', { exact: true }).fill('70')
+  const response = page.waitForResponse((r) => r.url().includes('/api/tools/pizza/run'))
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
+  const result = await response
+  expect(result.status(), await result.text()).toBe(201)
+  await expect(page.locator('canvas[data-ready=true]')).toBeVisible({ timeout: 15000 })
+  await page.getByLabel('Forme', { exact: true }).selectOption('rectangle')
+  await expect(page.getByLabel('Rayon des coins', { exact: true })).toHaveValue('10')
+  await expect(page.getByLabel('Hauteur finie', { exact: true })).toBeVisible()
+})
+
 for (const [id, name, needsFile] of tools) {
   test(`${name} : réglages, traitement, aperçu et téléchargement`, async ({ page }) => {
     const errors: string[] = []
@@ -29,7 +46,7 @@ for (const [id, name, needsFile] of tools) {
       await page.getByLabel('Rainages verticaux depuis le bord gauche').fill('20,60')
     await expect(page.locator('.tool-controls input:invalid')).toHaveCount(0)
     const response = page.waitForResponse((r) => r.url().includes(`/api/tools/${id}/run`))
-    await page.getByRole('button', { name: 'Lancer l’outil', exact: true }).click()
+    await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
     const result = await response
     expect(result.status(), await result.text()).toBe(201)
     await expect(page.locator('.tool-success')).toBeVisible()
@@ -45,7 +62,7 @@ for (const [id, name, needsFile] of tools) {
     expect((await downloadEvent).suggestedFilename()).toMatch(/^snackpress-/)
     await page.getByRole('button', { name: 'Supprimer ce travail' }).click()
     await expect(
-      page.locator(id === 'fortune-cookie' ? '.fortune-preview' : '.tool-empty'),
+      page.locator(id === 'fortune-cookie' ? '.fortune-preview' : '.live-preview'),
     ).toBeVisible()
     expect(errors).toEqual([])
   })
@@ -73,7 +90,7 @@ test('mobile : catalogue et calcul de dos', async ({ page }) => {
   await page.screenshot({ path: 'test-results/catalogue-mobile.png', fullPage: true })
   await page.getByRole('link', { name: /Club Sandwich/ }).click()
   const response = page.waitForResponse((r) => r.url().includes('/api/tools/club-sandwich/run'))
-  await page.getByRole('button', { name: 'Lancer l’outil', exact: true }).click()
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
   expect((await response).status()).toBe(201)
   await expect(page.locator('.tool-success')).toContainText('6.90')
   await expect(page.locator('canvas[data-ready=true]')).toBeVisible({ timeout: 15000 })
@@ -86,7 +103,7 @@ test('livret piqué : huit pages et navigation du résultat', async ({ page }) =
   await page.getByLabel('Imposition', { exact: true }).selectOption('booklet')
   await page.getByRole('button', { name: 'Charger un exemple' }).click()
   const response = page.waitForResponse((r) => r.url().includes('/api/tools/layer-cake/run'))
-  await page.getByRole('button', { name: 'Lancer l’outil', exact: true }).click()
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
   expect((await response).status()).toBe(201)
   await expect(page.locator('.tool-success')).toBeVisible()
   await expect(page.locator('canvas[data-ready=true]')).toBeVisible({ timeout: 15000 })
@@ -99,7 +116,7 @@ test('livret piqué : huit pages et navigation du résultat', async ({ page }) =
 
 test('aperçu PDF : zoom, ajustement, plein écran et mobile', async ({ page }) => {
   await page.goto('/?tool=taco')
-  await page.getByRole('button', { name: 'Lancer l’outil', exact: true }).click()
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
   const canvas = page.locator('canvas[data-ready=true]')
   await expect(canvas).toBeVisible({ timeout: 15000 })
   await expect(page.locator('.pdf-viewer-footer')).toContainText('327 × 240 mm')
@@ -127,7 +144,7 @@ test('aperçu PDF : zoom, ajustement, plein écran et mobile', async ({ page }) 
 test('aperçu PDF indisponible : téléchargement toujours accessible', async ({ page }) => {
   await page.route('**/api/tool-jobs/*/files/*.pdf', (route) => route.abort())
   await page.goto('/?tool=taco')
-  await page.getByRole('button', { name: 'Lancer l’outil', exact: true }).click()
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
   await expect(page.locator('.pdf-viewer-error')).toBeVisible({ timeout: 15000 })
   await expect(page.getByRole('link', { name: 'Télécharger le PDF', exact: true })).toBeVisible()
   await expect(page.locator('.artifact-downloads > a').first()).toBeVisible()
@@ -155,7 +172,7 @@ test('Fortune Cookie : plusieurs numérotations personnalisées et déplacement'
   expect(Number(await second.getByLabel('Position X').inputValue())).toBeGreaterThan(35)
   await page.screenshot({ path: 'test-results/fortune-desktop.png', fullPage: true })
   const response = page.waitForResponse((r) => r.url().includes('/api/tools/fortune-cookie/run'))
-  await page.getByRole('button', { name: 'Lancer l’outil', exact: true }).click()
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
   const result = await response
   expect(result.status(), await result.text()).toBe(201)
   const request = result.request().postData()!

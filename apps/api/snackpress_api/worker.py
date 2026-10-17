@@ -17,8 +17,11 @@ try:
     action, folder = sys.argv[1], Path(sys.argv[2])
     if action == "inspect":
         result = inspect(folder / "source.pdf").model_dump()
-    elif action == "tools":
+    elif action in {"tools", "tool-preview"}:
         from snackpress_tools.runner import run
+
+        if action == "tool-preview":
+            from snackpress_tools.preview import render as run
 
         request = json.loads((folder / "tool-request.json").read_text())
         result = run(
