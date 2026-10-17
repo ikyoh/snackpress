@@ -22,6 +22,7 @@ import {
   X,
 } from 'lucide-react'
 import App from './App'
+import { PrintCatalogPage } from './PrintCatalog'
 import { AccountButton } from './Account'
 import { Configurations } from './Configurations'
 import { BurgerEditor, burgerDefaults, burgerLabels, type BurgerOptions } from './BurgerEditor'
@@ -121,6 +122,9 @@ function Header() {
           Tous les outils
         </a>
       </div>
+      <a className="print-catalog-link" href="/?view=products">
+        Produits d’impression
+      </a>
       <AccountButton />
       <span className="header-note">
         <WandSparkles size={17} />
@@ -148,7 +152,9 @@ export default function Studio() {
   return (
     <>
       <Header />
-      {error ? (
+      {new URLSearchParams(window.location.search).get('view') === 'products' && tools.length ? (
+        <PrintCatalogPage tools={tools} />
+      ) : error ? (
         <main className="studio-main">
           <div className="alert error" role="alert">
             {error}
@@ -205,7 +211,13 @@ function Catalog({ tools }: { tools: Tool[] }) {
           </div>
         </div>
         <div className="candy-hero-art" aria-hidden="true">
-          <img src="/candy/hero-printshop.webp" alt="" width="1536" height="1024" fetchPriority="high" />
+          <img
+            src="/candy/hero-printshop.webp"
+            alt=""
+            width="1536"
+            height="1024"
+            fetchPriority="high"
+          />
           <span className="candy-spark spark-one">
             <Sparkles />
           </span>
@@ -435,7 +447,10 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
   const maxFiles = tool.id === 'burger' ? burgerRoles.length : tool.max_files
   const ready =
     tool.id === 'burger'
-      ? files.length === maxFiles && burger.expected_files > 0
+      ? files.length === maxFiles &&
+        (burger.product_snapshot
+          ? maxFiles > 0
+          : burger.source_mode === 'classic' && burger.expected_files > 0)
       : files.length >= tool.min_files && files.length <= tool.max_files
   const settings =
     tool.id === 'fortune-cookie'
@@ -445,7 +460,15 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
         : values
   function changeBurger(next: BurgerOptions) {
     // Keep only the populated prefix whose files retain the same production roles.
-    if (JSON.stringify(burgerRoles) !== JSON.stringify(burgerLabels(next))) {
+    if (
+      JSON.stringify(burgerRoles) !== JSON.stringify(burgerLabels(next)) ||
+      JSON.stringify(
+        burger.product_snapshot?.variant.components.map((c) => ({ id: c.id, slots: c.slots })),
+      ) !==
+        JSON.stringify(
+          next.product_snapshot?.variant.components.map((c) => ({ id: c.id, slots: c.slots })),
+        )
+    ) {
       const retained: File[] = []
       for (const role of burgerLabels(next)) {
         const file = files[burgerRoles.indexOf(role)]
@@ -749,9 +772,11 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   L’import autorise le traitement sur le serveur pour l’aperçu et le fichier final.
                   Conservation maximale : 24 h.
                 </p>
-                <button type="button" className="example-button" onClick={() => void example()}>
-                  Charger un exemple <ArrowRight size={13} />
-                </button>
+                {(tool.id !== 'burger' || burger.source_mode === 'classic') && (
+                  <button type="button" className="example-button" onClick={() => void example()}>
+                    Charger un exemple <ArrowRight size={13} />
+                  </button>
+                )}
               </section>
             )}
             <Configurations
@@ -791,7 +816,15 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                 </h2>
                 <div className="tool-fields">
                   {tool.fields
-                    .filter((f) => visibleField(tool.id, f.key, values))
+                    .filter(
+                      (f) =>
+                        visibleField(tool.id, f.key, values) &&
+                        !(
+                          tool.id === 'burger' &&
+                          burger.source_mode !== 'classic' &&
+                          f.key === 'paper'
+                        ),
+                    )
                     .map((field) => (
                       <Setting
                         key={field.key}

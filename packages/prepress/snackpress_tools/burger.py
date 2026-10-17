@@ -35,12 +35,14 @@ def template(folder, files, p):
                 if ox >= 0 and oy >= 0 and ox + fw <= w + 0.01 and oy + fh <= h + 0.01:
                     return path, (w, h), (ox, oy, fw, fh)
         return path, (w, h), (0, 0, w, h)
-    from .generators import burrito, pizza, taco
+    from .generators import burrito, pizza, sushi, taco
 
     settings = MODELS[p.template_tool].model_validate(p.template_settings)
     work = folder / "gabarit-burger"
     work.mkdir()
-    result = {"pizza": pizza, "taco": taco, "burrito": burrito}[p.template_tool](work, [], settings)
+    result = {"pizza": pizza, "taco": taco, "burrito": burrito, "sushi": sushi}[p.template_tool](
+        work, [], settings
+    )
     path = work / result.artifacts[0].name
     # Keep vector strokes (cut, fold, safety, eyelets); omit fills and panel labels.
     with pikepdf.open(path, allow_overwriting_input=True) as doc:
@@ -61,13 +63,23 @@ def template(folder, files, p):
         w, h = dimensions(doc.pages[0])
         doc.save(path)
     origin = (
-        settings.bleed if p.template_tool == "pizza" else 15 if p.template_tool == "taco" else 0
+        settings.bleed
+        if p.template_tool == "pizza"
+        else 15
+        if p.template_tool == "taco"
+        else 5
+        if p.template_tool == "sushi"
+        else 0
     )
     return path, (w, h), (origin, origin, settings.width, settings.height)
 
 
-def generate(folder, files, p):
-    labels = input_labels(p)
+def generate(folder, files, p, labels=None, combined_guide=None):
+    if p.product_snapshot is not None:
+        from .product_proof import generate_product
+
+        return generate_product(folder, files, p)
+    labels = labels if labels is not None else input_labels(p)
     expected = len(labels) + (p.template_tool == "pdf")
     if len(files) != expected:
         raise ValueError(
@@ -88,7 +100,7 @@ def generate(folder, files, p):
             raise ValueError("La couverture de la brochure doit contenir exactement 4 pages.")
         if sum(counts[p.cover_files : p.expected_files]) != p.interior_pages:
             raise ValueError(f"L’intérieur doit contenir exactement {p.interior_pages} pages.")
-    guide = template(folder, files, p)
+    guide = combined_guide or template(folder, files, p)
     guide_image = None
     if guide:
         path, (gw, gh), (ox, oy, fw, fh) = guide

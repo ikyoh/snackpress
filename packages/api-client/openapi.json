@@ -817,6 +817,87 @@
         }
       }
     },
+    "/api/print-catalog/starter": {
+      "get": {
+        "tags": [
+          "print-catalog"
+        ],
+        "summary": "Starter",
+        "operationId": "starter_api_print_catalog_starter_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/print-catalog": {
+      "get": {
+        "tags": [
+          "print-catalog"
+        ],
+        "summary": "Get Library",
+        "operationId": "get_library_api_print_catalog_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "print-catalog"
+        ],
+        "summary": "Save Library",
+        "operationId": "save_library_api_print_catalog_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LibraryResponse"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LibraryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/health": {
       "get": {
         "summary": "Health",
@@ -1156,6 +1237,125 @@
         ],
         "title": "Body_upload_api_jobs_post"
       },
+      "Category": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "parent_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Category"
+      },
+      "Component": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "width": {
+            "type": "number",
+            "maximum": 5000.0,
+            "exclusiveMinimum": 5.0,
+            "title": "Width",
+            "default": 85
+          },
+          "height": {
+            "type": "number",
+            "maximum": 5000.0,
+            "exclusiveMinimum": 5.0,
+            "title": "Height",
+            "default": 55
+          },
+          "bleed": {
+            "type": "number",
+            "maximum": 30.0,
+            "minimum": 0.0,
+            "title": "Bleed",
+            "default": 3
+          },
+          "material_id": {
+            "type": "string",
+            "title": "Material Id",
+            "default": ""
+          },
+          "page_multiple": {
+            "type": "integer",
+            "maximum": 32.0,
+            "minimum": 1.0,
+            "title": "Page Multiple",
+            "default": 1
+          },
+          "slots": {
+            "items": {
+              "$ref": "#/components/schemas/Slot"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Slots"
+          },
+          "guides": {
+            "items": {
+              "$ref": "#/components/schemas/Guide"
+            },
+            "type": "array",
+            "maxItems": 5,
+            "title": "Guides"
+          },
+          "tickets": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Tickets"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Component"
+      },
       "ConfigurationInput": {
         "properties": {
           "name": {
@@ -1316,6 +1516,75 @@
         ],
         "title": "EmailInput"
       },
+      "Finish": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "mask": {
+            "type": "boolean",
+            "title": "Mask",
+            "default": false
+          },
+          "material_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Material Ids"
+          },
+          "excludes": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Excludes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Finish"
+      },
+      "Guide": {
+        "properties": {
+          "tool": {
+            "type": "string",
+            "enum": [
+              "pizza",
+              "taco",
+              "burrito",
+              "sushi",
+              "perforation"
+            ],
+            "title": "Tool",
+            "default": "pizza"
+          },
+          "settings": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Settings"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Guide"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1351,6 +1620,24 @@
         ],
         "title": "JobResponse"
       },
+      "LibraryResponse": {
+        "properties": {
+          "catalog": {
+            "$ref": "#/components/schemas/PrintCatalog"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Revision",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "catalog"
+        ],
+        "title": "LibraryResponse"
+      },
       "Mark": {
         "properties": {
           "x1": {
@@ -1378,6 +1665,68 @@
           "y2"
         ],
         "title": "Mark"
+      },
+      "Material": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "family": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Family",
+            "default": "Papier"
+          },
+          "gsm": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 3000.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gsm"
+          },
+          "thickness": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 100.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Thickness"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Description",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Material"
       },
       "Message": {
         "properties": {
@@ -1644,6 +1993,154 @@
         "type": "object",
         "title": "PreviewSettings"
       },
+      "PrintCatalog": {
+        "properties": {
+          "categories": {
+            "items": {
+              "$ref": "#/components/schemas/Category"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Categories"
+          },
+          "materials": {
+            "items": {
+              "$ref": "#/components/schemas/Material"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Materials"
+          },
+          "finishes": {
+            "items": {
+              "$ref": "#/components/schemas/Finish"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Finishes"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/Product"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Products"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "categories",
+          "materials",
+          "finishes",
+          "products"
+        ],
+        "title": "PrintCatalog"
+      },
+      "Product": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "category_id": {
+            "type": "string",
+            "title": "Category Id"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Description",
+            "default": ""
+          },
+          "material_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Material Ids"
+          },
+          "finish_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "title": "Finish Ids"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/Variant"
+            },
+            "type": "array",
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Variants"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "category_id",
+          "variants"
+        ],
+        "title": "Product"
+      },
+      "SerialPlacement": {
+        "properties": {
+          "x": {
+            "type": "number",
+            "maximum": 5000.0,
+            "minimum": 0.0,
+            "title": "X",
+            "default": 6
+          },
+          "y": {
+            "type": "number",
+            "maximum": 5000.0,
+            "minimum": 0.0,
+            "title": "Y",
+            "default": 20
+          },
+          "size": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 4.0,
+            "title": "Size",
+            "default": 10
+          },
+          "offset": {
+            "type": "integer",
+            "maximum": 999999999.0,
+            "minimum": 0.0,
+            "title": "Offset",
+            "default": 0
+          },
+          "face": {
+            "type": "integer",
+            "maximum": 2.0,
+            "minimum": 1.0,
+            "title": "Face",
+            "default": 1
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "SerialPlacement"
+      },
       "Settings": {
         "properties": {
           "schema_version": {
@@ -1767,6 +2264,142 @@
         "additionalProperties": false,
         "type": "object",
         "title": "Settings"
+      },
+      "Slot": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "pages": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Pages",
+            "default": 1
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "visual",
+              "mask"
+            ],
+            "title": "Role",
+            "default": "visual"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "Slot"
+      },
+      "Tickets": {
+        "properties": {
+          "start": {
+            "type": "integer",
+            "maximum": 999999999.0,
+            "minimum": 0.0,
+            "title": "Start",
+            "default": 1
+          },
+          "count": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Count",
+            "default": 50
+          },
+          "digits": {
+            "type": "integer",
+            "maximum": 12.0,
+            "minimum": 1.0,
+            "title": "Digits",
+            "default": 4
+          },
+          "prefix": {
+            "type": "string",
+            "maxLength": 30,
+            "title": "Prefix",
+            "default": ""
+          },
+          "suffix": {
+            "type": "string",
+            "maxLength": 30,
+            "title": "Suffix",
+            "default": ""
+          },
+          "per_book": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 1.0,
+            "title": "Per Book",
+            "default": 25
+          },
+          "binding": {
+            "type": "string",
+            "enum": [
+              "loose",
+              "stapled",
+              "glued"
+            ],
+            "title": "Binding",
+            "default": "loose"
+          },
+          "placements": {
+            "items": {
+              "$ref": "#/components/schemas/SerialPlacement"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Placements"
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "none",
+              "qr",
+              "code128"
+            ],
+            "title": "Code",
+            "default": "none"
+          },
+          "payload": {
+            "type": "string",
+            "maxLength": 300,
+            "title": "Payload",
+            "default": "{n}"
+          },
+          "code_x": {
+            "type": "number",
+            "maximum": 5000.0,
+            "minimum": 0.0,
+            "title": "Code X",
+            "default": 65
+          },
+          "code_y": {
+            "type": "number",
+            "maximum": 5000.0,
+            "minimum": 0.0,
+            "title": "Code Y",
+            "default": 5
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "Tickets"
       },
       "TokenPassword": {
         "properties": {
@@ -2032,6 +2665,48 @@
           "type"
         ],
         "title": "ValidationError"
+      },
+      "Variant": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "components": {
+            "items": {
+              "$ref": "#/components/schemas/Component"
+            },
+            "type": "array",
+            "maxItems": 12,
+            "minItems": 1,
+            "title": "Components"
+          },
+          "finish_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "title": "Finish Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "components"
+        ],
+        "title": "Variant"
       }
     }
   }

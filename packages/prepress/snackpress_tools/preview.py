@@ -40,4 +40,4 @@ def render(folder: Path, tool: str, files: list[Path], values: dict):
                     sources[index] = target
     if tool == "fortune-cookie":
         settings["count"] = min(int(settings.get("count", 10)), 2)
-    return run(folder, tool, sources, settings)
+    return run(folder, tool, sources, settings, preview=True)

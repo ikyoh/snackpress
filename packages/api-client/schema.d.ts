@@ -296,6 +296,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/print-catalog/starter": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Starter */
+        get: operations["starter_api_print_catalog_starter_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/print-catalog": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Library */
+        get: operations["get_library_api_print_catalog_get"];
+        /** Save Library */
+        put: operations["save_library_api_print_catalog_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/health": {
         parameters: {
             query?: never;
@@ -451,6 +486,52 @@ export interface components {
             /** File */
             file: string;
         };
+        /** Category */
+        Category: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Parent Id */
+            parent_id?: string | null;
+        };
+        /** Component */
+        Component: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Width
+             * @default 85
+             */
+            width: number;
+            /**
+             * Height
+             * @default 55
+             */
+            height: number;
+            /**
+             * Bleed
+             * @default 3
+             */
+            bleed: number;
+            /**
+             * Material Id
+             * @default
+             */
+            material_id: string;
+            /**
+             * Page Multiple
+             * @default 1
+             */
+            page_multiple: number;
+            /** Slots */
+            slots?: components["schemas"]["Slot"][];
+            /** Guides */
+            guides?: components["schemas"]["Guide"][];
+            tickets?: components["schemas"]["Tickets"] | null;
+        };
         /** ConfigurationInput */
         ConfigurationInput: {
             /** Name */
@@ -526,6 +607,35 @@ export interface components {
             /** Email */
             email: string;
         };
+        /** Finish */
+        Finish: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Mask
+             * @default false
+             */
+            mask: boolean;
+            /** Material Ids */
+            material_ids?: string[];
+            /** Excludes */
+            excludes?: string[];
+        };
+        /** Guide */
+        Guide: {
+            /**
+             * Tool
+             * @default pizza
+             * @enum {string}
+             */
+            tool: "pizza" | "taco" | "burrito" | "sushi" | "perforation";
+            /** Settings */
+            settings?: {
+                [key: string]: unknown;
+            };
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -539,6 +649,15 @@ export interface components {
             name: string;
             document: components["schemas"]["DocumentInfo"];
         };
+        /** LibraryResponse */
+        LibraryResponse: {
+            catalog: components["schemas"]["PrintCatalog"];
+            /**
+             * Revision
+             * @default 0
+             */
+            revision: number;
+        };
         /** Mark */
         Mark: {
             /** X1 */
@@ -549,6 +668,27 @@ export interface components {
             x2: number;
             /** Y2 */
             y2: number;
+        };
+        /** Material */
+        Material: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Family
+             * @default Papier
+             */
+            family: string;
+            /** Gsm */
+            gsm?: number | null;
+            /** Thickness */
+            thickness?: number | null;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
         };
         /** Message */
         Message: {
@@ -657,6 +797,65 @@ export interface components {
                 [key: string]: unknown;
             };
         };
+        /** PrintCatalog */
+        PrintCatalog: {
+            /** Categories */
+            categories: components["schemas"]["Category"][];
+            /** Materials */
+            materials: components["schemas"]["Material"][];
+            /** Finishes */
+            finishes: components["schemas"]["Finish"][];
+            /** Products */
+            products: components["schemas"]["Product"][];
+        };
+        /** Product */
+        Product: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Category Id */
+            category_id: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /** Material Ids */
+            material_ids?: string[];
+            /** Finish Ids */
+            finish_ids?: string[];
+            /** Variants */
+            variants: components["schemas"]["Variant"][];
+        };
+        /** SerialPlacement */
+        SerialPlacement: {
+            /**
+             * X
+             * @default 6
+             */
+            x: number;
+            /**
+             * Y
+             * @default 20
+             */
+            y: number;
+            /**
+             * Size
+             * @default 10
+             */
+            size: number;
+            /**
+             * Offset
+             * @default 0
+             */
+            offset: number;
+            /**
+             * Face
+             * @default 1
+             */
+            face: number;
+        };
         /** Settings */
         Settings: {
             /**
@@ -731,6 +930,86 @@ export interface components {
              * @default false
              */
             confirm_trim: boolean;
+        };
+        /** Slot */
+        Slot: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Pages
+             * @default 1
+             */
+            pages: number;
+            /**
+             * Role
+             * @default visual
+             * @enum {string}
+             */
+            role: "visual" | "mask";
+        };
+        /** Tickets */
+        Tickets: {
+            /**
+             * Start
+             * @default 1
+             */
+            start: number;
+            /**
+             * Count
+             * @default 50
+             */
+            count: number;
+            /**
+             * Digits
+             * @default 4
+             */
+            digits: number;
+            /**
+             * Prefix
+             * @default
+             */
+            prefix: string;
+            /**
+             * Suffix
+             * @default
+             */
+            suffix: string;
+            /**
+             * Per Book
+             * @default 25
+             */
+            per_book: number;
+            /**
+             * Binding
+             * @default loose
+             * @enum {string}
+             */
+            binding: "loose" | "stapled" | "glued";
+            /** Placements */
+            placements?: components["schemas"]["SerialPlacement"][];
+            /**
+             * Code
+             * @default none
+             * @enum {string}
+             */
+            code: "none" | "qr" | "code128";
+            /**
+             * Payload
+             * @default {n}
+             */
+            payload: string;
+            /**
+             * Code X
+             * @default 65
+             */
+            code_x: number;
+            /**
+             * Code Y
+             * @default 5
+             */
+            code_y: number;
         };
         /** TokenPassword */
         TokenPassword: {
@@ -848,6 +1127,17 @@ export interface components {
             input?: unknown;
             /** Context */
             ctx?: Record<string, never>;
+        };
+        /** Variant */
+        Variant: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Components */
+            components: components["schemas"]["Component"][];
+            /** Finish Ids */
+            finish_ids?: string[];
         };
     };
     responses: never;
@@ -1460,6 +1750,79 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    starter_api_print_catalog_starter_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryResponse"];
+                };
+            };
+        };
+    };
+    get_library_api_print_catalog_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryResponse"];
+                };
+            };
+        };
+    };
+    save_library_api_print_catalog_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LibraryResponse"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryResponse"];
+                };
             };
             /** @description Validation Error */
             422: {

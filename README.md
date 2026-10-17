@@ -60,6 +60,12 @@ Les ateliers recalculent l’aperçu après une pause de 500 ms dans la saisie, 
 
 Les fichiers sont importés une fois dans une session d’aperçu, puis les requêtes d’actualisation transmettent seulement les réglages. Les calculs interrompus sont annulés côté serveur. Chaque session conserve au maximum trois générations d’aperçu ; les rendus échoués sont supprimés. Les sessions sont supprimées à leur libération par le navigateur et expirent après 30 minutes d’inactivité, indépendamment des fichiers finaux conservés 24 h. La purge périodique et les limites de travaux, de taille, de processus et de temps restent actives. L’import autorise le traitement sur le serveur pour produire l’aperçu.
 
+## Produits d’impression et BAT
+
+Le lien **Produits d’impression** ouvre le catalogue personnel : catégories, supports matières, façonnages et finitions, produits et déclinaisons. Six produits pilotes sont fournis, dont les billets détachables numérotés. Dans Burger, choisir le catalogue ou un mode libre configurable ; la composition classique reste disponible. Les composants définissent leurs formats, fichiers PDF, pagination et tracés Pizza, Taco, Burrito, Sushi ou perforations. Les billets proposent des numéros répétés, un recto verso facultatif, les codes et un manifeste des carnets ; l’aperçu montre le premier et le dernier, l’export final génère la série (100 billets maximum).
+
+Le catalogue est enregistré dans le compte avec contrôle des modifications concurrentes. Chaque BAT conserve une copie de ses spécifications dans les réglages, indépendamment des changements ultérieurs du catalogue. Documentation et limites : [catalogue des produits](docs/PRINT-CATALOG.md).
+
 ## Comptes et configurations personnelles
 
 Les outils sont utilisables sans compte. Le bouton **Se connecter** permet de créer un compte : saisie de l’adresse e-mail, réception d’un lien valable 30 minutes, choix d’un mot de passe d’au moins 15 caractères, puis connexion. Le même compte retrouve ses configurations sur tous les appareils. Les liens sont à usage unique. « Mot de passe oublié ? » envoie un nouveau lien et invalide toutes les sessions après modification du mot de passe.

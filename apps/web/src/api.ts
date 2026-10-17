@@ -36,7 +36,10 @@ export async function request<T>(url: string, init?: RequestInit): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => ({}))
     const detail = body.detail
-    if (response.status === 401 && url.startsWith('/api/configurations')) {
+    if (
+      response.status === 401 &&
+      (url.startsWith('/api/configurations') || url.startsWith('/api/print-catalog'))
+    ) {
       window.dispatchEvent(new Event('snackpress-session-expired'))
     }
     throw new ApiError(

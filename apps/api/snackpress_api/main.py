@@ -21,6 +21,7 @@ from .accounts import router as accounts_router
 from .configurations import router as configurations_router
 from .database import AccountToken, Base, Job, LoginSession
 from .previews import router as previews_router
+from .products import router as products_router
 from .tools import router as tools_router
 
 DATA = Path(os.environ.get("SNACKPRESS_DATA", ".data")).resolve()
@@ -93,6 +94,7 @@ app.include_router(tools_router)
 app.include_router(previews_router)
 app.include_router(accounts_router)
 app.include_router(configurations_router)
+app.include_router(products_router)
 
 
 @app.exception_handler(RequestValidationError)
@@ -108,14 +110,18 @@ async def validation_error(request: Request, exc: RequestValidationError):
 
 @app.middleware("http")
 async def private_account_responses(request: Request, call_next):
-    private = request.url.path.startswith(("/api/auth", "/api/configurations"))
+    private = request.url.path.startswith(
+        ("/api/auth", "/api/configurations", "/api/print-catalog")
+    )
     if private:
         size = 0
         chunks = []
         async for chunk in request.stream():
             size += len(chunk)
             chunks.append(chunk)
-            if size > 80 * 1024:
+            if size > (
+                300 * 1024 if request.url.path.startswith("/api/print-catalog") else 80 * 1024
+            ):
                 return JSONResponse(
                     status_code=413, content={"detail": "Requête trop volumineuse."}
                 )

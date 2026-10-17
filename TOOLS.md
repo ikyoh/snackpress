@@ -23,7 +23,7 @@ Périmètre demandé le 15 octobre 2026. Les 14 outils ont un formulaire, un tra
 
 Dans Burger, choisissez la composition avant l’import : nombre de fichiers visuels, puis finitions nommées (vernis, dorure, blanc de soutien ou autre). Importez les PDF dans l’ordre indiqué ; les flèches permettent de corriger leur affectation. Pour une brochure, les premiers fichiers de couverture doivent totaliser 4 pages et les fichiers suivants le nombre de pages intérieures annoncé. Les finitions viennent ensuite, avec un PDF distinct pour chacune.
 
-Le gabarit Burger peut reprendre les réglages et configurations personnelles de Pizza, Taco ou Burrito, ou provenir de leur PDF exporté (une page). La TrimBox sert à placer un visuel au format fini ; un visuel au format complet du gabarit est également accepté. Chaque visuel reçoit une page de présentation et une page supplémentaire avec les repères. Les dimensions incompatibles sont refusées. Les pages de finition sont présentées séparément dans le BAT.
+Le gabarit Burger peut reprendre les réglages et configurations personnelles de Pizza, Taco, Burrito ou Sushi, ou provenir de leur PDF exporté (une page). La TrimBox sert à placer un visuel au format fini ; un visuel au format complet du gabarit est également accepté. Chaque visuel reçoit une page de présentation et une page supplémentaire avec les repères. Les dimensions incompatibles sont refusées. Les pages de finition sont présentées séparément dans le BAT.
 
 - 25 Mo par fichier, 50 Mo par traitement, 100 travaux conservés au maximum.
 - Processus PDF séparés : 2 simultanés, 30 secondes murales et 25 secondes CPU ; fichier de sortie individuel limité à 150 Mo. Mémoire virtuelle limitée à 1 Gio sur Linux, threads de calcul limités à 1.
@@ -40,3 +40,9 @@ Les tests automatisés couvrent les exports des 14 outils et des cas connus de g
 
 
 Les aperçus se mettent à jour automatiquement après 500 ms sans saisie et dès que les fichiers requis sont présents. Donut, Tiramisu et Poké sont limités à deux pages et 96 dpi dans l’aperçu ; Fortune Cookie affiche deux exemplaires maximum. Le bouton de génération réalise toujours le fichier complet avec les paramètres demandés. Les limites de l’aperçu sont indiquées dans chaque atelier. Voir le README pour la conservation des sessions temporaires.
+
+## Catalogue des produits d’impression
+
+Le lien **Produits d’impression** permet de gérer catégories, matières, finitions et produits à déclinaisons dans le compte. Burger propose le catalogue et un mode libre avec composants, emplacements PDF nommés, pagination, formats et fonds perdus contrôlés. Les tracés Pizza, Taco, Burrito, Sushi et les perforations sont associés aux composants ; Pizza et Sushi sont des références de découpe alternatives. Les spécifications sont copiées dans les réglages du BAT.
+
+Les **billets détachables numérotés** proposent souche et coupons, perforations, numéros répétés ou décalés, préfixe/suffixe, recto verso et codes facultatifs. Le BAT et l’aperçu montrent le premier et le dernier billet ; l’export final contient toute la série vectorielle (100 billets maximum) et le manifeste des carnets. L’assemblage et les perforations physiques restent des opérations de fabrication. Voir les [modalités et limites](docs/PRINT-CATALOG.md).

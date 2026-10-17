@@ -29,7 +29,7 @@ HANDLERS = dict(
 )
 
 
-def run(folder: Path, tool: str, files: list[Path], values: dict):
+def run(folder: Path, tool: str, files: list[Path], values: dict, *, preview=False):
     if tool not in CATALOG:
         raise ValueError("Outil inconnu.")
     definition = CATALOG[tool]
@@ -40,7 +40,12 @@ def run(folder: Path, tool: str, files: list[Path], values: dict):
     if any(f.suffix != ".pdf" for f in files) and tool != "donut":
         raise ValueError("Cet outil accepte uniquement les PDF.")
     params = MODELS[tool].model_validate(values)
-    result = HANDLERS[tool](folder, files, params)
+    if tool == "burger" and params.product_snapshot is not None:
+        from .product_proof import generate_product
+
+        result = generate_product(folder, files, params, preview=preview)
+    else:
+        result = HANDLERS[tool](folder, files, params)
     result.warnings.insert(0, definition.limit)
     settings = folder / "reglages.json"
     write_json(

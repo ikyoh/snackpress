@@ -2,12 +2,16 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .products import Snapshot
+
 
 class Params(BaseModel):
     model_config = ConfigDict(extra="forbid", allow_inf_nan=False)
 
 
 class Burger(Params):
+    source_mode: Literal["classic", "catalog", "free"] = "classic"
+    product_snapshot: Snapshot | None = None
     title: str = Field(default="Bon à tirer", max_length=120)
     client: str = Field(default="", max_length=120)
     paper: str = Field(default="À confirmer", max_length=120)
@@ -17,11 +21,13 @@ class Burger(Params):
     cover_files: int = Field(default=1, ge=1, le=79)
     interior_pages: int = Field(default=4, ge=1, le=200)
     finishes: list[str] = Field(default_factory=list, max_length=12)
-    template_tool: Literal["none", "pizza", "taco", "burrito", "pdf"] = "none"
+    template_tool: Literal["none", "pizza", "taco", "burrito", "sushi", "pdf"] = "none"
     template_settings: dict = Field(default_factory=dict)
 
     @model_validator(mode="after")
     def production(self):
+        if self.source_mode != "classic" and self.product_snapshot is None:
+            raise ValueError("Choisissez un produit ou configurez le mode libre avant le BAT.")
         if self.document_type == "card" and self.expected_files != 2:
             raise ValueError("Une carte recto verso attend 2 fichiers, un par face.")
         if self.document_type == "brochure" and self.cover_files >= self.expected_files:
@@ -35,13 +41,15 @@ class Burger(Params):
             raise ValueError("Chaque finition doit avoir un nom de 1 à 80 caractères.")
         if len({name.casefold() for name in self.finishes}) != len(self.finishes):
             raise ValueError("Chaque finition doit avoir un nom distinct.")
-        models = {"pizza": Pizza, "taco": Taco, "burrito": Burrito}
+        models = {"pizza": Pizza, "taco": Taco, "burrito": Burrito, "sushi": Sushi}
         if self.template_tool in models:
             self.template_settings = (
                 models[self.template_tool].model_validate(self.template_settings).model_dump()
             )
         elif self.template_settings:
-            raise ValueError("Sélectionnez Pizza, Taco ou Burrito pour ces réglages de gabarit.")
+            raise ValueError(
+                "Sélectionnez Pizza, Taco, Burrito ou Sushi pour ces réglages de gabarit."
+            )
         return self
 
 

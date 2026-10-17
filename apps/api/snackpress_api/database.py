@@ -54,3 +54,10 @@ class Configuration(Base):
     revision: Mapped[int] = mapped_column(default=1)
     created_at: Mapped[datetime] = mapped_column(DateTime)
     updated_at: Mapped[datetime] = mapped_column(DateTime)
+
+
+class PrintLibrary(Base):
+    __tablename__ = "print_libraries"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    content: Mapped[str] = mapped_column(String)
+    revision: Mapped[int] = mapped_column(default=1)
