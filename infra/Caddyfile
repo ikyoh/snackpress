@@ -5,6 +5,12 @@
 }
 
 :8080 {
+    # Jelastic terminates TLS. Only the hostname determines this redirect:
+    # redirecting on the internal HTTP scheme would create an HTTPS loop.
+    # Keep the health endpoint accessible to Docker/Jelastic probes on any host.
+    @noncanonical expression `"{$SNACKPRESS_DOMAIN:}" != "" && !host("{$SNACKPRESS_DOMAIN:localhost}") && !path("/api/health")`
+    redir @noncanonical https://{$SNACKPRESS_DOMAIN:localhost}{uri} 308
+
     request_body {
         # 50 MiB of files plus multipart overhead (API enforces per-file limits).
         max_size 54MB

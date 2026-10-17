@@ -39,6 +39,8 @@ services:
       - no-new-privileges:true
     cap_drop: [ALL]
   web:
+    environment:
+      SNACKPRESS_DOMAIN: ${SNACKPRESS_DOMAIN:-}
     build:
       context: ..
       dockerfile: infra/Dockerfile.web

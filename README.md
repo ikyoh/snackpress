@@ -152,6 +152,42 @@ Dans le tableau de bord Jelastic :
 3. Activer le **SSL intégré** dans la topologie de l’environnement si l’accès utilise le répartiteur partagé, sans IP publique directe. Jelastic termine HTTPS ; Caddy sert le trafic interne en HTTP.
 4. Ouvrir https://snackpress.jcloud.ik-server.com/ puis https://snackpress.jcloud.ik-server.com/api/health. Aucun DNS personnel ni nom de domaine dans Caddy n’est nécessaire pour cette adresse.
 
+### Domaine personnalisé : snackpress.io
+
+Pour l’hébergement Jelastic actuel, Caddy reste en HTTP sur le port interne 8080 et Jelastic termine HTTPS. Le domaine se configure au démarrage des conteneurs : aucune recompilation du frontend n’est nécessaire pour changer de domaine. La première installation du Caddyfile modifié nécessite toutefois de reconstruire l’image web.
+
+Sur le nœud Jelastic, dans le fichier `.env` à la racine du projet :
+
+```dotenv
+SNACKPRESS_DOMAIN=snackpress.io
+SNACKPRESS_PUBLIC_URL=
+```
+
+`SNACKPRESS_DOMAIN` contient uniquement le nom d’hôte, sans `https://`, chemin ni port. Le Compose production transmet cette variable à Caddy et déduit automatiquement `SNACKPRESS_PUBLIC_URL=https://snackpress.io` pour les comptes, les contrôles d’origine et les liens d’activation/récupération envoyés par e-mail. Si un ancien `.env` contient `SNACKPRESS_PUBLIC_URL=http://127.0.0.1:8080` ou l’URL Jelastic, supprimer cette valeur ou la remplacer par `https://snackpress.io` : une valeur explicite reste prioritaire et doit correspondre à l’origine publique.
+
+Avec un domaine configuré, Caddy redirige les autres noms d’hôte vers `https://snackpress.io` en 308, en conservant chemin et paramètres. Cela inclut l’ancien nom de l’environnement et `www.snackpress.io`, si leurs DNS/certificats permettent d’atteindre le service. Le point de santé `/api/health` reste accessible quel que soit l’hôte pour les sondes Docker et Jelastic. Sans domaine, le mode local continue de fonctionner comme auparavant et le Compose production utilise l’URL Jelastic historique pour les comptes.
+
+**DNS et rattachement à Jelastic :**
+
+1. Sans IP publique dédiée, créer à la racine `@` un enregistrement ALIAS/ANAME (ou un CNAME aplati, si le fournisseur le prend en charge) vers `snackpress.jcloud.ik-server.com`. Un CNAME classique est adapté à un sous-domaine comme `www`, mais pas à la racine d’une zone DNS standard. Si le fournisseur ne propose pas cette fonction pour la racine, utiliser une IP publique et un enregistrement A, ou choisir un sous-domaine comme adresse publique.
+2. Dans les paramètres de l’environnement Jelastic, **Custom Domains / Domain Binding**, rattacher `snackpress.io`. Ajouter aussi `www.snackpress.io` si ce nom doit rediriger vers la racine. Ce rattachement est nécessaire lorsque le trafic passe par le répartiteur partagé. Avec une IP publique dédiée, un enregistrement A vers l’IP du point d’entrée suffit pour le routage DNS.
+3. Configurer un certificat couvrant **snackpress.io** sur le point d’entrée Jelastic et y activer la redirection HTTP vers HTTPS. Le SSL intégré du domaine `*.jcloud.ik-server.com` ne couvre pas le domaine acheté. Avec un répartiteur partagé, utiliser **Custom SSL via SLB**, selon les fonctions proposées par l’hébergeur (API/support si nécessaire) ; avec une IP publique et un point d’entrée TLS Jelastic, utiliser son option Let’s Encrypt ou un certificat personnalisé. Pour rediriger `www` en HTTPS, son certificat doit aussi être valide avant que Caddy puisse recevoir la requête.
+4. Conserver `JELASTIC_EXPOSE=8080` sur le nœud Docker Engine. Les variables de domaine dans `.env` ne remplacent pas le rattachement DNS, le routage et le certificat de la plateforme.
+
+Après récupération de la version du dépôt contenant ces changements :
+
+```sh
+docker compose -f compose.prod.yaml config --quiet
+docker compose -f compose.prod.yaml up --build -d --wait
+curl --fail https://snackpress.io/api/health
+```
+
+Pour un changement ultérieur de domaine, modifier `.env` puis lancer `docker compose -f compose.prod.yaml up -d --wait` afin de recréer les conteneurs concernés. Un simple `restart` ne relit pas les variables Compose. Prévoir une reconnexion après un changement de domaine, car les cookies ne sont pas partagés entre domaines.
+
+Validation locale : Caddy validé avec domaine renseigné et vide ; requêtes HTTP testées dans des conteneurs temporaires pour le site, le proxy API, le point de santé, la redirection 308 avec chemin/paramètres et l’absence de boucle derrière la terminaison TLS de Jelastic. Résolution Compose vérifiée avec et sans domaine ainsi qu’avec une URL publique explicite. Les DNS, le certificat et le rattachement distants restent à effectuer dans les comptes de l’hébergeur et du registrar.
+
+Références : [domaines personnalisés Jelastic](https://www.virtuozzo.com/application-management-docs/custom-domains/), [SSL personnalisé via le répartiteur partagé](https://www.virtuozzo.com/application-management-docs/custom-ssl-via-slb/) et [variables du Caddyfile](https://caddyserver.com/docs/caddyfile/concepts#environment-variables).
+
 Commandes d’exploitation :
 
 ```sh
