@@ -8,10 +8,13 @@ COPY apps/web apps/web
 COPY packages/api-client packages/api-client
 RUN pnpm build
 FROM caddy:2-alpine
-# Port 8080 needs no capabilities; remove the upstream binary's file capability
+# Internal ports 8080/8443 need no capabilities; remove the binary's file capability
 # so it can execute with Compose's cap_drop: [ALL].
-RUN setcap -r /usr/bin/caddy
+RUN setcap -r /usr/bin/caddy \
+    && mkdir -p /data/caddy \
+    && chown -R 10001:10001 /data/caddy
 COPY infra/Caddyfile /etc/caddy/Caddyfile
+COPY infra/Caddyfile.https /etc/caddy/Caddyfile.https
 COPY --from=build /app/apps/web/dist /srv
 USER 10001:10001
-EXPOSE 8080
+EXPOSE 8080 8443 8443/udp

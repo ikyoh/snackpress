@@ -1,0 +1,38 @@
+# Direct public entry point: Caddy obtains and renews the TLS certificate.
+# Requires public TCP 80/443 routed to this Docker Engine (not TLS termination at SLB).
+# Use this file alone, with the same project name to preserve application data.
+name: snackpress
+
+services:
+  api:
+    extends:
+      file: compose.prod.yaml
+      service: api
+    environment:
+      SNACKPRESS_PUBLIC_URL: ${SNACKPRESS_PUBLIC_URL:-https://${SNACKPRESS_DOMAIN:?Set SNACKPRESS_DOMAIN to your public hostname}}
+
+  web:
+    extends:
+      file: compose.prod.yaml
+      service: web
+    command: [caddy, run, --config, /etc/caddy/Caddyfile.https, --adapter, caddyfile]
+    environment:
+      SNACKPRESS_DOMAIN: ${SNACKPRESS_DOMAIN:?Set SNACKPRESS_DOMAIN to your public hostname}
+      SNACKPRESS_ACME_EMAIL: ${SNACKPRESS_ACME_EMAIL:?Set SNACKPRESS_ACME_EMAIL to your contact address}
+      SNACKPRESS_ACME_CA: ${SNACKPRESS_ACME_CA:-https://acme-v02.api.letsencrypt.org/directory}
+    ports: !override
+      - '${SNACKPRESS_BIND_HOST:-0.0.0.0}:80:8080'
+      - '${SNACKPRESS_BIND_HOST:-0.0.0.0}:443:8443'
+      - '${SNACKPRESS_BIND_HOST:-0.0.0.0}:443:8443/udp'
+    volumes:
+      - caddy-data:/data
+    # Remove the inherited /data tmpfs: certificates must survive recreation.
+    tmpfs: !override
+      - /tmp:size=16m,mode=1777
+      - /config:size=1m,mode=1777
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1:8081/api/health']
+
+volumes:
+  pdf-data:
+  caddy-data:

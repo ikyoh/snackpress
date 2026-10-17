@@ -1,0 +1,40 @@
+{
+	admin off
+	persist_config off
+	# Public 80/443 are forwarded to unprivileged ports inside the container.
+	http_port 8080
+	https_port 8443
+	email {$SNACKPRESS_ACME_EMAIL}
+	acme_ca {$SNACKPRESS_ACME_CA:https://acme-v02.api.letsencrypt.org/directory}
+	storage file_system /data/caddy
+}
+
+{$SNACKPRESS_DOMAIN} {
+	request_body {
+		max_size 54MB
+	}
+	handle /api/* {
+		reverse_proxy api:8000
+	}
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy same-origin
+	}
+}
+
+# Docker health checks do not depend on DNS or initial certificate issuance.
+# This listener is bound to loopback and is never published by Compose.
+http://127.0.0.1:8081 {
+	bind 127.0.0.1
+	handle /api/health {
+		reverse_proxy api:8000
+	}
+	handle {
+		respond "Not found" 404
+	}
+}
