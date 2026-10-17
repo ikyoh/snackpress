@@ -8,6 +8,8 @@ Univers original de confiserie et de snacks de jeu : rose framboise, violet cass
 
 Lilita One donne la voix ronde des titres et du nom ; Nunito variable porte les textes et les mesures. Polices auto-hébergées. Texte principal prune foncé sur les surfaces pâles ; texte blanc réservé aux commandes suffisamment foncées. Les couleurs des cartes varient par outil, pas par statut de validation.
 
+Typographie d’interface agrandie : base navigateur conservée à 100 %, textes courants et champs à 1,0625 rem (17 px par défaut), informations secondaires à 0,9375 rem (15 px), légendes à 0,875 rem (14 px). Les titres gardent leur hiérarchie avec des tailles en rem. Les tailles mobiles ne descendent pas sous cette échelle ; les cartes passent sur une colonne jusqu’à 600 px et les commandes peuvent revenir à la ligne.
+
 Le logo est un « S feuilleté » : ruban rose framboise vers violet, avec un coin jaune replié évoquant une feuille d’impression. Source vectorielle : `apps/web/public/snackpress.svg`. Dans les en-têtes, il apparaît à 32 px dans une pastille pâle `#fff5fc`. Les favicons SVG/ICO/PNG et l’icône Apple reprennent le même dessin sur ce fond pâle.
 
 ## Catalogue

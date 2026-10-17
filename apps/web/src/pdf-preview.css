@@ -39,7 +39,7 @@
   gap: 8px;
 }
 .pdf-viewer-title {
-  font-size: 12px;
+  font-size: var(--text-body);
   font-weight: 850;
 }
 .pdf-viewer-actions {
@@ -54,7 +54,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--text-body);
   font-weight: 800;
 }
 .pdf-viewer-actions button:hover:not(:disabled) {
@@ -71,7 +71,7 @@
 .pdf-zoom {
   min-width: 48px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--text-body);
   font-weight: 850;
   font-variant-numeric: tabular-nums;
 }
@@ -121,7 +121,7 @@
   padding: 24px;
   text-align: center;
   background: #eae4f1;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .pdf-viewer-state p {
   margin: 0;
@@ -140,13 +140,13 @@
   padding: 12px 16px;
   border-top: 1px solid #dfd1e9;
   color: var(--viewer-muted);
-  font-size: 11px;
+  font-size: var(--text-small);
   font-variant-numeric: tabular-nums;
 }
 .pdf-fullscreen-error {
   margin: 0;
   padding: 0 16px 12px;
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .pdf-viewer:fullscreen {
   display: flex;
@@ -199,7 +199,7 @@
   color: #653378;
   background: #fffaff;
   box-shadow: 0 4px 16px #43285224;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .pdf-viewer-refresh p {
   margin: 0;

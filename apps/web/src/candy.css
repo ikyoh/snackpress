@@ -19,6 +19,35 @@ body {
   min-height: 100vh;
   font-weight: 600;
 }
+/* Let larger UI text wrap without clipping controls or their containers. */
+.button {
+  white-space: normal;
+  text-align: center;
+}
+.panel-heading {
+  height: auto;
+  padding-block: 14px;
+  gap: 12px;
+}
+.preview-toolbar,
+.preview-caption,
+.preview-legend,
+.catalog-toolbar,
+.artifact-toolbar {
+  flex-wrap: wrap;
+}
+.tool-title > div,
+.results > div {
+  min-width: 0;
+}
+.personal-configurations .button {
+  max-width: 100%;
+  white-space: normal;
+}
+.tool-card h2,
+.tool-title h1 {
+  overflow-wrap: anywhere;
+}
 ::selection {
   background: #ffd76b;
   color: #57235f;
@@ -51,7 +80,7 @@ html {
 }
 .brand {
   font-family: var(--candy-display);
-  font-size: 35px;
+  font-size: 2.4375rem;
   font-weight: 400;
   letter-spacing: -0.025em;
   color: white;
@@ -89,7 +118,7 @@ html {
   padding: 7px 17px;
   color: white;
   text-decoration: none;
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 800;
   box-shadow: inset 0 2px 1px #ffffff30;
 }
@@ -98,7 +127,7 @@ html {
   color: #fff;
   border-radius: 12px;
   padding: 4px 9px;
-  font-size: 10px;
+  font-size: var(--text-caption);
   background: #672c8d;
 }
 .header-note,
@@ -107,7 +136,7 @@ html {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--text-body);
   font-weight: 700;
 }
 main,
@@ -152,7 +181,7 @@ h2 {
 }
 .button {
   min-height: 46px;
-  font-size: 14px;
+  font-size: var(--text-emphasis);
   font-weight: 900;
   border-radius: 24px;
   padding: 12px 20px;
@@ -211,8 +240,8 @@ select,
   background: #fffcff;
   border: 2px solid #e6d3ed;
   border-radius: 12px;
-  min-height: 42px;
-  font-size: 13px;
+  min-height: 46px;
+  font-size: var(--text-body);
   font-weight: 750;
   box-shadow: inset 0 2px 2px #8f5a9a07;
 }
@@ -235,21 +264,23 @@ input[type='checkbox'] {
 }
 .input-wrap > span {
   color: #805085;
-  font-size: 10px;
-  top: 14px;
+  font-size: var(--text-caption);
+  top: 50%;
+  transform: translateY(-50%);
 }
 .select-wrap > svg {
   color: #875196;
-  top: 14px;
+  top: 50%;
+  transform: translateY(-50%);
 }
 .field > span:first-child {
   color: #6c4374;
-  font-size: 12px;
+  font-size: var(--text-body);
   font-weight: 800;
 }
 .field-hint,
 .privacy-note {
-  font-size: 11px;
+  font-size: var(--text-small);
   line-height: 1.65;
 }
 .text-button,
@@ -259,7 +290,7 @@ input[type='checkbox'] {
   font-weight: 800;
 }
 .example-button {
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .panel-heading,
 .tool-result-header {
@@ -308,7 +339,7 @@ input[type='checkbox'] {
   z-index: 2;
 }
 .catalog-intro h1 {
-  font-size: clamp(43px, 4.7vw, 63px);
+  font-size: clamp(2.9375rem, 4.7vw, 4.1875rem);
   line-height: 1.08;
   max-width: 650px;
   margin: 0;
@@ -320,7 +351,7 @@ input[type='checkbox'] {
 }
 .catalog-description {
   color: #704276;
-  font-size: 14px;
+  font-size: var(--text-emphasis);
   line-height: 1.7;
   max-width: 470px;
   margin: 15px 0 20px;
@@ -331,14 +362,14 @@ input[type='checkbox'] {
   padding: 13px 23px;
   border: 3px solid #fff4fc;
   text-decoration: none;
-  font-size: 15px;
+  font-size: 1.0625rem;
 }
 .hero-reassurance {
   display: flex;
   align-items: center;
   gap: 7px;
   color: #795283;
-  font-size: 10px;
+  font-size: var(--text-caption);
   margin-top: 16px;
 }
 .hero-reassurance svg {
@@ -386,7 +417,7 @@ input[type='checkbox'] {
   gap: 24px;
   margin: 24px auto 37px;
   color: #744c82;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .candy-how > span {
   display: inline-flex;
@@ -401,7 +432,7 @@ input[type='checkbox'] {
   border-radius: 50%;
   background: #ead9ff;
   color: #743a9a;
-  font-size: 13px;
+  font-size: var(--text-body);
   border: 2px solid white;
   box-shadow: 0 2px 2px #9667b31c;
 }
@@ -425,7 +456,7 @@ input[type='checkbox'] {
 }
 .catalog-section-title h2 {
   font-family: var(--candy-display);
-  font-size: 29px;
+  font-size: 2.0625rem;
   font-weight: 400;
   letter-spacing: -0.015em;
   margin: 0;
@@ -435,7 +466,7 @@ input[type='checkbox'] {
 }
 .catalog-section-title > span {
   color: #7e5387;
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .catalog-toolbar {
   border: 0;
@@ -452,7 +483,7 @@ input[type='checkbox'] {
   background: #fff9fd;
   color: #79497f;
   padding: 8px 12px;
-  font-size: 12px;
+  font-size: var(--text-body);
   font-weight: 800;
   border-radius: 20px;
   box-shadow: 0 2px 3px #915ba21a;
@@ -484,13 +515,13 @@ input[type='checkbox'] {
   box-shadow: none;
   height: 38px;
   min-height: 38px;
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .catalog-search input:focus-visible {
   outline-offset: 3px;
 }
 .catalog-meta {
-  font-size: 11px;
+  font-size: var(--text-small);
   padding: 20px 3px 15px;
 }
 .tool-grid {
@@ -587,21 +618,21 @@ input[type='checkbox'] {
   background: #ffffffce;
   border-radius: 10px;
   padding: 3px 8px;
-  font-size: 9px;
+  font-size: var(--text-caption);
   font-weight: 900;
 }
 .tool-card h2 {
   display: block;
   font-family: var(--candy-display);
   color: var(--flavour);
-  font-size: 24px;
+  font-size: 1.625rem;
   letter-spacing: -0.012em;
   margin: 9px 0 8px;
   font-weight: 400;
 }
 .tool-card > p {
   color: #78517b;
-  font-size: 12px;
+  font-size: var(--text-body);
   line-height: 1.55;
   margin: 0 0 12px;
   max-width: none;
@@ -611,7 +642,7 @@ input[type='checkbox'] {
 .tool-input-hint {
   display: block;
   color: #815989;
-  font-size: 9px;
+  font-size: var(--text-caption);
   margin: 0 0 11px;
 }
 .tool-card-bottom {
@@ -621,7 +652,7 @@ input[type='checkbox'] {
   padding: 8px 16px;
   background: var(--flavour);
   color: white;
-  font-size: 12px;
+  font-size: var(--text-body);
   font-weight: 900;
   justify-content: center;
   gap: 12px;
@@ -646,12 +677,12 @@ input[type='checkbox'] {
   color: #a253ba;
 }
 .catalog-footnote strong {
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 900;
 }
 .catalog-footnote span {
   color: #795083;
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .catalog-empty {
   color: #85528c;
@@ -659,11 +690,11 @@ input[type='checkbox'] {
 .catalog-empty h2 {
   font-family: var(--candy-display);
   font-weight: 400;
-  font-size: 28px;
+  font-size: 2rem;
 }
 footer {
   color: #7b5385;
-  font-size: 11px;
+  font-size: var(--text-small);
   padding: 28px 3px;
 }
 footer > span:first-child {
@@ -682,7 +713,7 @@ footer > span:first-child {
 }
 .tool-breadcrumb {
   color: #82568e;
-  font-size: 12px;
+  font-size: var(--text-body);
   margin-bottom: 23px;
 }
 .tool-breadcrumb > a {
@@ -696,7 +727,7 @@ footer > span:first-child {
   background: #fffcff;
   border-color: #e0c5eb;
   min-height: 39px;
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .tool-jump > svg {
   top: 13px;
@@ -711,18 +742,18 @@ footer > span:first-child {
   height: 105px;
 }
 .tool-title h1 {
-  font-size: 43px;
+  font-size: 2.9375rem;
 }
 .tool-category-label {
   color: #80538b;
-  font-size: 12px;
+  font-size: var(--text-body);
   font-weight: 850;
   display: block;
   margin-bottom: 4px;
 }
 .tool-title p:last-child {
   color: #775080;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .tool-limit {
   color: #80522b;
@@ -730,7 +761,7 @@ footer > span:first-child {
   border: 2px solid #fff9e7;
   border-radius: 15px;
   padding: 13px 17px;
-  font-size: 12px;
+  font-size: var(--text-body);
   box-shadow: 0 3px 6px #ad7f2610;
 }
 .tool-limit > svg {
@@ -758,7 +789,7 @@ footer > span:first-child {
   border-color: #eedcf2;
 }
 .tool-controls h2 {
-  font-size: 14px;
+  font-size: var(--text-emphasis);
 }
 .section-number {
   background: #edddf6;
@@ -768,7 +799,7 @@ footer > span:first-child {
   place-items: center;
   border-radius: 50%;
   color: #805197;
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 850;
   flex-shrink: 0;
 }
@@ -788,14 +819,14 @@ footer > span:first-child {
   border-color: #c65ba6;
 }
 .tool-uploader strong {
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 900;
 }
 .tool-uploader span,
 .dropzone > span:not(.upload-icon),
 .dropzone small {
   color: #805281;
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .tool-file,
 .file-box {
@@ -811,12 +842,12 @@ footer > span:first-child {
 }
 .tool-file strong,
 .file-box strong {
-  font-size: 12px;
+  font-size: var(--text-body);
   color: #693474;
 }
 .tool-file small,
 .file-box small {
-  font-size: 10px;
+  font-size: var(--text-caption);
   color: #82548b;
 }
 .file-actions button {
@@ -825,7 +856,7 @@ footer > span:first-child {
 }
 .tool-field .field-hint {
   color: #81538a;
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .tool-field input[readonly] {
   background: #f3edf7;
@@ -836,11 +867,11 @@ footer > span:first-child {
   background: #f6e8fa;
 }
 .tool-run > p {
-  font-size: 10px;
+  font-size: var(--text-caption);
   margin-top: 13px;
 }
 .tool-result-header {
-  font-size: 14px;
+  font-size: var(--text-emphasis);
 }
 .advanced-workshop,
 .advanced-workshop small {
@@ -863,18 +894,18 @@ footer > span:first-child {
   height: 100%;
 }
 .tool-empty h2 {
-  font-size: 29px;
+  font-size: 2.0625rem;
   display: block;
 }
 .tool-empty p {
   color: #785281;
   max-width: 330px;
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.75;
 }
 .tool-empty-detail {
   color: #805489;
-  font-size: 10px;
+  font-size: var(--text-caption);
   margin-top: 22px;
 }
 .tool-success,
@@ -911,7 +942,7 @@ footer > span:first-child {
 .tool-metrics span,
 .results > div > span {
   color: #7e5386;
-  font-size: 11px;
+  font-size: var(--text-small);
   letter-spacing: 0;
 }
 .artifact-toolbar,
@@ -922,11 +953,11 @@ footer > span:first-child {
 .artifact-toolbar select {
   border-color: #e4c9ee;
   background: white;
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .page-navigation {
   color: #7a3c91;
-  font-size: 12px;
+  font-size: var(--text-body);
   font-weight: 850;
 }
 .page-navigation button {
@@ -942,7 +973,7 @@ footer > span:first-child {
   border-radius: 16px;
 }
 .artifact-downloads h2 {
-  font-size: 14px;
+  font-size: var(--text-emphasis);
 }
 .artifact-downloads > a {
   border-color: #ead8ef;
@@ -950,12 +981,12 @@ footer > span:first-child {
   padding: 15px 0;
 }
 .artifact-downloads strong {
-  font-size: 12px;
+  font-size: var(--text-body);
   font-weight: 850;
 }
 .artifact-downloads small {
   color: #7b5186;
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .artifact-downloads > a:hover {
   color: #b62685;
@@ -970,10 +1001,10 @@ footer > span:first-child {
 }
 .result-warnings h2 {
   color: #80512a;
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .result-warnings ul {
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .error {
   background: #ffe2ec;
@@ -1045,7 +1076,7 @@ footer > span:first-child {
   background: #9b4bb8;
 }
 .empty-preview h2 {
-  font-size: 25px;
+  font-size: 1.6875rem;
 }
 .empty-sheet {
   border-radius: 8px;
@@ -1094,7 +1125,7 @@ footer > span:first-child {
     width: 65%;
   }
   .catalog-intro h1 {
-    font-size: 52px;
+    font-size: 3.5rem;
   }
   .candy-hero-art {
     width: 49%;
@@ -1109,7 +1140,7 @@ footer > span:first-child {
     gap: 19px;
   }
   .header-note {
-    font-size: 11px;
+    font-size: var(--text-small);
     max-width: 180px;
   }
   .prototype {
@@ -1122,7 +1153,7 @@ footer > span:first-child {
     height: 77px;
   }
   .brand {
-    font-size: 30px;
+    font-size: 2.125rem;
   }
   .brand-symbol {
     width: 39px;
@@ -1147,12 +1178,12 @@ footer > span:first-child {
     width: 100%;
   }
   .catalog-intro h1 {
-    font-size: 46px;
+    font-size: 3.125rem;
     max-width: 440px;
   }
   .catalog-description {
     max-width: 345px;
-    font-size: 13px;
+    font-size: var(--text-body);
     position: relative;
     z-index: 2;
   }
@@ -1166,20 +1197,20 @@ footer > span:first-child {
   }
   .candy-hero-button {
     margin-top: 8px;
-    font-size: 14px;
+    font-size: var(--text-emphasis);
   }
   .hero-reassurance {
     max-width: 200px;
     line-height: 1.6;
     margin-top: 15px;
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
   .candy-how {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
     margin: 23px 0 30px;
-    font-size: 12px;
+    font-size: var(--text-body);
     text-align: center;
   }
   .candy-how > span {
@@ -1194,7 +1225,7 @@ footer > span:first-child {
     align-items: start;
   }
   .catalog-section-title h2 {
-    font-size: 26px;
+    font-size: 1.75rem;
   }
   .catalog-section-title > span {
     display: none;
@@ -1203,7 +1234,7 @@ footer > span:first-child {
     gap: 6px;
   }
   .catalog-tabs button {
-    font-size: 11px;
+    font-size: var(--text-small);
     padding: 7px 12px;
     min-height: 36px;
   }
@@ -1234,13 +1265,13 @@ footer > span:first-child {
     margin-top: 20px;
   }
   .tool-card-category {
-    font-size: 8px;
+    font-size: var(--text-caption);
     top: 7px;
     left: 7px;
     padding: 3px 7px;
   }
   .tool-card h2 {
-    font-size: 21px;
+    font-size: 1.4375rem;
     min-height: 44px;
     display: flex;
     align-items: center;
@@ -1249,16 +1280,16 @@ footer > span:first-child {
     margin: 9px 0 5px;
   }
   .tool-card > p {
-    font-size: 12px;
+    font-size: var(--text-body);
     line-height: 1.5;
   }
   .tool-input-hint {
-    font-size: 8px;
+    font-size: var(--text-caption);
     line-height: 1.5;
     margin-bottom: 8px;
   }
   .tool-card-bottom {
-    font-size: 11px;
+    font-size: var(--text-small);
     padding: 8px;
     min-height: 37px;
     gap: 7px;
@@ -1273,17 +1304,17 @@ footer > span:first-child {
     gap: 10px;
   }
   .catalog-footnote strong {
-    font-size: 12px;
+    font-size: var(--text-body);
     line-height: 1.6;
   }
   .catalog-footnote span {
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
   .tool-workspace {
     grid-template-columns: 1fr;
   }
   .tool-breadcrumb {
-    font-size: 10px;
+    font-size: var(--text-caption);
     gap: 9px;
     flex-wrap: wrap;
   }
@@ -1291,7 +1322,7 @@ footer > span:first-child {
     width: 150px;
   }
   .tool-jump select {
-    font-size: 11px;
+    font-size: var(--text-body);
   }
   .tool-title {
     gap: 12px;
@@ -1302,42 +1333,42 @@ footer > span:first-child {
     height: 78px;
   }
   .tool-title h1 {
-    font-size: 33px;
+    font-size: 2.3125rem;
   }
   .tool-title p:last-child {
-    font-size: 12px;
+    font-size: var(--text-body);
     line-height: 1.6;
   }
   .tool-category-label {
-    font-size: 11px;
+    font-size: var(--text-small);
   }
   .tool-limit {
-    font-size: 11px;
+    font-size: var(--text-small);
   }
   .tool-empty {
     min-height: 420px;
   }
   .tool-empty h2 {
-    font-size: 26px;
+    font-size: 1.75rem;
   }
   .tool-result-header {
     gap: 8px;
     padding: 0 17px;
   }
   .tool-result-header .text-button {
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
   .tool-metrics {
     gap: 18px;
   }
   .tool-metrics strong {
-    font-size: 29px;
+    font-size: 2.0625rem;
   }
   .artifact-toolbar {
     padding: 15px;
   }
   .artifact-toolbar select {
-    font-size: 11px;
+    font-size: var(--text-body);
   }
   .artifact-stage {
     padding: 20px;
@@ -1347,19 +1378,19 @@ footer > span:first-child {
     padding: 22px 17px;
   }
   .artifact-downloads strong {
-    font-size: 11px;
+    font-size: var(--text-small);
   }
   .artifact-downloads small {
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .result-warnings {
     padding: 20px 17px;
   }
   .page-heading h1 {
-    font-size: 29px;
+    font-size: 2.0625rem;
   }
   footer {
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
 }
 @media (max-width: 420px) {
@@ -1373,10 +1404,10 @@ footer > span:first-child {
     padding: 24px 20px;
   }
   .catalog-intro h1 {
-    font-size: 42px;
+    font-size: 2.875rem;
   }
   .catalog-description {
-    font-size: 12px;
+    font-size: var(--text-body);
     max-width: 270px;
   }
   .catalog-description br {
@@ -1390,7 +1421,7 @@ footer > span:first-child {
   }
   .hero-reassurance {
     max-width: 157px;
-    font-size: 9px;
+    font-size: var(--text-caption);
     align-items: start;
   }
   .hero-reassurance svg {
@@ -1399,19 +1430,19 @@ footer > span:first-child {
   }
   .candy-hero-button {
     padding: 12px 18px;
-    font-size: 13px;
+    font-size: var(--text-body);
   }
   .catalog-section-title h2 {
-    font-size: 24px;
+    font-size: 1.625rem;
   }
   .tool-card {
     min-height: 352px;
   }
   .tool-card h2 {
-    font-size: 20px;
+    font-size: 1.375rem;
   }
   .tool-input-hint {
-    font-size: 8px;
+    font-size: var(--text-caption);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1451,5 +1482,83 @@ footer > span:first-child {
     width: 53%;
     right: 0;
     bottom: -1%;
+  }
+}
+
+@media (max-width: 760px) {
+  .catalog-intro {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .candy-hero-art {
+    position: relative;
+    inset: auto;
+    width: 100%;
+    height: 180px;
+    flex-shrink: 0;
+  }
+  .catalog-description,
+  .hero-reassurance {
+    max-width: 100%;
+  }
+  .tool-jump {
+    width: min(100%, 240px);
+  }
+  .preview-toolbar {
+    padding-block: 10px;
+  }
+  .face-tabs button {
+    min-height: 44px;
+  }
+  .view-switch button {
+    min-height: 44px;
+  }
+}
+@media (max-width: 600px) {
+  .tool-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .tool-card {
+    min-height: 0;
+    padding: 0 20px 20px;
+  }
+  .tool-card-top {
+    margin-inline: -20px;
+  }
+  .tool-card h2 {
+    min-height: 0;
+    margin-block: 16px 12px;
+    font-size: 1.625rem;
+    line-height: 1.2;
+  }
+  .tool-card-bottom {
+    min-height: 44px;
+    margin-top: 8px;
+  }
+  .results {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+  .results > div + div {
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    padding: 20px 0 0;
+  }
+  .tool-title {
+    align-items: start;
+  }
+  .topbar:has(.account-button) {
+    flex-wrap: wrap;
+  }
+}
+@media (min-width: 741px) {
+  .workspace {
+    grid-template-columns: 340px minmax(0, 1fr);
+  }
+}
+@media (min-width: 1101px) {
+  .workspace {
+    grid-template-columns: 380px minmax(0, 1fr);
   }
 }

@@ -4,7 +4,7 @@
 .header-note {
   margin-left: auto;
   color: #c3d1be;
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .studio-main {
   max-width: 1480px;
@@ -18,12 +18,12 @@
   gap: 40px;
 }
 .catalog-intro h1 {
-  font-size: clamp(32px, 4vw, 52px);
+  font-size: clamp(2.25rem, 4vw, 3.5rem);
   font-weight: 550;
   line-height: 1.12;
 }
 .catalog-description {
-  font-size: 14px;
+  font-size: var(--text-emphasis);
   color: #77816f;
   line-height: 1.65;
   margin: 17px 0 0;
@@ -36,14 +36,14 @@
   border-left: 1px solid #d8dfd0;
 }
 .catalog-count strong {
-  font-size: 66px;
+  font-size: 4.375rem;
   font-weight: 450;
   letter-spacing: -0.04em;
   line-height: 1;
   color: #45684c;
 }
 .catalog-count span {
-  font-size: 11px;
+  font-size: var(--text-small);
   line-height: 1.65;
   color: #7a8772;
 }
@@ -64,7 +64,7 @@
 .catalog-tabs button {
   padding: 8px 11px;
   border-radius: 5px;
-  font-size: 11px;
+  font-size: var(--text-small);
   color: #7c8673;
 }
 .catalog-tabs button.selected {
@@ -91,7 +91,7 @@
   border: 0;
   background: transparent;
   padding: 0;
-  font-size: 11px;
+  font-size: var(--text-small);
   height: 35px;
 }
 .catalog-search input:focus-visible {
@@ -101,7 +101,7 @@
   display: flex;
   justify-content: space-between;
   padding: 22px 0 15px;
-  font-size: 10px;
+  font-size: var(--text-caption);
   color: #8b947e;
 }
 .tool-grid {
@@ -165,24 +165,24 @@
   background: #f1e2e1;
 }
 .tool-card-category {
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: #86917b;
 }
 .tool-card-number {
   margin-left: auto;
   align-self: start;
   color: #aab09f;
-  font-size: 9px;
+  font-size: var(--text-caption);
   font-variant-numeric: tabular-nums;
 }
 .tool-card h2 {
-  font-size: 21px;
+  font-size: 1.4375rem;
   letter-spacing: -0.025em;
   margin: 18px 0 8px;
   font-weight: 600;
 }
 .tool-card > p {
-  font-size: 12px;
+  font-size: var(--text-body);
   color: #839078;
   line-height: 1.6;
   margin: 0 0 20px;
@@ -195,7 +195,7 @@
   align-items: center;
   justify-content: space-between;
   min-height: 43px;
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: #7f8c72;
 }
 .tool-card-bottom > svg {
@@ -217,7 +217,7 @@
 }
 .catalog-footnote p {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--text-small);
   line-height: 1.7;
 }
 .catalog-footnote strong {
@@ -225,7 +225,7 @@
   display: block;
 }
 .catalog-footnote span {
-  font-size: 10px;
+  font-size: var(--text-caption);
   color: #829173;
 }
 .catalog-empty {
@@ -238,12 +238,12 @@
 }
 .catalog-empty h2 {
   display: block;
-  font-size: 20px;
+  font-size: 1.375rem;
   margin-bottom: 12px;
 }
 .catalog-empty p {
   margin-bottom: 23px;
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .loading-catalog {
   display: flex;
@@ -258,7 +258,7 @@
   align-items: center;
   gap: 13px;
   color: #87937a;
-  font-size: 11px;
+  font-size: var(--text-small);
   margin-bottom: 28px;
 }
 .tool-breadcrumb > a {
@@ -276,7 +276,7 @@
 .tool-jump select {
   background: transparent;
   height: 33px;
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .tool-jump > svg {
   position: absolute;
@@ -296,15 +296,15 @@
   border-radius: 14px;
 }
 .tool-title h1 {
-  font-size: 35px;
+  font-size: 2.4375rem;
 }
 .tool-title .eyebrow {
-  font-size: 8px;
+  font-size: var(--text-caption);
   margin-bottom: 5px;
 }
 .tool-title p:last-child {
   color: #7c8971;
-  font-size: 12px;
+  font-size: var(--text-body);
   margin: 7px 0 0;
 }
 .tool-limit {
@@ -315,7 +315,7 @@
   background: #efeedd;
   padding: 13px 16px;
   color: #8c7b4c;
-  font-size: 11px;
+  font-size: var(--text-small);
   line-height: 1.6;
   margin-bottom: 22px;
 }
@@ -364,11 +364,11 @@
   color: #6c8760;
 }
 .tool-uploader strong {
-  font-size: 12px;
+  font-size: var(--text-body);
   font-weight: 550;
 }
 .tool-uploader span {
-  font-size: 10px;
+  font-size: var(--text-caption);
   color: #91a084;
 }
 .tool-uploader.dragging {
@@ -391,7 +391,7 @@
   min-width: 0;
 }
 .tool-file strong {
-  font-size: 10px;
+  font-size: var(--text-caption);
   font-weight: 550;
   white-space: nowrap;
   overflow: hidden;
@@ -401,7 +401,7 @@
   margin: 3px 0;
 }
 .tool-file small {
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: #839177;
   display: block;
 }
@@ -435,12 +435,12 @@
   background: #fffef9;
   border-radius: 5px;
   padding: 10px;
-  font-size: 11px;
+  font-size: var(--text-small);
   line-height: 1.65;
 }
 .tool-field .field-hint {
   margin: 0;
-  font-size: 9px;
+  font-size: var(--text-caption);
 }
 .tool-field input[readonly] {
   background: #f2f4eb;
@@ -457,7 +457,7 @@
 .tool-run > p {
   text-align: center;
   margin: 10px 0 0;
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: #8e9a81;
 }
 .advanced-workshop {
@@ -467,14 +467,14 @@
   gap: 10px;
   text-decoration: none;
   color: #577a49;
-  font-size: 10px;
+  font-size: var(--text-caption);
 }
 .advanced-workshop span {
   flex: 1;
 }
 .advanced-workshop small {
   display: block;
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: #95a086;
   margin-top: 4px;
 }
@@ -494,7 +494,7 @@
   padding: 0 24px;
   border-bottom: 1px solid #e1e7d8;
   background: #fffef9;
-  font-size: 13px;
+  font-size: var(--text-body);
   font-weight: 550;
 }
 .tool-empty {
@@ -521,20 +521,20 @@
   background: transparent;
 }
 .tool-empty h2 {
-  font-size: 22px;
+  font-size: 1.5rem;
   letter-spacing: -0.025em;
   font-weight: 500;
   margin-bottom: 11px;
 }
 .tool-empty p {
-  font-size: 12px;
+  font-size: var(--text-body);
   color: #839277;
   white-space: pre-line;
   line-height: 1.8;
   margin: 0;
 }
 .tool-empty-detail {
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: #99a58c;
   margin-top: 29px;
 }
@@ -545,7 +545,7 @@
   padding: 19px 24px;
   color: #4b7141;
   background: #edf3e5;
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .tool-metrics {
   display: grid;
@@ -557,13 +557,13 @@
 }
 .tool-metrics span {
   display: block;
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: #87977a;
   margin-bottom: 9px;
 }
 .tool-metrics strong {
   display: block;
-  font-size: 26px;
+  font-size: 1.75rem;
   letter-spacing: -0.03em;
   font-weight: 500;
   overflow-wrap: anywhere;
@@ -581,14 +581,14 @@
 }
 .artifact-toolbar select {
   background: #fcfdf5;
-  font-size: 10px;
+  font-size: var(--text-caption);
   min-width: 180px;
 }
 .page-navigation {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 10px;
+  font-size: var(--text-caption);
   color: #7c8e6d;
 }
 .page-navigation button {
@@ -619,7 +619,7 @@
 }
 .artifact-downloads h2 {
   margin-bottom: 13px;
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .artifact-downloads > a {
   display: flex;
@@ -639,12 +639,12 @@
   min-width: 0;
 }
 .artifact-downloads strong {
-  font-size: 11px;
+  font-size: var(--text-small);
   font-weight: 500;
 }
 .artifact-downloads small {
   margin-left: auto;
-  font-size: 9px;
+  font-size: var(--text-caption);
   color: #92a084;
   white-space: nowrap;
 }
@@ -659,13 +659,13 @@
   color: #8b825f;
 }
 .result-warnings h2 {
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .result-warnings ul {
   list-style: disc;
   padding-left: 15px;
   margin: 0;
-  font-size: 10px;
+  font-size: var(--text-caption);
   line-height: 1.8;
 }
 @media (max-width: 1150px) {
@@ -704,7 +704,7 @@
     padding: 12px 0 12px 26px;
   }
   .catalog-count strong {
-    font-size: 50px;
+    font-size: 3.375rem;
   }
   .catalog-intro {
     gap: 24px;
@@ -717,7 +717,7 @@
     min-height: 530px;
   }
   .tool-empty h2 {
-    font-size: 19px;
+    font-size: 1.3125rem;
   }
   .artifact-toolbar {
     flex-wrap: wrap;
@@ -739,16 +739,16 @@
     padding-top: 26px;
   }
   .header-note {
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .catalog-intro {
     padding-bottom: 26px;
   }
   .catalog-intro h1 {
-    font-size: 36px;
+    font-size: 2.5rem;
   }
   .catalog-description {
-    font-size: 12px;
+    font-size: var(--text-body);
   }
   .catalog-count {
     display: none;
@@ -758,7 +758,7 @@
   }
   .catalog-tabs button {
     padding: 7px 9px;
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
   .catalog-toolbar {
     gap: 13px;
@@ -779,18 +779,18 @@
     min-height: 228px;
   }
   .tool-card h2 {
-    font-size: 19px;
+    font-size: 1.3125rem;
     margin-top: 15px;
   }
   .tool-card > p {
-    font-size: 10px;
+    font-size: var(--text-caption);
     margin-bottom: 15px;
   }
   .tool-card-number {
-    font-size: 8px;
+    font-size: var(--text-caption);
   }
   .tool-card-bottom {
-    font-size: 8px;
+    font-size: var(--text-caption);
     gap: 4px;
     min-height: 37px;
   }
@@ -809,28 +809,28 @@
     align-items: start;
   }
   .catalog-footnote p {
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
   .catalog-footnote span {
-    font-size: 9px;
+    font-size: var(--text-caption);
   }
   .tool-breadcrumb {
     gap: 9px;
-    font-size: 9px;
+    font-size: var(--text-caption);
     margin-bottom: 24px;
   }
   .tool-jump {
     width: 130px;
   }
   .tool-jump select {
-    font-size: 10px;
+    font-size: var(--text-caption);
   }
   .tool-title {
     align-items: start;
     gap: 13px;
   }
   .tool-title h1 {
-    font-size: 29px;
+    font-size: 2.0625rem;
   }
   .tool-title > .tool-icon {
     width: 49px;
@@ -838,11 +838,11 @@
     border-radius: 10px;
   }
   .tool-title p:last-child {
-    font-size: 11px;
+    font-size: var(--text-small);
     line-height: 1.65;
   }
   .tool-limit {
-    font-size: 10px;
+    font-size: var(--text-caption);
     padding: 11px 12px;
   }
   .tool-workspace {
@@ -852,7 +852,7 @@
     min-height: 400px;
   }
   .tool-empty h2 {
-    font-size: 21px;
+    font-size: 1.4375rem;
   }
   .tool-fields {
     grid-template-columns: 1fr 1fr;
@@ -918,7 +918,7 @@
 }
 .fortune-settings > p,
 .fortune-preview > p {
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.6;
 }
 .tool-controls .fortune-numbering {
@@ -951,7 +951,7 @@
 }
 .fortune-preview h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 1.375rem;
 }
 .fortune-sheet {
   display: block;
@@ -999,7 +999,7 @@
 .live-preview-error {
   margin: 0;
   padding: 14px 20px;
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.6;
 }
 .live-preview-note {
