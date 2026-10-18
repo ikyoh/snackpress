@@ -5,7 +5,7 @@ import shutil
 import pikepdf
 from reportlab.lib.units import mm
 
-from .common import CORAL, artifact, new_canvas, open_pdf, report
+from .common import CORAL, artifact, new_canvas, open_pdf, paginate_pdf, report
 from .products import snapshot_slots
 from .proof_layout import guide_key, proof_date
 
@@ -209,6 +209,7 @@ def generate_product(folder, files, params, preview=False):
             combined_guide=guide,
             legend=legend,
             date=date,
+            paginate=False,
         )
         with pikepdf.open(work / "bat.pdf") as doc:
             merged.pages.extend(doc.pages)
@@ -229,6 +230,7 @@ def generate_product(folder, files, params, preview=False):
     path = folder / "bat.pdf"
     merged.save(path)
     merged.close()
+    paginate_pdf(path)
     sheet = folder / "fiche-technique.pdf"
     report(
         sheet,

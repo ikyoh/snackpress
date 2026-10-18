@@ -11,7 +11,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 from .catalog import MODELS
-from .common import CORAL, INK
+from .common import CORAL, INK, fonts
 
 
 def proof_date():
@@ -20,8 +20,8 @@ def proof_date():
 
 @lru_cache
 def header_fonts():
+    fonts()
     folder = Path(__file__).parent / "assets" / "fonts"
-    pdfmetrics.registerFont(TTFont("SnackDisplay", str(folder / "LilitaOne-Regular.ttf")))
     pdfmetrics.registerFont(TTFont("SnackHeader", str(folder / "Nunito-Regular.ttf")))
 
 
@@ -104,7 +104,6 @@ def header_footer(c, date, date_label="Date du BAT"):
     c.setFont("Snack", 8)
     c.drawString(18 * mm, 11 * mm, "snackpress.com")
     c.linkURL("https://snackpress.com", (18 * mm, 9 * mm, 49 * mm, 15 * mm), relative=0)
-    c.drawRightString(192 * mm, 11 * mm, f"Page {c.getPageNumber()}")
     c.restoreState()
 
 

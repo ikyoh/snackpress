@@ -78,9 +78,10 @@ def test_seed_products_generate_proofs_and_public_artifacts(tmp_path, product_id
     frozen = json.loads((output / "reglages.json").read_text())["settings"]["product_snapshot"]
     assert frozen["product_name"] == snapshot.product_name
     with pdfium.PdfDocument(str(output / "bat.pdf")) as pdf:
-        for page in pdf:
+        for index, page in enumerate(pdf, 1):
             text = page.get_textpage().get_text_range()
             assert "Date du BAT :" in text and "snackpress.com" in text
+            assert f"Page {index} / {len(pdf)}" in text
     if product_id == "ticket":
         series = next(item for item in result.artifacts if "serie-billets" in item.name)
         assert series.pages == 50

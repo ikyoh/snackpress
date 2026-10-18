@@ -6,7 +6,7 @@ from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 
 from .catalog import MODELS, ToolResult
-from .common import artifact, dimensions, new_canvas, open_pdf, render_page, report
+from .common import artifact, dimensions, new_canvas, open_pdf, paginate_pdf, render_page, report
 from .proof_layout import draw_legend, guide_key, header_footer, proof_date
 
 
@@ -76,7 +76,9 @@ def template(folder, files, p):
     return path, (w, h), (origin, origin, settings.width, settings.height)
 
 
-def generate(folder, files, p, labels=None, combined_guide=None, legend=None, date=None):
+def generate(
+    folder, files, p, labels=None, combined_guide=None, legend=None, date=None, *, paginate=True
+):
     if p.product_snapshot is not None:
         from .product_proof import generate_product
 
@@ -146,10 +148,10 @@ def generate(folder, files, p, labels=None, combined_guide=None, legend=None, da
                 x, y = (210 - bw * scale) / 2, bottom + (height - bh * scale) / 2
                 header_footer(c, date)
                 c.setFillColor(colors.black)
-                c.setFont("SnackBold", 18)
+                c.setFont("SnackDisplay", 18)
                 c.drawString(18 * mm, 267 * mm, p.title)
                 c.setFont("Snack", 9)
-                c.drawString(18 * mm, 260 * mm, f"{label} — page {index + 1}/{count}")
+                c.drawString(18 * mm, 260 * mm, f"{label} — page {index + 1} / {count}")
                 c.drawString(
                     18 * mm,
                     254 * mm,
@@ -203,6 +205,8 @@ def generate(folder, files, p, labels=None, combined_guide=None, legend=None, da
                     b"q\n" + str(state_name).encode("ascii") + b" gs\n" + placement + b"\nQ\n"
                 )
             proof.save(path)
+    if paginate:
+        paginate_pdf(path)
     sheet = folder / "fiche-technique.pdf"
     report(
         sheet,

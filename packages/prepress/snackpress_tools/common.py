@@ -1,6 +1,7 @@
 import json
 from contextlib import contextmanager
 from functools import lru_cache
+from io import BytesIO
 from pathlib import Path
 from xml.sax.saxutils import escape
 
@@ -29,6 +30,8 @@ def fonts():
     folder = Path(reportlab.__file__).parent / "fonts"
     pdfmetrics.registerFont(TTFont("Snack", str(folder / "Vera.ttf")))
     pdfmetrics.registerFont(TTFont("SnackBold", str(folder / "VeraBd.ttf")))
+    display = Path(__file__).parent / "assets" / "fonts" / "LilitaOne-Regular.ttf"
+    pdfmetrics.registerFont(TTFont("SnackDisplay", str(display)))
 
 
 def new_canvas(path: Path, width: float, height: float):
@@ -38,6 +41,37 @@ def new_canvas(path: Path, width: float, height: float):
     c.setAuthor("Snackpress")
     c.setFont("Snack", 10)
     return c
+
+
+def paginate_pdf(path: Path):
+    """Add document-wide page totals after layout and component assembly are complete."""
+    fonts()
+    with pikepdf.open(path, allow_overwriting_input=True) as pdf:
+        buffer = BytesIO()
+        c = canvas.Canvas(buffer, pageCompression=1)
+        for index, page in enumerate(pdf.pages, 1):
+            width, height = float(page.mediabox[2]), float(page.mediabox[3])
+            c.setPageSize((width, height))
+            c.setFont("Snack", 8)
+            c.setFillColor(colors.black)
+            c.drawRightString(width - 18 * mm, 11 * mm, f"Page {index} / {len(pdf.pages)}")
+            c.showPage()
+        c.save()
+        buffer.seek(0)
+        with pikepdf.open(buffer) as numbering:
+            for page, footer in zip(pdf.pages, numbering.pages, strict=True):
+                names = {
+                    name: page.add_resource(pdf.copy_foreign(font), pikepdf.Name.Font)
+                    for name, font in footer.Resources.Font.items()
+                }
+                commands = []
+                for operands, operator in pikepdf.parse_content_stream(footer):
+                    if str(operator) == "Tf":
+                        operands = [names[str(operands[0])], *operands[1:]]
+                    commands.append((operands, operator))
+                # Inline the text so guides and artwork keep their existing form structure.
+                page.contents_add(b"q\n" + pikepdf.unparse_content_stream(commands) + b"\nQ\n")
+        pdf.save(path)
 
 
 def report(path: Path, title: str, rows, note="", *, branded_header=False):
@@ -52,7 +86,13 @@ def report(path: Path, title: str, rows, note="", *, branded_header=False):
         wordWrap="CJK",
     )
     heading = ParagraphStyle(
-        "title", parent=style, fontName="SnackBold", fontSize=22, leading=27, spaceAfter=18
+        "title",
+        parent=style,
+        fontName="SnackDisplay",
+        textColor=colors.black,
+        fontSize=22,
+        leading=27,
+        spaceAfter=18,
     )
     doc = SimpleDocTemplate(
         str(path),
@@ -64,10 +104,14 @@ def report(path: Path, title: str, rows, note="", *, branded_header=False):
         title=title,
         author="Snackpress",
     )
-    story = [] if branded_header else [
-        Paragraph("SNACKPRESS / ATELIER PRÉPRESSE", style),
-        Spacer(1, 12),
-    ]
+    story = (
+        []
+        if branded_header
+        else [
+            Paragraph("SNACKPRESS / ATELIER PRÉPRESSE", style),
+            Spacer(1, 12),
+        ]
+    )
     story.append(Paragraph(escape(title), heading))
     if note:
         story += [Paragraph(escape(note), style), Spacer(1, 16)]
@@ -103,9 +147,9 @@ def report(path: Path, title: str, rows, note="", *, branded_header=False):
         c.drawString(
             18 * mm, 11 * mm, "Snackpress — document technique / vérifier avant fabrication"
         )
-        c.drawRightString(192 * mm, 11 * mm, str(doc.page))
 
     doc.build(story, onFirstPage=footer, onLaterPages=footer)
+    paginate_pdf(path)
 
 
 def artifact(path: Path, label: str) -> Artifact:
