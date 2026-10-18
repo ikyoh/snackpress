@@ -3,6 +3,7 @@ import pypdfium2 as pdfium
 import pytest
 from conftest import make_pdf
 from snackpress_tools.catalog import Burger
+from snackpress_tools.proof_layout import proof_date
 from snackpress_tools.runner import run
 
 
@@ -81,6 +82,16 @@ def test_card_and_separate_finishes(tmp_path):
     assert result.metrics["Pages du BAT"] == 4
     content = text(out / "bat.pdf")
     assert "Recto" in content and "Verso" in content and "Finition : Vernis" in content
+    with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
+        for page in pdf:
+            content = page.get_textpage().get_text_range()
+            assert f"Date du BAT : {proof_date()}" in content
+            assert "snackpress." in content and "snackpress.com" in content
+            assert "Légende des repères" not in content
+    with pikepdf.open(out / "bat.pdf") as pdf:
+        for page in pdf.pages:
+            assert page.Resources.Shading  # The logo gradient remains vector artwork.
+            assert any(a.get("/A", {}).get("/URI") == "https://snackpress.com" for a in page.Annots)
 
 
 @pytest.mark.parametrize("cover_files", [1, 4])
@@ -153,6 +164,13 @@ def test_vector_guides_on_each_artwork_page_but_not_finish_pages(tmp_path):
         },
     )
     assert result.metrics["Pages du BAT"] == 5
+    with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
+        for index, page in enumerate(pdf):
+            content = page.get_textpage().get_text_range()
+            assert ("Légende des repères" in content) == (index in (1, 3))
+            if index in (1, 3):
+                for label in ("Coupe / format fini", "Zone de sécurité", "Zone inexploitable"):
+                    assert label in content
     with pikepdf.open(out / "bat.pdf") as pdf:
         for index in (1, 3):
             assert_native_guides(pdf.pages[index])

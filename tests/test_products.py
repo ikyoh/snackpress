@@ -77,6 +77,10 @@ def test_seed_products_generate_proofs_and_public_artifacts(tmp_path, product_id
         assert (output / item.name).is_file(), item.name
     frozen = json.loads((output / "reglages.json").read_text())["settings"]["product_snapshot"]
     assert frozen["product_name"] == snapshot.product_name
+    with pdfium.PdfDocument(str(output / "bat.pdf")) as pdf:
+        for page in pdf:
+            text = page.get_textpage().get_text_range()
+            assert "Date du BAT :" in text and "snackpress.com" in text
     if product_id == "ticket":
         series = next(item for item in result.artifacts if "serie-billets" in item.name)
         assert series.pages == 50
@@ -94,6 +98,10 @@ def test_multiple_guides_share_trim_origin(tmp_path):
     output = tmp_path / "out"
     output.mkdir()
     result = run(output, "burger", files, {"product_snapshot": snapshot.model_dump()})
+    with pdfium.PdfDocument(str(output / "bat.pdf")) as pdf:
+        marked_text = pdf[1].get_textpage().get_text_range()
+        assert "Légende des repères" in marked_text
+        assert "Zone de sécurité" in marked_text and "Pliage" in marked_text
     guide = next(a for a in result.artifacts if "traces" in a.name)
     with pikepdf.open(output / guide.name) as doc:
         trim = doc.pages[0].trimbox

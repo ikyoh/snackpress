@@ -1,11 +1,13 @@
 """Presentation proofs with explicit production inputs and registered template guides."""
 
 import pikepdf
+from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 
 from .catalog import MODELS, ToolResult
-from .common import INK, artifact, dimensions, new_canvas, open_pdf, render_page, report
+from .common import artifact, dimensions, new_canvas, open_pdf, render_page, report
+from .proof_layout import draw_legend, guide_key, header_footer, proof_date
 
 
 def input_labels(p):
@@ -74,7 +76,7 @@ def template(folder, files, p):
     return path, (w, h), (origin, origin, settings.width, settings.height)
 
 
-def generate(folder, files, p, labels=None, combined_guide=None):
+def generate(folder, files, p, labels=None, combined_guide=None, legend=None, date=None):
     if p.product_snapshot is not None:
         from .product_proof import generate_product
 
@@ -101,6 +103,14 @@ def generate(folder, files, p, labels=None, combined_guide=None):
         if sum(counts[p.cover_files : p.expected_files]) != p.interior_pages:
             raise ValueError(f"L’intérieur doit contenir exactement {p.interior_pages} pages.")
     guide = combined_guide or template(folder, files, p)
+    date = date or proof_date()
+    legend = (
+        legend
+        if legend is not None
+        else guide_key(p.template_tool, p.template_settings)
+        if guide
+        else []
+    )
     if guide:
         guide_path, (gw, gh), (ox, oy, fw, fh) = guide
     path = folder / "bat.pdf"
@@ -109,6 +119,7 @@ def generate(folder, files, p, labels=None, combined_guide=None):
     page_index = 0
     specs = [
         ("Projet", p.title),
+        ("Date du BAT", date),
         ("Client", p.client or "Non renseigné"),
         ("Papier", p.paper),
         ("Fichiers visuels attendus / reçus", f"{p.expected_files} / {p.expected_files}"),
@@ -129,9 +140,12 @@ def generate(folder, files, p, labels=None, combined_guide=None):
                 )
             for with_guides in [False, True] if marked else [False]:
                 bw, bh = (gw, gh) if with_guides else (w, h)
-                scale = min(174 / bw, 184 / bh)
-                x, y = (210 - bw * scale) / 2, 65 + (184 - bh * scale) / 2
-                c.setFillColor(INK)
+                bottom = 65 + max(0, (len(legend) + 1) // 2 - 2) * 5 if with_guides else 65
+                height = 249 - bottom
+                scale = min(174 / bw, height / bh)
+                x, y = (210 - bw * scale) / 2, bottom + (height - bh * scale) / 2
+                header_footer(c, date)
+                c.setFillColor(colors.black)
                 c.setFont("SnackBold", 18)
                 c.drawString(18 * mm, 272 * mm, p.title)
                 c.setFont("Snack", 9)
@@ -150,6 +164,7 @@ def generate(folder, files, p, labels=None, combined_guide=None):
                     height=h * scale * mm,
                 )
                 if with_guides:
+                    draw_legend(c, legend, bottom)
                     guide_placements.append(
                         (
                             page_index,

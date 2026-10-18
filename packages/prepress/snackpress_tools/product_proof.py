@@ -7,6 +7,7 @@ from reportlab.lib.units import mm
 
 from .common import CORAL, artifact, new_canvas, open_pdf, report
 from .products import snapshot_slots
+from .proof_layout import guide_key, proof_date
 
 
 def component_guide(folder, component):
@@ -128,8 +129,10 @@ def generate_product(folder, files, params, preview=False):
 
     materials = {m.id: m.name for m in snapshot.materials}
     finishes = {f.id: f.name for f in snapshot.finishes}
+    date = proof_date()
     specs = [
         ("Produit", snapshot.product_name),
+        ("Date du BAT", date),
         ("Catégorie", snapshot.category_name),
         ("Déclinaison", snapshot.variant.name),
         ("Client", params.client or "Non renseigné"),
@@ -193,7 +196,20 @@ def generate_product(folder, files, params, preview=False):
             expected_files=len(proof_sources) - len(masks),
             finishes=[s.name for _, s in masks],
         )
-        generate(work, proof_sources, legacy, labels=labels, combined_guide=guide)
+        legend = list(
+            dict.fromkeys(
+                entry for g in component.guides for entry in guide_key(g.tool, g.settings)
+            )
+        )
+        generate(
+            work,
+            proof_sources,
+            legacy,
+            labels=labels,
+            combined_guide=guide,
+            legend=legend,
+            date=date,
+        )
         with pikepdf.open(work / "bat.pdf") as doc:
             merged.pages.extend(doc.pages)
         if guide:
