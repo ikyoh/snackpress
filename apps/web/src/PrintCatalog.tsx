@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { Copy, Plus, RotateCw, Save, Trash2 } from 'lucide-react'
 import { useAccount } from './Account'
 import { post, request } from './api'
 import { Button } from './components/ui/button'
@@ -399,16 +400,20 @@ function TicketEditor({ value, onChange }: { value: Tickets; onChange: (v: Ticke
               />
             ))}
           </div>
-          <button
+          <Button
+            variant="outline"
+            className="print-action-button print-action-button-remove"
             type="button"
             disabled={value.placements.length === 1}
             onClick={() => update({ placements: value.placements.filter((_, n) => n !== i) })}
           >
-            Retirer cette position
-          </button>
+            <Trash2 size={18} aria-hidden="true" /> Retirer cette position
+          </Button>
         </fieldset>
       ))}
-      <button
+      <Button
+        variant="outline"
+        className="print-action-button"
         type="button"
         disabled={value.placements.length >= 20}
         onClick={() =>
@@ -417,8 +422,8 @@ function TicketEditor({ value, onChange }: { value: Tickets; onChange: (v: Ticke
           })
         }
       >
-        Ajouter une position de numéro
-      </button>
+        <Plus size={18} aria-hidden="true" /> Ajouter une position de numéro
+      </Button>
       <div className="tool-fields">
         <Select
           label="Code associé au numéro"
@@ -583,17 +588,21 @@ export function VariantEditor({
                 <option value="visual">Visuel</option>
                 <option value="mask">Masque technique</option>
               </Select>
-              <button
+              <Button
+                variant="outline"
+                className="print-action-button print-action-button-remove"
                 type="button"
                 disabled={c.slots.length <= 1}
-                aria-label={`Retirer l’emplacement ${slotIndex + 1}`}
+                aria-label={`<Trash2 size={18} aria-hidden="true" /> Retirer l’emplacement ${slotIndex + 1}`}
                 onClick={() => update(index, { slots: c.slots.filter((_, i) => i !== slotIndex) })}
               >
-                Retirer
-              </button>
+                <Trash2 size={18} aria-hidden="true" /> Retirer
+              </Button>
             </div>
           ))}
-          <button
+          <Button
+            variant="outline"
+            className="print-action-button"
             type="button"
             disabled={c.slots.length >= 30}
             onClick={() =>
@@ -602,8 +611,9 @@ export function VariantEditor({
               })
             }
           >
+            <Plus size={18} aria-hidden="true" />
             Ajouter un emplacement
-          </button>
+          </Button>
           <h4>Gabarits et tracés</h4>
           {c.guides.map((g, gi) => (
             <fieldset className="print-block" key={g.tool}>
@@ -671,12 +681,14 @@ export function VariantEditor({
                     })}
                 </div>
               )}
-              <button
+              <Button
+                variant="outline"
+                className="print-action-button print-action-button-remove"
                 type="button"
                 onClick={() => update(index, { guides: c.guides.filter((_, i) => i !== gi) })}
               >
-                Retirer ce tracé
-              </button>
+                <Trash2 size={18} aria-hidden="true" /> Retirer ce tracé
+              </Button>
             </fieldset>
           ))}
           <Select
@@ -729,26 +741,32 @@ export function VariantEditor({
           {c.tickets && (
             <TicketEditor value={c.tickets} onChange={(tickets) => update(index, { tickets })} />
           )}
-          <button
+          <Button
+            variant="outline"
+            className="print-action-button print-action-button-remove"
             type="button"
             disabled={variant.components.length <= 1}
             onClick={() =>
               onChange({ ...variant, components: variant.components.filter((_, i) => i !== index) })
             }
           >
+            <Trash2 size={18} aria-hidden="true" />
             Retirer ce composant
-          </button>
+          </Button>
         </fieldset>
       ))}
-      <button
+      <Button
+        variant="outline"
+        className="print-action-button"
         type="button"
         disabled={variant.components.length >= 12}
         onClick={() =>
           onChange({ ...variant, components: [...variant.components, newComponent()] })
         }
       >
+        <Plus size={18} aria-hidden="true" />
         Ajouter un composant
-      </button>
+      </Button>
     </>
   )
 }
@@ -857,7 +875,11 @@ function CatalogManager({
       {!draft || accountLoading ? (
         <p role="status">
           Chargement du catalogue…{' '}
-          {source.error && <button onClick={source.reload}>Réessayer</button>}
+          {source.error && (
+            <Button variant="outline" className="print-action-button" onClick={source.reload}>
+              <RotateCw size={18} aria-hidden="true" /> Réessayer
+            </Button>
+          )}
         </p>
       ) : (
         <>
@@ -870,7 +892,9 @@ function CatalogManager({
                 : 'Gamme de départ. Connectez-vous pour personnaliser et enregistrer votre catalogue.'}
             </p>
             {!signedIn && <Button onClick={open}>Se connecter</Button>}
-            <button
+            <Button
+              variant="outline"
+              className="print-action-button"
               type="button"
               disabled={source.busy}
               onClick={() => {
@@ -879,8 +903,8 @@ function CatalogManager({
                 setNotice('')
               }}
             >
-              Recharger le catalogue
-            </button>
+              <RotateCw size={18} aria-hidden="true" /> Recharger le catalogue
+            </Button>
           </div>
           <nav className="catalog-tabs" aria-label="Bibliothèques d’impression">
             {[
@@ -938,7 +962,9 @@ function CatalogManager({
                           <small>{p.variants.length} déclinaison(s)</small>
                         </button>
                       ))}
-                    <button
+                    <Button
+                      variant="outline"
+                      className="print-action-button"
                       type="button"
                       disabled={!draft.categories.length}
                       onClick={() => {
@@ -956,8 +982,8 @@ function CatalogManager({
                         setVariantIndex(0)
                       }}
                     >
-                      Ajouter un produit
-                    </button>
+                      <Plus size={18} aria-hidden="true" /> Ajouter un produit
+                    </Button>
                   </aside>
                   <section className="print-edit">
                     {product && variant ? (
@@ -1014,7 +1040,9 @@ function CatalogManager({
                           ))}
                         </Select>
                         <div className="print-actions">
-                          <button
+                          <Button
+                            variant="outline"
+                            className="print-action-button"
                             type="button"
                             disabled={product.variants.length >= 30}
                             onClick={() => {
@@ -1031,9 +1059,12 @@ function CatalogManager({
                               setVariantIndex(product.variants.length)
                             }}
                           >
+                            <Copy size={18} aria-hidden="true" />
                             Dupliquer la déclinaison
-                          </button>
-                          <button
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="print-action-button print-action-button-remove"
                             type="button"
                             disabled={product.variants.length <= 1}
                             onClick={() => {
@@ -1043,8 +1074,9 @@ function CatalogManager({
                               setVariantIndex(0)
                             }}
                           >
+                            <Trash2 size={18} aria-hidden="true" />
                             Retirer la déclinaison
-                          </button>
+                          </Button>
                         </div>
                         <VariantEditor
                           variant={variant}
@@ -1062,7 +1094,9 @@ function CatalogManager({
                           }
                         />
                         <div className="print-actions">
-                          <button
+                          <Button
+                            variant="outline"
+                            className="print-action-button"
                             type="button"
                             onClick={() => {
                               const p = {
@@ -1075,9 +1109,11 @@ function CatalogManager({
                               setVariantIndex(0)
                             }}
                           >
-                            Dupliquer le produit
-                          </button>
-                          <button
+                            <Copy size={18} aria-hidden="true" /> Dupliquer le produit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="print-action-button print-action-button-remove"
                             type="button"
                             onClick={() => {
                               setDraft({
@@ -1087,8 +1123,8 @@ function CatalogManager({
                               setSelectedId('')
                             }}
                           >
-                            Retirer le produit
-                          </button>
+                            <Trash2 size={18} aria-hidden="true" /> Retirer le produit
+                          </Button>
                         </div>
                       </>
                     ) : (
@@ -1134,7 +1170,9 @@ function CatalogManager({
                             </option>
                           ))}
                       </Select>
-                      <button
+                      <Button
+                        variant="outline"
+                        className="print-action-button print-action-button-remove"
                         type="button"
                         disabled={
                           draft.products.some((p) => p.category_id === c.id) ||
@@ -1147,11 +1185,13 @@ function CatalogManager({
                           })
                         }
                       >
-                        Retirer
-                      </button>
+                        <Trash2 size={18} aria-hidden="true" /> Retirer
+                      </Button>
                     </div>
                   ))}
-                  <button
+                  <Button
+                    variant="outline"
+                    className="print-action-button"
                     type="button"
                     onClick={() =>
                       setDraft({
@@ -1163,8 +1203,9 @@ function CatalogManager({
                       })
                     }
                   >
+                    <Plus size={18} aria-hidden="true" />
                     Ajouter une catégorie
-                  </button>
+                  </Button>
                 </section>
               ) : tab === 'materials' ? (
                 <section className="print-edit">
@@ -1231,7 +1272,9 @@ function CatalogManager({
                               }
                             />
                           </div>
-                          <button
+                          <Button
+                            variant="outline"
+                            className="print-action-button print-action-button-remove"
                             type="button"
                             disabled={
                               draft.products.some((p) => p.material_ids.includes(m.id)) ||
@@ -1244,13 +1287,15 @@ function CatalogManager({
                               })
                             }
                           >
-                            Retirer le support
-                          </button>
+                            <Trash2 size={18} aria-hidden="true" /> Retirer le support
+                          </Button>
                         </AccordionContent>
                       </AccordionItem>
                     ))}
                   </Accordion>
-                  <button
+                  <Button
+                    variant="outline"
+                    className="print-action-button"
                     type="button"
                     onClick={() => {
                       const material: Material = {
@@ -1265,8 +1310,9 @@ function CatalogManager({
                       setExpandedMaterialId(material.id)
                     }}
                   >
+                    <Plus size={18} aria-hidden="true" />
                     Ajouter un support
-                  </button>
+                  </Button>
                 </section>
               ) : (
                 <section className="print-edit">
@@ -1334,7 +1380,9 @@ function CatalogManager({
                               })
                             }
                           />
-                          <button
+                          <Button
+                            variant="outline"
+                            className="print-action-button print-action-button-remove"
                             type="button"
                             disabled={
                               draft.products.some((p) => p.finish_ids.includes(f.id)) ||
@@ -1347,13 +1395,15 @@ function CatalogManager({
                               })
                             }
                           >
-                            Retirer la finition
-                          </button>
+                            <Trash2 size={18} aria-hidden="true" /> Retirer la finition
+                          </Button>
                         </AccordionContent>
                       </AccordionItem>
                     ))}
                   </Accordion>
-                  <button
+                  <Button
+                    variant="outline"
+                    className="print-action-button"
                     type="button"
                     onClick={() => {
                       const finish: Finish = {
@@ -1367,8 +1417,8 @@ function CatalogManager({
                       setExpandedFinishId(finish.id)
                     }}
                   >
-                    Ajouter une finition
-                  </button>
+                    <Plus size={18} aria-hidden="true" /> Ajouter une finition
+                  </Button>
                 </section>
               )}
             </fieldset>
@@ -1545,9 +1595,14 @@ function PersonalProductSelector({
       {(source.error || error) && (
         <p className="alert error" role="alert">
           {source.error || error}
-          <button type="button" onClick={source.reload}>
-            Recharger le catalogue
-          </button>
+          <Button
+            variant="outline"
+            className="print-action-button"
+            type="button"
+            onClick={source.reload}
+          >
+            <RotateCw size={18} aria-hidden="true" /> Recharger le catalogue
+          </Button>
         </p>
       )}
       {notice && <p role="status">{notice}</p>}
@@ -1651,9 +1706,15 @@ function PersonalProductSelector({
                 tools={tools}
                 onChange={(variant) => onChange({ ...snapshot, variant })}
               />
-              <button type="button" disabled={source.busy} onClick={() => void saveProduct()}>
-                Enregistrer comme nouveau produit
-              </button>
+              <Button
+                variant="outline"
+                className="print-action-button"
+                type="button"
+                disabled={source.busy}
+                onClick={() => void saveProduct()}
+              >
+                <Save size={18} aria-hidden="true" /> Enregistrer comme nouveau produit
+              </Button>
             </>
           )}
           <p className="field-hint">

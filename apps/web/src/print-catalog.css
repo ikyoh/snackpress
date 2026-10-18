@@ -22,7 +22,7 @@
   position: sticky;
   top: 20px;
 }
-.print-list > button {
+.print-list > button:not(.button) {
   text-align: left;
   display: grid;
   gap: 5px;
@@ -89,13 +89,21 @@
 .print-edit h4 {
   margin: 22px 0 12px;
 }
-.print-catalog button:not([class]),
-.print-selector button:not([class]) {
-  color: #644363;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  padding: 8px 3px;
-  font-size: 0.875rem;
+.button.print-action-button {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+}
+.print-action-button svg {
+  flex-shrink: 0;
+}
+.print-action-button.button-outline.print-action-button-remove {
+  color: #a12b46;
+  border-color: #e4a6b4;
+  background: #fff1f4;
+}
+.print-action-button.button-outline.print-action-button-remove:hover:not(:disabled) {
+  background: #ffe1e8;
 }
 .print-catalog button:disabled {
   opacity: 0.45;
