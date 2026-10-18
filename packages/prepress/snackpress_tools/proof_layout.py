@@ -62,7 +62,7 @@ def brand_symbol(c):
     c.restoreState()
 
 
-def header_footer(c, date):
+def header_footer(c, date, date_label="Date du BAT"):
     header_fonts()
     c.saveState()
     # Match the site's .topbar and .brand styles, retaining native PDF vectors.
@@ -99,7 +99,7 @@ def header_footer(c, date):
     c.drawString(dot_x, 284.3 * mm, ".")
     c.setFillColor(colors.white)
     c.setFont("SnackHeader", 9)
-    c.drawRightString(192 * mm, 286 * mm, f"Date du BAT : {date}")
+    c.drawRightString(192 * mm, 286 * mm, f"{date_label} : {date}")
     c.setFillColor(colors.black)
     c.setFont("Snack", 8)
     c.drawString(18 * mm, 11 * mm, "snackpress.com")

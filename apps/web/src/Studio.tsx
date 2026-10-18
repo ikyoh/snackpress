@@ -505,7 +505,8 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
     settings,
     available: ready,
     paused: busy || !!result,
-    valid: () => formRef.current?.checkValidity() ?? false,
+    // Preview validation must not fire invalid events that reveal panels or move focus.
+    valid: () => formRef.current?.matches(':valid') ?? false,
   })
   function change(key: string, value: string | number) {
     setValues((old) => {

@@ -182,6 +182,7 @@ def chili(folder, files, p):
             "inline et les ressources non référencées peuvent ne pas être "
             "inventoriées."
         ),
+        branded_header=True,
     )
     write_json(raw, data)
     return ToolResult(

@@ -40,14 +40,14 @@ def new_canvas(path: Path, width: float, height: float):
     return c
 
 
-def report(path: Path, title: str, rows, note=""):
+def report(path: Path, title: str, rows, note="", *, branded_header=False):
     fonts()
     style = ParagraphStyle(
         "body",
         fontName="Snack",
         fontSize=9,
         leading=14,
-        textColor=INK,
+        textColor=colors.black if branded_header else INK,
         alignment=TA_LEFT,
         wordWrap="CJK",
     )
@@ -59,16 +59,16 @@ def report(path: Path, title: str, rows, note=""):
         pagesize=(210 * mm, 297 * mm),
         leftMargin=18 * mm,
         rightMargin=18 * mm,
-        topMargin=20 * mm,
+        topMargin=(30 if branded_header else 20) * mm,
         bottomMargin=20 * mm,
         title=title,
         author="Snackpress",
     )
-    story = [
+    story = [] if branded_header else [
         Paragraph("SNACKPRESS / ATELIER PRÉPRESSE", style),
         Spacer(1, 12),
-        Paragraph(escape(title), heading),
     ]
+    story.append(Paragraph(escape(title), heading))
     if note:
         story += [Paragraph(escape(note), style), Spacer(1, 16)]
     data = [
@@ -89,7 +89,15 @@ def report(path: Path, title: str, rows, note=""):
         )
         story.append(table)
 
+    if branded_header:
+        from .proof_layout import header_footer, proof_date
+
+        date = proof_date()
+
     def footer(c, doc):
+        if branded_header:
+            header_footer(c, date, date_label="Date du rapport")
+            return
         c.setFont("Snack", 8)
         c.setFillColor(INK)
         c.drawString(

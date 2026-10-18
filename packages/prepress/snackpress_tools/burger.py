@@ -147,7 +147,7 @@ def generate(folder, files, p, labels=None, combined_guide=None, legend=None, da
                 header_footer(c, date)
                 c.setFillColor(colors.black)
                 c.setFont("SnackBold", 18)
-                c.drawString(18 * mm, 272 * mm, p.title)
+                c.drawString(18 * mm, 267 * mm, p.title)
                 c.setFont("Snack", 9)
                 c.drawString(18 * mm, 260 * mm, f"{label} — page {index + 1}/{count}")
                 c.drawString(
