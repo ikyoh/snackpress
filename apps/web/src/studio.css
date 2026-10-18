@@ -568,6 +568,30 @@
   font-weight: 500;
   overflow-wrap: anywhere;
 }
+.club-estimate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+  padding-bottom: 14px;
+}
+.club-estimate > span {
+  font-weight: 700;
+}
+.club-estimate output {
+  display: block;
+  font-size: 2rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.club-estimate > p {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--text-caption);
+  line-height: 1.5;
+}
 .artifact-toolbar {
   display: flex;
   align-items: center;

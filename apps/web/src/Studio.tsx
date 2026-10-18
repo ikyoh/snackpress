@@ -37,6 +37,7 @@ import { pizzaErrors, pizzaValue, visiblePizzaField } from './pizza'
 import { PizzaSettings } from './PizzaSettings'
 import { PizzaHighlight, pizzaFocusLabel } from './PizzaHighlight'
 import { ToolSettings } from './ToolSettings'
+import { ClubEstimate } from './ClubEstimate'
 import { SettingsSection } from './SettingsSection'
 import './studio.css'
 
@@ -1041,6 +1042,9 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                 )}
               </div>
               <div className="tool-run">
+                {tool.id === 'club-sandwich' && (
+                  <ClubEstimate fields={tool.fields} values={values} />
+                )}
                 <Button type="submit" disabled={busy || !ready}>
                   {busy ? <LoaderCircle size={16} className="spin" /> : <ArrowRight size={16} />}
                   {busy ? 'Traitement en cours…' : 'Générer le fichier final'}
@@ -1050,7 +1054,9 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                     ? tool.id === 'burger'
                       ? `${files.length} / ${maxFiles} fichier(s) importé(s). Complétez les emplacements attendus.`
                       : `Importez ${tool.min_files === 2 ? 'les deux fichiers' : 'votre fichier'} pour commencer.`
-                    : 'L’aperçu est automatique. Générez ensuite le fichier complet.'}
+                    : tool.id === 'club-sandwich'
+                      ? 'Le PDF reprend cette estimation.'
+                      : 'L’aperçu est automatique. Générez ensuite le fichier complet.'}
                 </p>
               </div>
             </div>
