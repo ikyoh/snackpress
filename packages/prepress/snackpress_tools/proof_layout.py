@@ -1,10 +1,14 @@
 """Branding and vector guide keys for presentation proofs."""
 
 from datetime import datetime
+from functools import lru_cache
+from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from reportlab.lib import colors
 from reportlab.lib.units import mm
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 
 from .catalog import MODELS
 from .common import CORAL, INK
@@ -14,12 +18,17 @@ def proof_date():
     return datetime.now(ZoneInfo("Europe/Paris")).strftime("%d/%m/%Y")
 
 
-def header_footer(c, date):
-    c.saveState()
+@lru_cache
+def header_fonts():
+    folder = Path(__file__).parent / "assets" / "fonts"
+    pdfmetrics.registerFont(TTFont("SnackDisplay", str(folder / "LilitaOne-Regular.ttf")))
+    pdfmetrics.registerFont(TTFont("SnackHeader", str(folder / "Nunito-Regular.ttf")))
+
+
+def brand_symbol(c):
     # Native paths from apps/web/public/snackpress.svg, including its gradient.
     c.saveState()
-    c.translate(18 * mm, 281 * mm)
-    c.scale(10 * mm / 64, -10 * mm / 64)
+    c.scale(8 * mm / 64, -8 * mm / 64)
     c.translate(0, -64)
     path = c.beginPath()
     path.moveTo(48, 5)
@@ -51,12 +60,48 @@ def header_footer(c, date):
     c.setFillColor(colors.HexColor("#ffe169"))
     c.drawPath(fold, stroke=0, fill=1)
     c.restoreState()
-    c.setFillColor(colors.HexColor("#792bc4"))
-    c.setFont("SnackBold", 16)
-    c.drawString(30 * mm, 284 * mm, "snackpress.")
+
+
+def header_footer(c, date):
+    header_fonts()
+    c.saveState()
+    # Match the site's .topbar and .brand styles, retaining native PDF vectors.
+    c.saveState()
+    c.rect(0, 279 * mm, 210 * mm, 18 * mm, stroke=0, fill=0)
+    clip = c.beginPath()
+    clip.rect(0, 279 * mm, 210 * mm, 18 * mm)
+    c.clipPath(clip, stroke=0, fill=0)
+    c.linearGradient(
+        0, 279 * mm, 0, 297 * mm, [colors.HexColor("#7731a8"), colors.HexColor("#9547bd")]
+    )
+    c.restoreState()
+    c.setStrokeColor(colors.HexColor("#ba98d3"))
+    c.setLineWidth(mm)
+    c.line(0, 279 * mm, 210 * mm, 279 * mm)
+    c.saveState()
+    c.translate(24 * mm, 288 * mm)
+    c.rotate(7)
+    c.setFillColor(colors.HexColor("#fff5fc"))
+    c.setStrokeColor(colors.HexColor("#ffd6ee"))
+    c.setLineWidth(0.5 * mm)
+    c.roundRect(-6 * mm, -6 * mm, 12 * mm, 12 * mm, 4 * mm, stroke=1, fill=1)
+    c.translate(-4 * mm, -4 * mm)
+    brand_symbol(c)
+    c.restoreState()
+    c.setFont("SnackDisplay", 26)
+    tracking = -0.025 * 26
+    c.setFillColor(colors.HexColor("#55197b"))
+    c.drawString(35 * mm, 283.5 * mm, "snackpress.", charSpace=tracking)
+    c.setFillColor(colors.white)
+    c.drawString(35 * mm, 284.3 * mm, "snackpress", charSpace=tracking)
+    dot_x = 35 * mm + c.stringWidth("snackpress", "SnackDisplay", 26) + 10 * tracking
+    c.setFillColor(colors.HexColor("#ffe169"))
+    c.drawString(dot_x, 284.3 * mm, ".")
+    c.setFillColor(colors.white)
+    c.setFont("SnackHeader", 9)
+    c.drawRightString(192 * mm, 286 * mm, f"Date du BAT : {date}")
     c.setFillColor(colors.black)
     c.setFont("Snack", 8)
-    c.drawRightString(192 * mm, 285 * mm, f"Date du BAT : {date}")
     c.drawString(18 * mm, 11 * mm, "snackpress.com")
     c.linkURL("https://snackpress.com", (18 * mm, 9 * mm, 49 * mm, 15 * mm), relative=0)
     c.drawRightString(192 * mm, 11 * mm, f"Page {c.getPageNumber()}")
