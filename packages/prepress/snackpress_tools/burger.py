@@ -101,12 +101,12 @@ def generate(folder, files, p, labels=None, combined_guide=None):
         if sum(counts[p.cover_files : p.expected_files]) != p.interior_pages:
             raise ValueError(f"L’intérieur doit contenir exactement {p.interior_pages} pages.")
     guide = combined_guide or template(folder, files, p)
-    guide_image = None
     if guide:
-        path, (gw, gh), (ox, oy, fw, fh) = guide
-        guide_image, _ = render_page(path, 0, dpi=min(120, 1100 * 25.4 / max(gw, gh)))
+        guide_path, (gw, gh), (ox, oy, fw, fh) = guide
     path = folder / "bat.pdf"
     c = new_canvas(path, 210, 297)
+    guide_placements = []
+    page_index = 0
     specs = [
         ("Projet", p.title),
         ("Client", p.client or "Non renseigné"),
@@ -150,16 +150,14 @@ def generate(folder, files, p, labels=None, combined_guide=None):
                     height=h * scale * mm,
                 )
                 if with_guides:
-                    c.saveState()
-                    c.setBlendMode("Multiply")
-                    c.drawImage(
-                        ImageReader(guide_image),
-                        x * mm,
-                        y * mm,
-                        width=gw * scale * mm,
-                        height=gh * scale * mm,
+                    guide_placements.append(
+                        (
+                            page_index,
+                            pikepdf.Rectangle(
+                                x * mm, y * mm, (x + gw * scale) * mm, (y + gh * scale) * mm
+                            ),
+                        )
                     )
-                    c.restoreState()
                 c.setFont("Snack", 8)
                 c.drawString(18 * mm, 38 * mm, "BAT DE PRÉSENTATION — COULEURS NON CONTRACTUELLES")
                 c.drawString(
@@ -169,13 +167,34 @@ def generate(folder, files, p, labels=None, combined_guide=None):
                 )
                 c.drawString(18 * mm, 22 * mm, f"Client : {p.client[:75] or 'Non renseigné'}")
                 c.showPage()
+                page_index += 1
     c.save()
+    if guide_placements:
+        with (
+            open_pdf(guide_path, max_pages=1) as source,
+            pikepdf.open(path, allow_overwriting_input=True) as proof,
+        ):
+            # Import native PDF objects once; reuse the form on all marked pages.
+            form = proof.copy_foreign(source.pages[0].as_form_xobject())
+            multiply = pikepdf.Dictionary(Type=pikepdf.Name.ExtGState, BM=pikepdf.Name.Multiply)
+            for index, rect in guide_placements:
+                page = proof.pages[index]
+                state_name = page.add_resource(multiply, pikepdf.Name.ExtGState)
+                form_name = page.add_resource(form, pikepdf.Name.XObject)
+                placement = page.calc_form_xobject_placement(
+                    form, form_name, rect, allow_shrink=True, allow_expand=True
+                )
+                page.contents_add(
+                    b"q\n" + str(state_name).encode("ascii") + b" gs\n" + placement + b"\nQ\n"
+                )
+            proof.save(path)
     sheet = folder / "fiche-technique.pdf"
     report(
         sheet,
         "Fiche technique du BAT",
         specs + [("Commentaires", p.notes or "Aucun")],
-        "Présentation rasterisée. Repères superposés à l’échelle du document. "
+        "Visuels rasterisés pour la présentation. Repères PDF conservés en vectoriel "
+        "et superposés à l’échelle du document. "
         "Chaque finition dispose de son propre fichier et de ses pages de contrôle.",
     )
     return ToolResult(

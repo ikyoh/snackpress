@@ -100,6 +100,16 @@ def test_multiple_guides_share_trim_origin(tmp_path):
         assert float(trim[0]) / mm == pytest.approx(15)
         assert float(trim[2] - trim[0]) / mm == pytest.approx(297)
         assert len(doc.pages[0].Resources.XObject) == 2
+    with pikepdf.open(output / "bat.pdf") as doc:
+        marked = doc.pages[1]
+        images = [obj for obj in dict(marked.Resources.XObject).values() if obj.Subtype == "/Image"]
+        forms = [obj for obj in dict(marked.Resources.XObject).values() if obj.Subtype == "/Form"]
+        assert len(images) == 1
+        assert len(forms) == 1
+        # The combined Pizza/Taco template keeps both of its native PDF layers.
+        layers = list(dict(forms[0].Resources.XObject).values())
+        assert len(layers) == 2
+        assert all(layer.Subtype == "/Form" for layer in layers)
 
 
 def test_finish_masks_and_compatibility_rules(tmp_path):

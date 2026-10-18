@@ -26,7 +26,7 @@ Dans Burger, **Mode du BAT** propose :
 
 Les fichiers sont contrôlés côté serveur : PDF non chiffré, pagination exacte, dimensions physiques de la TrimBox (tolérance 0,1 mm), fonds perdus disponibles dans la BleedBox (tolérance 0,1 mm), unités et rotation normalisées. La règle « pagination par multiple de » contrôle le total des pages visuelles du composant ; elle vaut 4 pour les composants de la brochure pilote. Les fichiers de production ne sont pas redimensionnés pour satisfaire ces contrôles.
 
-Le BAT contient une présentation seule et une présentation avec tracés pour chaque page visuelle, ainsi que les masques séparés. La fiche technique liste les spécifications. `reglages.json` conserve une copie complète des spécifications utilisées : les modifications ou suppressions ultérieures du catalogue ne modifient pas ces résultats. Le BAT reste une présentation rasterisée, non une épreuve couleur contractuelle. Les travaux et leurs réglages restent soumis à la conservation actuelle de 24 heures : télécharger les résultats à conserver.
+Le BAT contient une présentation seule et une présentation avec tracés pour chaque page visuelle, ainsi que les masques séparés. La fiche technique liste les spécifications. `reglages.json` conserve une copie complète des spécifications utilisées : les modifications ou suppressions ultérieures du catalogue ne modifient pas ces résultats. Les visuels du BAT restent rasterisés pour la présentation ; les repères superposés conservent leurs tracés vectoriels et leurs hachures dans le PDF final. Le BAT ne constitue pas une épreuve couleur contractuelle. Les travaux et leurs réglages restent soumis à la conservation actuelle de 24 heures : télécharger les résultats à conserver.
 
 ## Billets détachables numérotés
 

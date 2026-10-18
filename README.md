@@ -97,7 +97,7 @@ Stockage privé dans `.data` (ou `SNACKPRESS_DATA`), jamais dans le dépôt. Sup
 
 **Accès aux documents :** les comptes protègent les configurations personnelles. Les outils et les liens de travaux restent accessibles sans connexion ; les identifiants aléatoires des fichiers ne constituent pas une autorisation par utilisateur. Protéger l’accès au service au niveau du proxy ou du réseau avant de traiter des documents privés sur un hébergement partagé.
 
-Les exports natifs d’imposition ne sont pas rasterisés. Les corrections de Donut, les comparaisons Tiramisu, les BAT Burger et les estimations Poké utilisent un rendu raster explicitement annoncé. Aucun outil ne certifie PDF/X ou le TAC ; les contrôles atelier indiqués restent nécessaires. Lire les limites propres à chaque outil dans [TOOLS.md](TOOLS.md).
+Les exports natifs d’imposition ne sont pas rasterisés. Les corrections de Donut, les comparaisons Tiramisu, les visuels des BAT Burger et les estimations Poké utilisent un rendu raster explicitement annoncé. Les repères superposés dans les BAT conservent les objets PDF natifs du gabarit. Aucun outil ne certifie PDF/X ou le TAC ; les contrôles atelier indiqués restent nécessaires. Lire les limites propres à chaque outil dans [TOOLS.md](TOOLS.md).
 
 ## Conteneurs locaux
 

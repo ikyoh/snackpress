@@ -32,6 +32,39 @@ def text(path):
         return "\n".join(page.get_textpage().get_text_range() for page in pdf)
 
 
+def guide_forms(page):
+    forms = []
+
+    def collect(resources):
+        for obj in dict(resources.get("/XObject", {})).values():
+            if obj.get("/Subtype") == "/Form":
+                forms.append(obj)
+                collect(obj.get("/Resources", {}))
+            else:
+                assert obj.get("/Subtype") == "/Image"
+
+    collect(page.Resources)
+    return forms
+
+
+def assert_native_guides(page):
+    # One image is the artwork. The guides must add PDF paths, not another image.
+    images = [obj for obj in dict(page.Resources.XObject).values() if obj.Subtype == "/Image"]
+    assert len(images) == 1
+    forms = guide_forms(page)
+    assert forms
+    assert any(
+        str(operator) in {"S", "s"}
+        for form in forms
+        for _, operator in pikepdf.parse_content_stream(form)
+    )
+    assert all(
+        obj.Subtype != "/Image"
+        for form in forms
+        for obj in dict(form.get("/Resources", {}).get("/XObject", {})).values()
+    )
+
+
 def test_card_and_separate_finishes(tmp_path):
     recto = source(tmp_path, "recto.pdf")
     verso = source(tmp_path, "verso.pdf")
@@ -82,6 +115,8 @@ def test_registered_template_marks_on_additional_page(tmp_path, tool, width, hei
         assert second.getpixel((297, 390)) != (255, 255, 255)
     with pikepdf.open(out / "bat.pdf") as pdf:
         assert "/Multiply" in str(pdf.pages[1].Resources.ExtGState)
+        assert not guide_forms(pdf.pages[0])
+        assert_native_guides(pdf.pages[1])
 
 
 @pytest.mark.parametrize(
@@ -97,10 +132,37 @@ def test_import_exported_pdf_template(tmp_path, tool, width, height, settings):
     template_dir.mkdir()
     exported = run(template_dir, tool, [], settings)
     visual = source(tmp_path, "visual.pdf", width=width, height=height)
-    _, result = generate(
+    out, result = generate(
         tmp_path, [visual, template_dir / exported.artifacts[0].name], {"template_tool": "pdf"}
     )
     assert result.metrics["Pages du BAT"] == 2
+    with pikepdf.open(out / "bat.pdf") as pdf:
+        assert_native_guides(pdf.pages[1])
+
+
+def test_vector_guides_on_each_artwork_page_but_not_finish_pages(tmp_path):
+    visual = source(tmp_path, "visual.pdf", pages=2, width=85, height=55)
+    finish = source(tmp_path, "finish.pdf", width=85, height=55)
+    out, result = generate(
+        tmp_path,
+        [visual, finish],
+        {
+            "finishes": ["Vernis"],
+            "template_tool": "pizza",
+            "template_settings": {"unusable_top": 7, "safety_left": 5},
+        },
+    )
+    assert result.metrics["Pages du BAT"] == 5
+    with pikepdf.open(out / "bat.pdf") as pdf:
+        for index in (1, 3):
+            assert_native_guides(pdf.pages[index])
+            assert any(
+                str(op) == "W*"
+                for form in guide_forms(pdf.pages[index])
+                for _, op in pikepdf.parse_content_stream(form)
+            )
+        for index in (0, 2, 4):
+            assert not guide_forms(pdf.pages[index])
 
 
 @pytest.mark.parametrize(
