@@ -20,7 +20,7 @@ import { Button } from './components/ui/button'
 import { defaults, post, request } from './api'
 import type { Job, Plan, Settings } from './api'
 import { PdfPreview, useArtwork } from './PdfPreview'
-import { AccountButton } from './Account'
+import { HeaderActions } from './HeaderActions'
 import { Configurations } from './Configurations'
 import { LivePreview, useLivePreview } from './LivePreview'
 
@@ -220,12 +220,7 @@ export default function App() {
           </span>
           snackpress<span className="brand-dot">.</span>
         </a>
-        <div className="topbar-links">
-          <a className="active-nav" href="/">
-            Tous les outils
-          </a>
-        </div>
-        <AccountButton />
+        <HeaderActions />
         <button className="help-button" aria-label="Mode d’emploi" onClick={() => setHelp(true)}>
           <HelpCircle size={17} />
           <span>Mode d’emploi</span>

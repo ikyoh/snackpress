@@ -23,7 +23,7 @@ import {
 } from 'lucide-react'
 import App from './App'
 import { PrintCatalogPage } from './PrintCatalog'
-import { AccountButton } from './Account'
+import { HeaderActions } from './HeaderActions'
 import { Configurations } from './Configurations'
 import { BurgerEditor, burgerDefaults, burgerLabels, type BurgerOptions } from './BurgerEditor'
 import { request } from './api'
@@ -124,15 +124,7 @@ function Header() {
         </span>
         snackpress<span className="brand-dot">.</span>
       </a>
-      <div className="topbar-links">
-        <a className="active-nav" href="/">
-          Tous les outils
-        </a>
-      </div>
-      <a className="print-catalog-link" href="/?view=products">
-        Produits d’impression
-      </a>
-      <AccountButton />
+      <HeaderActions />
       <span className="header-note">
         <WandSparkles size={17} />
         Les bons outils. La vie plus facile.

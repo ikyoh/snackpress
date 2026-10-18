@@ -307,7 +307,7 @@ export function AccountButton() {
   return (
     <button
       type="button"
-      className="account-button"
+      className="account-button header-action"
       onClick={open}
       disabled={loading}
       aria-label={user ? 'Mon compte' : 'Se connecter'}

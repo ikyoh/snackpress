@@ -22,6 +22,8 @@ Mode Operate. Réglages à gauche et résultat à droite ; empilement sur mobile
 
 ## Interactions et accessibilité
 
+L’en-tête commun au catalogue, aux outils et à l’imposition regroupe « Tous les outils », « Produits d’impression » et l’accès au compte. Les trois commandes utilisent une hauteur de 48 px, la même typographie et les mêmes espacements. La destination active est indiquée visuellement et par `aria-current`. Les accès restent visibles sur mobile, sur deux colonnes puis une seule sur les écrans les plus étroits.
+
 Commandes bombées qui s’enfoncent au clic, cartes légèrement soulevées au survol, confirmation ponctuelle par une transition jaune/verte après un vrai traitement réussi. Focus clavier violet visible, contrastes élevés pour les textes utiles, cibles tactiles larges, mouvements désactivés lorsque l’utilisateur demande une réduction des animations. Les pictogrammes de snacks sont décoratifs ; les noms d’outils restent du texte accessible.
 
 ## Illustrations
