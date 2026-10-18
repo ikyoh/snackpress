@@ -3,6 +3,12 @@ import type { components } from '../../../packages/api-client/schema'
 type Field = components['schemas']['ToolField']
 type Values = Record<string, unknown>
 
+export function pizzaValue(field: Field, values: Values): string | number {
+  return (values[field.key] ??
+    (field.key.startsWith('safety_') ? values.safety : undefined) ??
+    field.default) as string | number
+}
+
 export function visiblePizzaField(key: string, values: Values) {
   if (values.shape === 'circle' && (key.startsWith('height') || key === 'corner_radius'))
     return false

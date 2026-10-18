@@ -23,29 +23,75 @@ def pizza(folder, files, p):
     w, h = p.width + 2 * p.bleed, p.height + 2 * p.bleed
     c = new_canvas(path, w, h)
 
-    def contour(inset, *, fill=0, stroke=1):
-        x = (p.bleed + inset) * mm
-        width, height = (p.width - 2 * inset) * mm, (p.height - 2 * inset) * mm
-        if p.shape == "circle":
-            c.circle(x + width / 2, x + height / 2, width / 2, fill=fill, stroke=stroke)
-        elif p.shape == "ellipse":
-            c.ellipse(x, x, x + width, x + height, fill=fill, stroke=stroke)
+    def contour(left=0, right=0, top=0, bottom=0):
+        x, y = (p.bleed + left) * mm, (p.bleed + bottom) * mm
+        width, height = (p.width - left - right) * mm, (p.height - top - bottom) * mm
+        path = c.beginPath()
+        if p.shape in {"circle", "ellipse"}:
+            path.ellipse(x, y, width, height)
         elif p.corner_radius > 0:
-            radius = max(0, p.corner_radius - inset) * mm
-            c.roundRect(x, x, width, height, radius, fill=fill, stroke=stroke)
+            radius = min(
+                max(0, p.corner_radius - max(left, right, top, bottom)) * mm, width / 2, height / 2
+            )
+            path.roundRect(x, y, width, height, radius)
         else:
-            c.rect(x, x, width, height, fill=fill, stroke=stroke)
+            path.rect(x, y, width, height)
+        return path
 
     c.setFillColor(colors.HexColor("#f7e5dc"))
-    contour(-p.bleed, fill=1, stroke=0)
+    c.drawPath(contour(*([-p.bleed] * 4)), fill=1, stroke=0)
     c.setFillColor(colors.white)
-    contour(0, fill=1, stroke=0)
+    cut = contour()
+    c.drawPath(cut, fill=1, stroke=0)
+
+    left, right, top, bottom = (
+        getattr(p, f"unusable_{side}") for side in ("left", "right", "top", "bottom")
+    )
+    if any((left, right, top, bottom)):
+        c.saveState()
+        c.clipPath(cut, fill=0, stroke=0)
+        # Clip to the union of edge bands, so corner overlaps hatch only once.
+        bands = c.beginPath()
+        bands.rect(p.bleed * mm, p.bleed * mm, p.width * mm, p.height * mm)
+        bands.rect(
+            (p.bleed + left) * mm,
+            (p.bleed + bottom) * mm,
+            (p.width - left - right) * mm,
+            (p.height - top - bottom) * mm,
+        )
+        c.saveState()
+        c.clipPath(bands, fill=0, stroke=0, fillMode=0)
+        c.setStrokeColor(colors.HexColor("#e6b800"))
+        c.setLineWidth(0.18 * mm)
+        for index in range(-ceil(p.height / 3), ceil(p.width / 3) + 1):
+            x = p.bleed + index * 3
+            c.line(x * mm, p.bleed * mm, (x + p.height) * mm, (p.bleed + p.height) * mm)
+        c.restoreState()
+        c.setStrokeColor(colors.HexColor("#e6b800"))
+        c.setLineWidth(0.3 * mm)
+        c.setDash(2 * mm, 1 * mm)
+        x0, x1 = (p.bleed + left) * mm, (p.bleed + p.width - right) * mm
+        y0, y1 = (p.bleed + bottom) * mm, (p.bleed + p.height - top) * mm
+        if left:
+            c.line(x0, y0, x0, y1)
+        if right:
+            c.line(x1, y0, x1, y1)
+        if bottom:
+            c.line(x0, y0, x1, y0)
+        if top:
+            c.line(x0, y1, x1, y1)
+        c.restoreState()
+
+    c.saveState()
+    c.clipPath(cut, fill=0, stroke=0)
+    c.setStrokeColor(INK)
+    c.setLineWidth(0.25 * mm)
+    c.setDash(2 * mm, 1 * mm)
+    c.drawPath(contour(p.safety_left, p.safety_right, p.safety_top, p.safety_bottom))
+    c.restoreState()
     c.setStrokeColor(CORAL)
     c.setLineWidth(0.25 * mm)
-    contour(0)
-    c.setStrokeColor(INK)
-    c.setDash(2 * mm, 1 * mm)
-    contour(p.safety)
+    c.drawPath(cut)
     c.save()
     with pikepdf.open(path, allow_overwriting_input=True) as pdf:
         page = pdf.pages[0]
@@ -69,7 +115,18 @@ def pizza(folder, files, p):
                 "Sans objet" if p.shape != "rectangle" else f"{p.corner_radius} mm",
             ),
             ("Fond perdu", f"{p.bleed} mm, zone saumon"),
-            ("Sécurité", f"{p.safety} mm, trait vert pointillé"),
+            (
+                "Sécurité (haut / bas / gauche / droite)",
+                f"{p.safety_top:g} / {p.safety_bottom:g} / "
+                f"{p.safety_left:g} / {p.safety_right:g} mm, "
+                "trait vert pointillé",
+            ),
+            (
+                "Zone inexploitable (haut / bas / gauche / droite)",
+                f"{p.unusable_top:g} / {p.unusable_bottom:g} / "
+                f"{p.unusable_left:g} / {p.unusable_right:g} mm, "
+                "limite jaune pointillée et hachures diagonales",
+            ),
             ("Coupe", "Trait corail continu ; TrimBox rectangulaire englobante"),
         ],
         "Guides visibles : gabarit de préparation, à retirer du document final.",

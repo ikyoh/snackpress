@@ -1040,3 +1040,24 @@
     min-height: 360px;
   }
 }
+
+.pizza-zone-settings {
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  margin: 24px 0 0;
+}
+.pizza-zone-settings legend {
+  font-weight: 800;
+}
+.pizza-zone-settings > .field-hint {
+  margin: 8px 0 16px;
+}
+.pizza-zone-settings .tool-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.pizza-zone-settings .tool-field {
+  grid-column: auto;
+  margin-top: 0;
+}

@@ -70,6 +70,78 @@ def test_pizza_validates_curves_and_safety():
     assert Pizza(shape="circle", width=80, height=10).height == 80
 
 
+def test_pizza_directional_zone_validation_and_legacy_safety():
+    legacy = Pizza(safety=7)
+    assert all(
+        getattr(legacy, f"safety_{side}") == 7 for side in ("top", "bottom", "left", "right")
+    )
+    mixed = Pizza(safety=7, safety_top=2, safety_left=0)
+    assert mixed.safety_top == 2 and mixed.safety_bottom == 7 and mixed.safety_left == 0
+    for settings in (
+        {"safety_left": 50, "safety_right": 35},
+        {"safety_top": 30, "safety_bottom": 25},
+        {"unusable_left": 50, "unusable_right": 35},
+        {"unusable_top": 30, "unusable_bottom": 25},
+        {"unusable_left": -1},
+    ):
+        with pytest.raises(ValueError):
+            Pizza(**settings)
+
+
+@pytest.mark.parametrize(
+    "shape,radius", [("rectangle", 0), ("rectangle", 10), ("circle", 0), ("ellipse", 0)]
+)
+def test_pizza_directional_safety_and_clipped_yellow_hatching(tmp_path, shape, radius):
+    run(
+        tmp_path,
+        "pizza",
+        [],
+        {
+            "shape": shape,
+            "corner_radius": radius,
+            "width": 80,
+            "height": 60,
+            "safety_top": 4,
+            "safety_bottom": 6,
+            "safety_left": 3,
+            "safety_right": 5,
+            "unusable_top": 7,
+            "unusable_bottom": 3,
+            "unusable_left": 5,
+            "unusable_right": 2,
+        },
+    )
+    height = 80 if shape == "circle" else 60
+    scale = 2
+    with pdfium.PdfDocument(str(tmp_path / "gabarit.pdf")) as doc:
+        bitmap = doc[0].render(scale=scale)
+        pixels = np.array(bitmap.to_pil().convert("RGB"))
+        bitmap.close()
+    yellow = (pixels[:, :, 0] > 180) & (pixels[:, :, 1] > 130) & (pixels[:, :, 2] < 80)
+    rows, columns = np.where(yellow)
+    assert len(rows) > 100
+    x = columns / scale * 25.4 / 72 - 3
+    y = height + 3 - rows / scale * 25.4 / 72
+    assert x.min() > -0.3 and x.max() < 80.3
+    assert y.min() > -0.3 and y.max() < height + 0.3
+    # The open centre contains no hatching; all four requested bands do.
+    assert not np.any((x > 5.5) & (x < 77.5) & (y > 3.5) & (y < height - 7.5))
+    for region in (x < 4.5, x > 78.5, y < 2.5, y > height - 6.5):
+        assert np.count_nonzero(region) > 10
+    if shape in {"circle", "ellipse"}:
+        assert np.all(((x - 40) / 40) ** 2 + ((y - height / 2) / (height / 2)) ** 2 < 1.03)
+    with pikepdf.open(tmp_path / "gabarit.pdf") as doc:
+        commands = pikepdf.parse_content_stream(doc.pages[0])
+        if shape == "rectangle" and radius == 0:
+            rectangles = [
+                [float(value) * 25.4 / 72 for value in args]
+                for args, op in commands
+                if str(op) == "re"
+            ]
+            assert any(values == pytest.approx([6, 9, 72, 50]) for values in rectangles)
+        assert any(str(op) == "W*" for _, op in commands)
+
+
 @pytest.mark.parametrize("axis", ["width", "height"])
 def test_pizza_bounded_dimensions(axis):
     settings = {f"{axis}_mode": "bounded", f"{axis}_min": 40, f"{axis}_max": 100}

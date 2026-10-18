@@ -92,6 +92,14 @@ class Pizza(Params):
     height_max: float = Field(default=2000, gt=0, le=2000)
     bleed: float = Field(default=3, ge=0, le=30)
     safety: float = Field(default=4, ge=0, le=100)
+    safety_top: float | None = Field(default=None, ge=0, le=100)
+    safety_bottom: float | None = Field(default=None, ge=0, le=100)
+    safety_left: float | None = Field(default=None, ge=0, le=100)
+    safety_right: float | None = Field(default=None, ge=0, le=100)
+    unusable_top: float = Field(default=0, ge=0, le=2000)
+    unusable_bottom: float = Field(default=0, ge=0, le=2000)
+    unusable_left: float = Field(default=0, ge=0, le=2000)
+    unusable_right: float = Field(default=0, ge=0, le=2000)
 
     @model_validator(mode="after")
     def inside(self):
@@ -112,8 +120,17 @@ class Pizza(Params):
             raise ValueError(
                 "Le rayon des coins ne peut pas dépasser la moitié du plus petit côté."
             )
-        if self.safety * 2 >= min(self.width, self.height):
-            raise ValueError("La zone de sécurité doit rester à l’intérieur du format fini.")
+        for side in ("top", "bottom", "left", "right"):
+            if getattr(self, f"safety_{side}") is None:
+                setattr(self, f"safety_{side}", self.safety)
+        for prefix, label in (("safety", "sécurité"), ("unusable", "inexploitable")):
+            if (
+                getattr(self, f"{prefix}_left") + getattr(self, f"{prefix}_right") >= self.width
+                or getattr(self, f"{prefix}_top") + getattr(self, f"{prefix}_bottom") >= self.height
+            ):
+                raise ValueError(
+                    f"La zone {label} doit laisser une surface intérieure au format fini."
+                )
         return self
 
 
@@ -413,7 +430,14 @@ DEFINITIONS = [
                 help="0 = coins droits. Au maximum la moitié du plus petit côté.",
             ),
             number("bleed", "Fond perdu", 3, high=30),
-            number("safety", "Zone de sécurité", 4, high=100),
+            number("safety_top", "Sécurité — haut", 4, high=100),
+            number("safety_bottom", "Sécurité — bas", 4, high=100),
+            number("safety_left", "Sécurité — gauche", 4, high=100),
+            number("safety_right", "Sécurité — droite", 4, high=100),
+            number("unusable_top", "Zone inexploitable — haut", 0, high=2000),
+            number("unusable_bottom", "Zone inexploitable — bas", 0, high=2000),
+            number("unusable_left", "Zone inexploitable — gauche", 0, high=2000),
+            number("unusable_right", "Zone inexploitable — droite", 0, high=2000),
         ],
     ),
     ToolDefinition(

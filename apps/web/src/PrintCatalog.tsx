@@ -706,7 +706,12 @@ export function VariantEditor({
                         !(g.tool === 'pizza' && /^(width|height)_/.test(f.key)),
                     )
                     .map((f) => {
-                      const value = g.settings[f.key] ?? f.default
+                      const value =
+                        g.settings[f.key] ??
+                        (g.tool === 'pizza' && f.key.startsWith('safety_')
+                          ? g.settings.safety
+                          : undefined) ??
+                        f.default
                       const change = (value: string | number) =>
                         update(index, {
                           guides: c.guides.map((g, i) =>

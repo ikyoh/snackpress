@@ -72,6 +72,39 @@ test('pizza : dimensions fixes ou bornées', async ({ page }) => {
   ).toBe(true)
 })
 
+test('pizza : sécurité et zones inexploitables par côté', async ({ page }) => {
+  await page.goto('/?tool=pizza')
+  for (const [label, value] of [
+    ['Sécurité — haut', '3'],
+    ['Sécurité — bas', '5'],
+    ['Sécurité — gauche', '4'],
+    ['Sécurité — droite', '6'],
+    ['Zone inexploitable — haut', '7'],
+    ['Zone inexploitable — bas', '3'],
+    ['Zone inexploitable — gauche', '5'],
+    ['Zone inexploitable — droite', '2'],
+  ])
+    await page.getByLabel(label, { exact: true }).fill(value)
+  await expect(page.getByRole('group', { name: 'Zone de sécurité', exact: true })).toBeVisible()
+  await expect(page.getByRole('group', { name: 'Zone inexploitable', exact: true })).toBeVisible()
+  const response = page.waitForResponse((r) => r.url().includes('/api/tools/pizza/run'))
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
+  const result = await response
+  expect(result.status(), await result.text()).toBe(201)
+  const data = await result.json()
+  const saved = await (
+    await page.request.get(`/api/tool-jobs/${data.id}/files/reglages.json`)
+  ).json()
+  expect(saved.settings.safety_top).toBe(3)
+  expect(saved.settings.safety_bottom).toBe(5)
+  expect(saved.settings.unusable_left).toBe(5)
+  await expect(page.locator('canvas[data-ready=true]')).toBeVisible({ timeout: 15000 })
+  await page.screenshot({ path: 'test-results/pizza-zones-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/pizza-zones-mobile.png', fullPage: true })
+})
+
 for (const [id, name, needsFile] of tools) {
   test(`${name} : réglages, traitement, aperçu et téléchargement`, async ({ page }) => {
     const errors: string[] = []

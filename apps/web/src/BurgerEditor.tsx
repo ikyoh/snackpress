@@ -1,4 +1,4 @@
-import { pizzaField, visiblePizzaField } from './pizza'
+import { pizzaField, pizzaValue, visiblePizzaField } from './pizza'
 import { Configurations } from './Configurations'
 import { ProductSelector, snapshotLabels, type Snapshot } from './PrintCatalog'
 import type { components } from '../../../packages/api-client/schema'
@@ -229,7 +229,9 @@ export function BurgerEditor({
                         template.id === 'pizza'
                           ? pizzaField(field, options.template_settings)
                           : field,
-                        options.template_settings[field.key] ?? field.default,
+                        template.id === 'pizza'
+                          ? pizzaValue(field, options.template_settings)
+                          : (options.template_settings[field.key] ?? field.default),
                         (value) =>
                           update({
                             template_settings: { ...options.template_settings, [field.key]: value },

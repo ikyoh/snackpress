@@ -32,7 +32,7 @@ import { PdfPreview } from './PdfPreview'
 import { LivePreview, useLivePreview } from './LivePreview'
 import { FortunePreview, FortuneSettings, newNumbering, type Numbering } from './FortuneEditor'
 import type { components } from '../../../packages/api-client/schema'
-import { pizzaField, visiblePizzaField } from './pizza'
+import { pizzaField, pizzaValue, visiblePizzaField } from './pizza'
 import './studio.css'
 
 type Tool = components['schemas']['ToolDefinition']
@@ -366,20 +366,27 @@ function Setting({
   value,
   update,
   disabled,
+  displayLabel,
 }: {
   field: ToolField
   value: string | number
   update: (value: string | number) => void
   disabled?: boolean
+  displayLabel?: string
 }) {
   const id = useId()
-  const labelProps = { id, 'aria-labelledby': `${id}-label`, 'aria-describedby': `${id}-help` }
+  const labelProps = {
+    id,
+    'aria-labelledby': displayLabel ? undefined : `${id}-label`,
+    'aria-label': displayLabel ? field.label : undefined,
+    'aria-describedby': `${id}-help`,
+  }
   return (
     <label
       htmlFor={id}
       className={`field tool-field ${field.type === 'textarea' ? 'wide-field' : ''}`}
     >
-      <span id={`${id}-label`}>{field.label}</span>
+      <span id={`${id}-label`}>{displayLabel ?? field.label}</span>
       {field.type === 'select' ? (
         <span className="select-wrap">
           <select {...labelProps} value={value} onChange={(e) => update(e.target.value)}>
@@ -817,6 +824,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                     .filter(
                       (f) =>
                         visibleField(tool.id, f.key, values) &&
+                        !(tool.id === 'pizza' && /^(safety|unusable)_/.test(f.key)) &&
                         !(
                           tool.id === 'burger' &&
                           burger.source_mode !== 'classic' &&
@@ -827,7 +835,11 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                       <Setting
                         key={field.key}
                         field={tool.id === 'pizza' ? pizzaField(field, values) : field}
-                        value={values[field.key] ?? field.default}
+                        value={
+                          tool.id === 'pizza'
+                            ? pizzaValue(field, values)
+                            : (values[field.key] ?? field.default)
+                        }
                         update={(value) => change(field.key, value)}
                         disabled={
                           tool.id === 'sushi' && values.shape === 'circle' && field.key === 'height'
@@ -835,6 +847,39 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                       />
                     ))}
                 </div>
+                {tool.id === 'pizza' &&
+                  [
+                    {
+                      prefix: 'safety',
+                      title: 'Zone de sécurité',
+                      help: 'Retrait depuis chaque bord du format fini. Limite verte en pointillés.',
+                    },
+                    {
+                      prefix: 'unusable',
+                      title: 'Zone inexploitable',
+                      help: 'Bandes à exclure à l’intérieur du format fini. Limite jaune en pointillés et hachures diagonales. 0 mm = aucune bande sur ce côté.',
+                    },
+                  ].map((zone) => (
+                    <fieldset className="pizza-zone-settings" key={zone.prefix}>
+                      <legend>{zone.title}</legend>
+                      <p className="field-hint">{zone.help}</p>
+                      <div className="tool-fields">
+                        {tool.fields
+                          .filter((field) => field.key.startsWith(`${zone.prefix}_`))
+                          .map((field) => (
+                            <Setting
+                              key={field.key}
+                              field={field}
+                              displayLabel={field.label
+                                .split(' — ')[1]
+                                ?.replace(/^./, (letter) => letter.toUpperCase())}
+                              value={pizzaValue(field, values)}
+                              update={(value) => change(field.key, value)}
+                            />
+                          ))}
+                      </div>
+                    </fieldset>
+                  ))}
               </section>
             )}
             {tool.id === 'fortune-cookie' && (
