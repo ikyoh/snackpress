@@ -20,6 +20,7 @@ function fingerprint(value: unknown): string {
 }
 export function Configurations(props: {
   toolId: string
+  compact?: boolean
   settings: Settings
   onLoad: (settings: Settings) => void
 }) {
@@ -47,6 +48,7 @@ function PersonalConfigurations({
   signedIn,
   loadingAccount,
   openAccount,
+  compact = false,
 }: {
   toolId: string
   initialFingerprint: string
@@ -56,6 +58,7 @@ function PersonalConfigurations({
   signedIn: boolean
   loadingAccount: boolean
   openAccount: () => void
+  compact?: boolean
 }) {
   const [items, setItems] = useState<Configuration[]>([])
   const [selectedId, setSelectedId] = useState('')
@@ -179,22 +182,163 @@ function PersonalConfigurations({
       `${count} modèle(s) importé(s) dans votre compte. Les copies locales sont conservées.`,
     )
   }
+  const management = (
+    <>
+      {modified && (
+        <p className="configuration-modified">Modifiée — pensez à enregistrer vos changements.</p>
+      )}
+      <label className="field">
+        <span>Nom de la configuration</span>
+        <input
+          value={name}
+          maxLength={60}
+          disabled={busy}
+          placeholder="Ex. Cartes de visite — SRA3"
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') e.preventDefault()
+          }}
+        />
+      </label>
+      <div className="configuration-actions">
+        {selected ? (
+          <>
+            <Button
+              type="button"
+              disabled={busy}
+              onClick={() => void action(() => update({ settings }, 'Configuration mise à jour.'))}
+            >
+              <Save size={15} />
+              Mettre à jour
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy || !name.trim() || name.trim() === selected.name}
+              onClick={() => void action(() => create(true))}
+            >
+              Dupliquer
+            </Button>
+            <button
+              type="button"
+              disabled={busy || !name.trim() || name.trim() === selected.name}
+              onClick={() =>
+                void action(() => update({ name: name.trim() }, 'Configuration renommée.'))
+              }
+            >
+              Renommer
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                void action(() =>
+                  update(
+                    { is_default: !selected.is_default },
+                    selected.is_default
+                      ? 'Configuration par défaut retirée.'
+                      : 'Cette configuration sera chargée à l’ouverture de l’outil.',
+                  ),
+                )
+              }
+            >
+              {selected.is_default ? 'Retirer le choix par défaut' : 'Définir par défaut'}
+            </button>
+            <button type="button" disabled={busy} onClick={() => setConfirmDelete(true)}>
+              Supprimer
+            </button>
+          </>
+        ) : (
+          <Button
+            type="button"
+            disabled={busy || !name.trim()}
+            onClick={() => void action(() => create())}
+          >
+            <Save size={15} />
+            Enregistrer sous…
+          </Button>
+        )}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            void action(async () => {
+              await reload()
+              setNotice(
+                'Liste actualisée. Rechargez la configuration pour appliquer sa dernière version.',
+              )
+            })
+          }
+        >
+          Actualiser la liste
+        </button>
+      </div>
+      {selected && (
+        <p className="configuration-hint">
+          Pour dupliquer, saisissez un autre nom. Le choix par défaut utilise la version
+          enregistrée.
+        </p>
+      )}
+      {confirmDelete && selected && (
+        <div className="configuration-delete" role="group" aria-label="Confirmer la suppression">
+          <p>Supprimer « {selected.name} » de votre compte ?</p>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              void action(async () => {
+                await personalRequest(
+                  `/api/configurations/${selected.id}?revision=${selected.revision}`,
+                  { method: 'DELETE' },
+                )
+                await reload()
+                setSelectedId('')
+                setName('')
+                setNotice('Configuration supprimée. Les réglages actuels sont conservés.')
+              })
+            }
+          >
+            Confirmer la suppression
+          </Button>
+          <button type="button" onClick={() => setConfirmDelete(false)}>
+            Annuler
+          </button>
+        </div>
+      )}
+      {Object.keys(legacy).length > 0 && (
+        <div className="configuration-import">
+          <p>{Object.keys(legacy).length} modèle(s) enregistré(s) sur ce navigateur.</p>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
+            onClick={() => void action(importLegacy)}
+          >
+            Importer dans ce compte
+          </Button>
+        </div>
+      )}
+    </>
+  )
   return (
-    <section className="personal-configurations" aria-label="Mes configurations">
+    <section
+      className={`personal-configurations${compact ? ' compact-configurations' : ''}`}
+      aria-label="Mes configurations"
+    >
       <h2>
         <Bookmark size={17} />
         Mes configurations
       </h2>
       {!signedIn ? (
         <>
-          <p>Retrouvez vos réglages sur tous vos appareils.</p>
+          {!compact && <p>Retrouvez vos réglages sur tous vos appareils.</p>}
           <Button type="button" variant="outline" disabled={loadingAccount} onClick={openAccount}>
             Se connecter pour sauvegarder
           </Button>
         </>
       ) : (
         <>
-          <p>Vos réglages sont enregistrés dans votre compte.</p>
+          {!compact && <p>Vos réglages sont enregistrés dans votre compte.</p>}
           {loading ? (
             <p role="status">Chargement des configurations…</p>
           ) : (
@@ -231,147 +375,13 @@ function PersonalConfigurations({
                   </select>
                 </label>
               )}
-              {modified && (
-                <p className="configuration-modified">
-                  Modifiée — pensez à enregistrer vos changements.
-                </p>
-              )}
-              <label className="field">
-                <span>Nom de la configuration</span>
-                <input
-                  value={name}
-                  maxLength={60}
-                  disabled={busy}
-                  placeholder="Ex. Cartes de visite — SRA3"
-                  onChange={(e) => setName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') e.preventDefault()
-                  }}
-                />
-              </label>
-              <div className="configuration-actions">
-                {selected ? (
-                  <>
-                    <Button
-                      type="button"
-                      disabled={busy}
-                      onClick={() =>
-                        void action(() => update({ settings }, 'Configuration mise à jour.'))
-                      }
-                    >
-                      <Save size={15} />
-                      Mettre à jour
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={busy || !name.trim() || name.trim() === selected.name}
-                      onClick={() => void action(() => create(true))}
-                    >
-                      Dupliquer
-                    </Button>
-                    <button
-                      type="button"
-                      disabled={busy || !name.trim() || name.trim() === selected.name}
-                      onClick={() =>
-                        void action(() => update({ name: name.trim() }, 'Configuration renommée.'))
-                      }
-                    >
-                      Renommer
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() =>
-                        void action(() =>
-                          update(
-                            { is_default: !selected.is_default },
-                            selected.is_default
-                              ? 'Configuration par défaut retirée.'
-                              : 'Cette configuration sera chargée à l’ouverture de l’outil.',
-                          ),
-                        )
-                      }
-                    >
-                      {selected.is_default ? 'Retirer le choix par défaut' : 'Définir par défaut'}
-                    </button>
-                    <button type="button" disabled={busy} onClick={() => setConfirmDelete(true)}>
-                      Supprimer
-                    </button>
-                  </>
-                ) : (
-                  <Button
-                    type="button"
-                    disabled={busy || !name.trim()}
-                    onClick={() => void action(() => create())}
-                  >
-                    <Save size={15} />
-                    Enregistrer sous…
-                  </Button>
-                )}
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() =>
-                    void action(async () => {
-                      await reload()
-                      setNotice(
-                        'Liste actualisée. Rechargez la configuration pour appliquer sa dernière version.',
-                      )
-                    })
-                  }
-                >
-                  Actualiser la liste
-                </button>
-              </div>
-              {selected && (
-                <p className="configuration-hint">
-                  Pour dupliquer, saisissez un autre nom. Le choix par défaut utilise la version
-                  enregistrée.
-                </p>
-              )}
-              {confirmDelete && selected && (
-                <div
-                  className="configuration-delete"
-                  role="group"
-                  aria-label="Confirmer la suppression"
-                >
-                  <p>Supprimer « {selected.name} » de votre compte ?</p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      void action(async () => {
-                        await personalRequest(
-                          `/api/configurations/${selected.id}?revision=${selected.revision}`,
-                          { method: 'DELETE' },
-                        )
-                        await reload()
-                        setSelectedId('')
-                        setName('')
-                        setNotice('Configuration supprimée. Les réglages actuels sont conservés.')
-                      })
-                    }
-                  >
-                    Confirmer la suppression
-                  </Button>
-                  <button type="button" onClick={() => setConfirmDelete(false)}>
-                    Annuler
-                  </button>
-                </div>
-              )}
-              {Object.keys(legacy).length > 0 && (
-                <div className="configuration-import">
-                  <p>{Object.keys(legacy).length} modèle(s) enregistré(s) sur ce navigateur.</p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={busy}
-                    onClick={() => void action(importLegacy)}
-                  >
-                    Importer dans ce compte
-                  </Button>
-                </div>
+              {compact ? (
+                <details className="configuration-management">
+                  <summary>Enregistrer ou gérer les configurations</summary>
+                  {management}
+                </details>
+              ) : (
+                management
               )}
             </>
           )}

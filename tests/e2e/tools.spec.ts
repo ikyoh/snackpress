@@ -59,6 +59,7 @@ test('pizza : dimensions fixes ou bornées', async ({ page }) => {
   const data = await result.json()
   expect(data.metrics['Largeur finie (mm)']).toBe(70)
   expect(data.metrics['Hauteur finie (mm)']).toBe(60)
+  await page.getByRole('tab', { name: 'Réglages', exact: true }).click()
   await page.getByLabel('Forme', { exact: true }).selectOption('circle')
   await expect(page.getByLabel('Réglage de la hauteur', { exact: true })).toHaveCount(0)
   await expect(page.getByLabel('Diamètre minimal', { exact: true })).toHaveValue('50')
@@ -74,6 +75,7 @@ test('pizza : dimensions fixes ou bornées', async ({ page }) => {
 
 test('pizza : sécurité et zones inexploitables par côté', async ({ page }) => {
   await page.goto('/?tool=pizza')
+  await page.getByRole('button', { name: 'Zone de sécurité', exact: true }).click()
   for (const [label, value] of [
     ['Sécurité — haut', '3'],
     ['Sécurité — bas', '5'],
@@ -83,10 +85,18 @@ test('pizza : sécurité et zones inexploitables par côté', async ({ page }) =
     ['Zone inexploitable — bas', '3'],
     ['Zone inexploitable — gauche', '5'],
     ['Zone inexploitable — droite', '2'],
-  ])
+  ]) {
+    if (label === 'Zone inexploitable — haut')
+      await page.getByRole('button', { name: 'Zone inexploitable', exact: true }).click()
     await page.getByLabel(label, { exact: true }).fill(value)
-  await expect(page.getByRole('group', { name: 'Zone de sécurité', exact: true })).toBeVisible()
-  await expect(page.getByRole('group', { name: 'Zone inexploitable', exact: true })).toBeVisible()
+  }
+  await expect(page.getByRole('button', { name: 'Zone de sécurité', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  )
+  await expect(
+    page.getByRole('button', { name: 'Zone inexploitable', exact: true }),
+  ).toHaveAttribute('aria-expanded', 'true')
   const response = page.waitForResponse((r) => r.url().includes('/api/tools/pizza/run'))
   await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
   const result = await response
@@ -101,8 +111,62 @@ test('pizza : sécurité et zones inexploitables par côté', async ({ page }) =
   await expect(page.locator('canvas[data-ready=true]')).toBeVisible({ timeout: 15000 })
   await page.screenshot({ path: 'test-results/pizza-zones-desktop.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('tab', { name: 'Aperçu', exact: true }).click()
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/pizza-zones-mobile.png', fullPage: true })
+})
+
+test('pizza : réglages compacts, aperçu sticky et onglets mobiles', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await page.goto('/?tool=pizza')
+  const format = page.getByRole('button', { name: 'Format', exact: true })
+  const safety = page.getByRole('button', { name: 'Zone de sécurité', exact: true })
+  await expect(format).toHaveAttribute('aria-expanded', 'true')
+  await expect(safety).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByLabel('Sécurité — haut', { exact: true })).toBeHidden()
+  await safety.click()
+  await page.getByLabel('Sécurité — haut', { exact: true }).fill('6')
+  await format.click()
+  await expect(safety).toContainText('H 6')
+  const width = page.getByLabel('Largeur finie', { exact: true })
+  await width.fill('2500')
+  await safety.click()
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
+  await expect(format).toHaveAttribute('aria-expanded', 'true')
+  await expect(width).toBeFocused()
+  await width.fill('99')
+  await page.getByRole('button', { name: 'Actualiser l’aperçu', exact: true }).click()
+  await expect(page.locator('canvas[data-ready=true]')).toBeVisible({ timeout: 15000 })
+  await page
+    .locator('.tool-workspace')
+    .evaluate((el) => window.scrollTo(0, el.getBoundingClientRect().top + scrollY - 24))
+  const preview = page.locator('.tool-result')
+  await expect(preview).toHaveCSS('position', 'sticky')
+  const before = await preview.boundingBox()
+  expect(before!.y).toBeGreaterThanOrEqual(23)
+  expect(before!.y + before!.height).toBeLessThanOrEqual(900)
+  await page.locator('.tool-controls-scroll').evaluate((el) => {
+    el.scrollTop = el.scrollHeight
+  })
+  expect((await preview.boundingBox())!.y).toBeCloseTo(before!.y, 0)
+  const run = await page
+    .getByRole('button', { name: 'Générer le fichier final', exact: true })
+    .boundingBox()
+  expect(run!.y).toBeGreaterThan(0)
+  expect(run!.y + run!.height).toBeLessThan(900)
+  await page.screenshot({ path: 'test-results/pizza-compact-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('tab', { name: 'Réglages', exact: true }).click()
+  await expect(width).toHaveValue('99')
+  await expect(preview).toBeHidden()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/pizza-compact-mobile-settings.png', fullPage: true })
+  await page.getByRole('tab', { name: 'Aperçu', exact: true }).click()
+  await expect(preview).toBeVisible()
+  await expect(page.locator('.tool-controls')).toBeHidden()
+  await page.screenshot({ path: 'test-results/pizza-compact-mobile-preview.png', fullPage: true })
+  await page.getByRole('tab', { name: 'Réglages', exact: true }).click()
+  await expect(width).toHaveValue('99')
 })
 
 for (const [id, name, needsFile] of tools) {

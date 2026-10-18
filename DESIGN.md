@@ -18,7 +18,7 @@ Titre « Les PDF ? Un jeu d’enfant. », illustration gourmande, lien réel ver
 
 ## Ateliers
 
-Mode Operate. Réglages à gauche et résultat à droite ; empilement sur mobile. Les illustrations, typographies et commandes héritent de la nouvelle identité. Les feuilles PDF restent blanches, leurs proportions et couleurs ne sont pas teintées par l’interface. Les limites métier, mesures et avertissements restent visibles.
+Mode Operate. Réglages à gauche et résultat à droite ; empilement sur mobile. Sur ordinateur, le panneau d’aperçu reste sticky dans l’atelier et sa hauteur suit la fenêtre. Pizza sert de modèle pour les formulaires longs : colonne de préparation légèrement élargie, défilement interne des réglages, action de génération accessible en bas, sections Format / Zone de sécurité / Zone inexploitable repliables avec résumés, et gestion des configurations à la demande. Sur mobile, Pizza propose deux onglets Réglages / Aperçu qui conservent les saisies. Les illustrations, typographies et commandes héritent de la nouvelle identité. Les feuilles PDF restent blanches, leurs proportions et couleurs ne sont pas teintées par l’interface. Les limites métier, mesures et avertissements restent visibles.
 
 ## Interactions et accessibilité
 

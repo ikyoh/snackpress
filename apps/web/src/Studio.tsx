@@ -33,6 +33,7 @@ import { LivePreview, useLivePreview } from './LivePreview'
 import { FortunePreview, FortuneSettings, newNumbering, type Numbering } from './FortuneEditor'
 import type { components } from '../../../packages/api-client/schema'
 import { pizzaField, pizzaValue, visiblePizzaField } from './pizza'
+import { PizzaSettings } from './PizzaSettings'
 import './studio.css'
 
 type Tool = components['schemas']['ToolDefinition']
@@ -428,6 +429,16 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
   const [values, setValues] = useState<Values>(() =>
     Object.fromEntries(tool.fields.map((f) => [f.key, f.default])),
   )
+  const [pizzaSection, setPizzaSection] = useState('format')
+  const [mobileView, setMobileView] = useState<'settings' | 'preview'>('settings')
+  const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 760px)').matches)
+  const workspaceId = useId()
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 760px)')
+    const update = () => setIsMobile(query.matches)
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
   const [burger, setBurger] = useState<BurgerOptions>(burgerDefaults)
   const [numberings, setNumberings] = useState<Numbering[]>([newNumbering(55)])
   function changeNumberings(next: Numbering[]) {
@@ -571,6 +582,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
         body: data,
       })
       setResult(response)
+      if (tool.id === 'pizza') setMobileView('preview')
       setActiveArtifact(
         response.artifacts?.find((a) => ['application/pdf', 'image/png'].includes(a.media_type))
           ?.name || '',
@@ -651,271 +663,328 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
           </button>
         </div>
       )}
-      <div className="tool-workspace">
-        <form className="tool-controls" onSubmit={run} ref={formRef}>
+      {tool.id === 'pizza' && (
+        <div className="workspace-view-tabs" role="tablist" aria-label="Vue de l’atelier">
+          {(['settings', 'preview'] as const).map((view) => (
+            <button
+              key={view}
+              type="button"
+              role="tab"
+              id={`${workspaceId}-${view}-tab`}
+              aria-controls={`${workspaceId}-${view}`}
+              aria-selected={mobileView === view}
+              tabIndex={mobileView === view ? 0 : -1}
+              onClick={() => setMobileView(view)}
+              onKeyDown={(event) => {
+                if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+                  event.preventDefault()
+                  const next =
+                    event.key === 'Home'
+                      ? 'settings'
+                      : event.key === 'End'
+                        ? 'preview'
+                        : view === 'settings'
+                          ? 'preview'
+                          : 'settings'
+                  setMobileView(next)
+                  document.getElementById(`${workspaceId}-${next}-tab`)?.focus()
+                }
+              }}
+            >
+              {view === 'settings' ? 'Réglages' : 'Aperçu'}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className={`tool-workspace${tool.id === 'pizza' ? ' compact-workspace' : ''}`}>
+        <form
+          className="tool-controls"
+          onSubmit={run}
+          ref={formRef}
+          id={`${workspaceId}-settings`}
+          role={tool.id === 'pizza' && isMobile ? 'tabpanel' : undefined}
+          aria-labelledby={
+            tool.id === 'pizza' && isMobile ? `${workspaceId}-settings-tab` : undefined
+          }
+          hidden={tool.id === 'pizza' && isMobile && mobileView !== 'settings'}
+          onInvalidCapture={(event) => {
+            if (tool.id !== 'pizza') return
+            const input = event.target as HTMLInputElement
+            const section = input.closest<HTMLElement>('[data-pizza-section]')?.dataset.pizzaSection
+            if (section && (section !== pizzaSection || mobileView !== 'settings')) {
+              event.preventDefault()
+              setPizzaSection(section)
+              setMobileView('settings')
+              setError(input.validationMessage)
+              requestAnimationFrame(() => {
+                input.focus()
+                input.scrollIntoView({ block: 'nearest' })
+              })
+            }
+          }}
+        >
           <div className="panel-heading">
             <span>Votre préparation</span>
             <SlidersHorizontal size={15} />
           </div>
           <fieldset disabled={busy}>
-            {tool.id === 'burger' && (
-              <BurgerEditor
-                options={burger}
-                tools={tools}
-                onChange={changeBurger}
-                renderField={(field, value, update) => (
-                  <Setting field={field} value={value} update={update} />
+            <div className="tool-controls-layout">
+              <div className="tool-controls-scroll">
+                {tool.id === 'burger' && (
+                  <BurgerEditor
+                    options={burger}
+                    tools={tools}
+                    onChange={changeBurger}
+                    renderField={(field, value, update) => (
+                      <Setting field={field} value={value} update={update} />
+                    )}
+                  />
                 )}
-              />
-            )}
-            {tool.max_files > 0 && (
-              <section className="tool-upload-section">
-                <h2>
-                  <span className="section-number">01</span>
-                  {tool.min_files === 2
-                    ? 'Les deux versions'
-                    : tool.min_files === 0
-                      ? 'Fond PDF facultatif'
-                      : 'Vos fichiers'}
-                </h2>
-                <input
-                  type="file"
-                  ref={fileRef}
-                  accept={tool.accept}
-                  multiple={maxFiles > 1}
-                  className="sr-only"
-                  aria-label="Choisir les fichiers"
-                  onChange={(e) => {
-                    addFiles(Array.from(e.target.files || []))
-                    e.target.value = ''
-                  }}
-                />
-                {files.map((file, i) => (
-                  <div className="tool-file" key={`${i}-${file.name}`}>
-                    <FileText size={19} />
-                    <div>
-                      <small>
-                        {tool.id === 'tiramisu'
-                          ? i === 0
-                            ? 'Version A'
-                            : 'Version B'
-                          : tool.id === 'burger'
-                            ? burgerRoles[i]
-                            : `Fichier ${i + 1}`}
-                      </small>
-                      <strong title={file.name}>{file.name}</strong>
-                      <small>{(file.size / 1024 / 1024).toFixed(2)} Mo</small>
-                    </div>
-                    <div className="file-actions">
-                      {['bento', 'burger'].includes(tool.id) && (
-                        <>
+                {tool.max_files > 0 && (
+                  <section className="tool-upload-section">
+                    <h2>
+                      <span className="section-number">01</span>
+                      {tool.min_files === 2
+                        ? 'Les deux versions'
+                        : tool.min_files === 0
+                          ? 'Fond PDF facultatif'
+                          : 'Vos fichiers'}
+                    </h2>
+                    <input
+                      type="file"
+                      ref={fileRef}
+                      accept={tool.accept}
+                      multiple={maxFiles > 1}
+                      className="sr-only"
+                      aria-label="Choisir les fichiers"
+                      onChange={(e) => {
+                        addFiles(Array.from(e.target.files || []))
+                        e.target.value = ''
+                      }}
+                    />
+                    {files.map((file, i) => (
+                      <div className="tool-file" key={`${i}-${file.name}`}>
+                        <FileText size={19} />
+                        <div>
+                          <small>
+                            {tool.id === 'tiramisu'
+                              ? i === 0
+                                ? 'Version A'
+                                : 'Version B'
+                              : tool.id === 'burger'
+                                ? burgerRoles[i]
+                                : `Fichier ${i + 1}`}
+                          </small>
+                          <strong title={file.name}>{file.name}</strong>
+                          <small>{(file.size / 1024 / 1024).toFixed(2)} Mo</small>
+                        </div>
+                        <div className="file-actions">
+                          {['bento', 'burger'].includes(tool.id) && (
+                            <>
+                              <button
+                                type="button"
+                                aria-label={`Monter le fichier ${i + 1}`}
+                                disabled={i === 0}
+                                onClick={() => moveFile(i, -1)}
+                              >
+                                <ChevronUp size={13} />
+                              </button>
+                              <button
+                                type="button"
+                                aria-label={`Descendre le fichier ${i + 1}`}
+                                disabled={i === files.length - 1}
+                                onClick={() => moveFile(i, 1)}
+                              >
+                                <ChevronDown size={13} />
+                              </button>
+                            </>
+                          )}
                           <button
                             type="button"
-                            aria-label={`Monter le fichier ${i + 1}`}
-                            disabled={i === 0}
-                            onClick={() => moveFile(i, -1)}
+                            aria-label={`Retirer le fichier ${i + 1}`}
+                            onClick={() => {
+                              setFiles(
+                                tool.id === 'burger'
+                                  ? files.slice(0, i)
+                                  : files.filter((_, n) => n !== i),
+                              )
+                              setResult(null)
+                            }}
                           >
-                            <ChevronUp size={13} />
+                            <X size={15} />
                           </button>
-                          <button
-                            type="button"
-                            aria-label={`Descendre le fichier ${i + 1}`}
-                            disabled={i === files.length - 1}
-                            onClick={() => moveFile(i, 1)}
-                          >
-                            <ChevronDown size={13} />
-                          </button>
-                        </>
-                      )}
+                        </div>
+                      </div>
+                    ))}
+                    {(files.length < maxFiles || maxFiles === 1) && (
                       <button
                         type="button"
-                        aria-label={`Retirer le fichier ${i + 1}`}
-                        onClick={() => {
-                          setFiles(
-                            tool.id === 'burger'
-                              ? files.slice(0, i)
-                              : files.filter((_, n) => n !== i),
-                          )
-                          setResult(null)
+                        className={`tool-uploader ${drag ? 'dragging' : ''}`}
+                        onClick={() => fileRef.current?.click()}
+                        onDragOver={(e) => {
+                          e.preventDefault()
+                          setDrag(true)
+                        }}
+                        onDragLeave={() => setDrag(false)}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          setDrag(false)
+                          addFiles(Array.from(e.dataTransfer.files))
                         }}
                       >
-                        <X size={15} />
+                        <Upload size={20} />
+                        <strong>
+                          {files.length
+                            ? maxFiles === 1
+                              ? 'Remplacer le fichier'
+                              : 'Ajouter un fichier'
+                            : 'Déposer votre fichier ici'}
+                        </strong>
+                        <span>
+                          {tool.accept === '.pdf' ? 'PDF' : 'PDF, PNG ou JPEG'} · 25 Mo par fichier
+                        </span>
                       </button>
-                    </div>
-                  </div>
-                ))}
-                {(files.length < maxFiles || maxFiles === 1) && (
-                  <button
-                    type="button"
-                    className={`tool-uploader ${drag ? 'dragging' : ''}`}
-                    onClick={() => fileRef.current?.click()}
-                    onDragOver={(e) => {
-                      e.preventDefault()
-                      setDrag(true)
-                    }}
-                    onDragLeave={() => setDrag(false)}
-                    onDrop={(e) => {
-                      e.preventDefault()
-                      setDrag(false)
-                      addFiles(Array.from(e.dataTransfer.files))
-                    }}
-                  >
-                    <Upload size={20} />
-                    <strong>
-                      {files.length
-                        ? maxFiles === 1
-                          ? 'Remplacer le fichier'
-                          : 'Ajouter un fichier'
-                        : 'Déposer votre fichier ici'}
-                    </strong>
-                    <span>
-                      {tool.accept === '.pdf' ? 'PDF' : 'PDF, PNG ou JPEG'} · 25 Mo par fichier
-                    </span>
-                  </button>
+                    )}
+                    <p className="privacy-note">
+                      L’import autorise le traitement sur le serveur pour l’aperçu et le fichier
+                      final. Conservation maximale : 24 h.
+                    </p>
+                    {(tool.id !== 'burger' || burger.source_mode === 'classic') && (
+                      <button
+                        type="button"
+                        className="example-button"
+                        onClick={() => void example()}
+                      >
+                        Charger un exemple <ArrowRight size={13} />
+                      </button>
+                    )}
+                  </section>
                 )}
-                <p className="privacy-note">
-                  L’import autorise le traitement sur le serveur pour l’aperçu et le fichier final.
-                  Conservation maximale : 24 h.
-                </p>
-                {(tool.id !== 'burger' || burger.source_mode === 'classic') && (
-                  <button type="button" className="example-button" onClick={() => void example()}>
-                    Charger un exemple <ArrowRight size={13} />
-                  </button>
-                )}
-              </section>
-            )}
-            <Configurations
-              toolId={tool.id}
-              settings={settings}
-              onLoad={(saved) => {
-                const { numberings: savedNumberings, ...fields } = saved
-                if (tool.id === 'burger') {
-                  const options = Object.fromEntries(
-                    Object.entries(burgerDefaults).map(([key, fallback]) => [
-                      key,
-                      fields[key] ?? fallback,
-                    ]),
-                  ) as BurgerOptions
-                  changeBurger(options)
-                  setValues(
-                    Object.fromEntries(
-                      tool.fields.map((f) => [f.key, fields[f.key] ?? f.default]),
-                    ) as Values,
-                  )
-                } else setValues(fields as Values)
-                if (tool.id === 'fortune-cookie')
-                  setNumberings(
-                    (savedNumberings as Numbering[] | null) || [
-                      newNumbering(Number(fields.height)),
-                    ],
-                  )
-                setResult(null)
-                setError('')
-              }}
-            />
-            {tool.fields.length > 0 && (
-              <section className="tool-settings-section">
-                <h2>
-                  <span className="section-number">{tool.max_files > 0 ? '02' : '01'}</span>Les
-                  réglages
-                </h2>
-                <div className="tool-fields">
-                  {tool.fields
-                    .filter(
-                      (f) =>
-                        visibleField(tool.id, f.key, values) &&
-                        !(tool.id === 'pizza' && /^(safety|unusable)_/.test(f.key)) &&
-                        !(
-                          tool.id === 'burger' &&
-                          burger.source_mode !== 'classic' &&
-                          f.key === 'paper'
-                        ),
-                    )
-                    .map((field) => (
+                <Configurations
+                  compact={tool.id === 'pizza'}
+                  toolId={tool.id}
+                  settings={settings}
+                  onLoad={(saved) => {
+                    const { numberings: savedNumberings, ...fields } = saved
+                    if (tool.id === 'burger') {
+                      const options = Object.fromEntries(
+                        Object.entries(burgerDefaults).map(([key, fallback]) => [
+                          key,
+                          fields[key] ?? fallback,
+                        ]),
+                      ) as BurgerOptions
+                      changeBurger(options)
+                      setValues(
+                        Object.fromEntries(
+                          tool.fields.map((f) => [f.key, fields[f.key] ?? f.default]),
+                        ) as Values,
+                      )
+                    } else setValues(fields as Values)
+                    if (tool.id === 'fortune-cookie')
+                      setNumberings(
+                        (savedNumberings as Numbering[] | null) || [
+                          newNumbering(Number(fields.height)),
+                        ],
+                      )
+                    setResult(null)
+                    setError('')
+                  }}
+                />
+                {tool.id === 'pizza' && (
+                  <PizzaSettings
+                    fields={tool.fields}
+                    values={values}
+                    section={pizzaSection}
+                    onSectionChange={setPizzaSection}
+                    renderField={(field, displayLabel) => (
                       <Setting
-                        key={field.key}
-                        field={tool.id === 'pizza' ? pizzaField(field, values) : field}
-                        value={
-                          tool.id === 'pizza'
-                            ? pizzaValue(field, values)
-                            : (values[field.key] ?? field.default)
-                        }
+                        field={pizzaField(field, values)}
+                        displayLabel={displayLabel}
+                        value={pizzaValue(field, values)}
                         update={(value) => change(field.key, value)}
-                        disabled={
-                          tool.id === 'sushi' && values.shape === 'circle' && field.key === 'height'
-                        }
                       />
-                    ))}
-                </div>
-                {tool.id === 'pizza' &&
-                  [
-                    {
-                      prefix: 'safety',
-                      title: 'Zone de sécurité',
-                      help: 'Retrait depuis chaque bord du format fini. Limite verte en pointillés.',
-                    },
-                    {
-                      prefix: 'unusable',
-                      title: 'Zone inexploitable',
-                      help: 'Bandes à exclure à l’intérieur du format fini. Limite jaune en pointillés et hachures diagonales. 0 mm = aucune bande sur ce côté.',
-                    },
-                  ].map((zone) => (
-                    <fieldset className="pizza-zone-settings" key={zone.prefix}>
-                      <legend>{zone.title}</legend>
-                      <p className="field-hint">{zone.help}</p>
-                      <div className="tool-fields">
-                        {tool.fields
-                          .filter((field) => field.key.startsWith(`${zone.prefix}_`))
-                          .map((field) => (
-                            <Setting
-                              key={field.key}
-                              field={field}
-                              displayLabel={field.label
-                                .split(' — ')[1]
-                                ?.replace(/^./, (letter) => letter.toUpperCase())}
-                              value={pizzaValue(field, values)}
-                              update={(value) => change(field.key, value)}
-                            />
-                          ))}
-                      </div>
-                    </fieldset>
-                  ))}
-              </section>
-            )}
-            {tool.id === 'fortune-cookie' && (
-              <FortuneSettings
-                items={numberings}
-                width={Number(values.width)}
-                height={Number(values.height)}
-                onChange={changeNumberings}
-              />
-            )}
-            {tool.id === 'layer-cake' && (
-              <a className="advanced-workshop" href={toolUrl('imposition')}>
-                <LayoutGrid size={17} />
-                <span>
-                  Atelier de répétition détaillé
-                  <small>Aperçu interactif, grille, repères et modèles</small>
-                </span>
-                <ArrowRight size={15} />
-              </a>
-            )}
-            <div className="tool-run">
-              <Button type="submit" disabled={busy || !ready}>
-                {busy ? <LoaderCircle size={16} className="spin" /> : <ArrowRight size={16} />}
-                {busy ? 'Traitement en cours…' : 'Générer le fichier final'}
-              </Button>
-              <p>
-                {tool.min_files > 0 && !ready
-                  ? tool.id === 'burger'
-                    ? `${files.length} / ${maxFiles} fichier(s) importé(s). Complétez les emplacements attendus.`
-                    : `Importez ${tool.min_files === 2 ? 'les deux fichiers' : 'votre fichier'} pour commencer.`
-                  : 'L’aperçu est automatique. Générez ensuite le fichier complet.'}
-              </p>
+                    )}
+                  />
+                )}
+                {tool.id !== 'pizza' && tool.fields.length > 0 && (
+                  <section className="tool-settings-section">
+                    <h2>
+                      <span className="section-number">{tool.max_files > 0 ? '02' : '01'}</span>Les
+                      réglages
+                    </h2>
+                    <div className="tool-fields">
+                      {tool.fields
+                        .filter(
+                          (f) =>
+                            visibleField(tool.id, f.key, values) &&
+                            !(
+                              tool.id === 'burger' &&
+                              burger.source_mode !== 'classic' &&
+                              f.key === 'paper'
+                            ),
+                        )
+                        .map((field) => (
+                          <Setting
+                            key={field.key}
+                            field={field}
+                            value={values[field.key] ?? field.default}
+                            update={(value) => change(field.key, value)}
+                            disabled={
+                              tool.id === 'sushi' &&
+                              values.shape === 'circle' &&
+                              field.key === 'height'
+                            }
+                          />
+                        ))}
+                    </div>
+                  </section>
+                )}
+                {tool.id === 'fortune-cookie' && (
+                  <FortuneSettings
+                    items={numberings}
+                    width={Number(values.width)}
+                    height={Number(values.height)}
+                    onChange={changeNumberings}
+                  />
+                )}
+                {tool.id === 'layer-cake' && (
+                  <a className="advanced-workshop" href={toolUrl('imposition')}>
+                    <LayoutGrid size={17} />
+                    <span>
+                      Atelier de répétition détaillé
+                      <small>Aperçu interactif, grille, repères et modèles</small>
+                    </span>
+                    <ArrowRight size={15} />
+                  </a>
+                )}
+              </div>
+              <div className="tool-run">
+                <Button type="submit" disabled={busy || !ready}>
+                  {busy ? <LoaderCircle size={16} className="spin" /> : <ArrowRight size={16} />}
+                  {busy ? 'Traitement en cours…' : 'Générer le fichier final'}
+                </Button>
+                <p>
+                  {tool.min_files > 0 && !ready
+                    ? tool.id === 'burger'
+                      ? `${files.length} / ${maxFiles} fichier(s) importé(s). Complétez les emplacements attendus.`
+                      : `Importez ${tool.min_files === 2 ? 'les deux fichiers' : 'votre fichier'} pour commencer.`
+                    : 'L’aperçu est automatique. Générez ensuite le fichier complet.'}
+                </p>
+              </div>
             </div>
           </fieldset>
         </form>
-        <section className="tool-result" aria-label="Résultat du traitement" aria-busy={busy}>
+        <section
+          className="tool-result"
+          aria-label="Résultat du traitement"
+          aria-busy={busy}
+          id={`${workspaceId}-preview`}
+          role={tool.id === 'pizza' && isMobile ? 'tabpanel' : undefined}
+          aria-labelledby={
+            tool.id === 'pizza' && isMobile ? `${workspaceId}-preview-tab` : undefined
+          }
+          hidden={tool.id === 'pizza' && isMobile && mobileView !== 'preview'}
+        >
           <div className="tool-result-header">
             <span>{result ? 'Votre résultat' : 'L’aperçu'}</span>
             {result && (

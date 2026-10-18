@@ -1041,23 +1041,167 @@
   }
 }
 
-.pizza-zone-settings {
-  min-width: 0;
-  border: 0;
-  padding: 0;
-  margin: 24px 0 0;
+.workspace-view-tabs {
+  display: none;
 }
-.pizza-zone-settings legend {
-  font-weight: 800;
+.pizza-settings {
+  padding: 0 20px 16px;
 }
-.pizza-zone-settings > .field-hint {
-  margin: 8px 0 16px;
+.pizza-settings .accordion-item {
+  border-color: #ead9ee;
 }
-.pizza-zone-settings .tool-fields {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.pizza-settings .accordion-trigger {
+  padding: 18px 0;
   gap: 12px;
+  color: #633774;
 }
-.pizza-zone-settings .tool-field {
+.pizza-settings .accordion-trigger > span {
+  min-width: 0;
+}
+.pizza-section-title {
+  display: block;
+  font-weight: 900;
+}
+.pizza-settings .accordion-trigger small {
+  display: block;
+  margin-top: 5px;
+  color: #7a527b;
+  font-size: var(--text-caption);
+  font-weight: 650;
+  line-height: 1.5;
+}
+.pizza-settings .accordion-content[hidden] {
+  display: none;
+}
+.pizza-settings .accordion-content-inner {
+  padding: 0 0 20px;
+}
+.pizza-settings .accordion-content-inner > .field-hint {
+  margin: 0 0 16px;
+}
+.pizza-settings .tool-fields {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 12px;
+}
+.pizza-setting {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.pizza-setting-number {
   grid-column: auto;
-  margin-top: 0;
+}
+.pizza-setting .tool-field {
+  margin: 0;
+}
+.tool-controls .compact-configurations {
+  padding: 20px;
+  border-bottom: 1px solid #ead9ee;
+}
+.compact-configurations .configuration-management {
+  margin-top: 12px;
+}
+.configuration-management > summary {
+  min-height: 44px;
+  padding-block: 10px;
+  color: #733791;
+  font-size: var(--text-small);
+  font-weight: 800;
+  cursor: pointer;
+}
+.configuration-management[open] > summary {
+  margin-bottom: 12px;
+}
+.tool-controls-scroll > section {
+  border-color: #eedcf2;
+}
+@media (min-width: 761px) {
+  .tool-workspace > .tool-result {
+    position: sticky;
+    top: 24px;
+    max-height: calc(100dvh - 48px);
+    overflow: auto;
+    scrollbar-color: #bda6d0 #f8f3fc;
+    scrollbar-width: thin;
+  }
+  .tool-result .pdf-viewport {
+    height: clamp(180px, calc(100dvh - 400px), 620px);
+  }
+  .tool-workspace.compact-workspace {
+    grid-template-columns: minmax(350px, 390px) minmax(0, 1fr);
+  }
+  .compact-workspace .tool-controls {
+    position: sticky;
+    top: 24px;
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100dvh - 48px);
+  }
+  .compact-workspace .tool-controls > .panel-heading {
+    flex-shrink: 0;
+  }
+  .compact-workspace .tool-controls > fieldset {
+    display: contents;
+  }
+  .compact-workspace .tool-controls-layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .compact-workspace .tool-controls-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-color: #bda6d0 #fffafd;
+    scrollbar-width: thin;
+    scroll-padding: 16px;
+  }
+  .compact-workspace .tool-run {
+    flex-shrink: 0;
+    border-top: 1px solid #ead9ee;
+  }
+}
+@media (min-width: 761px) and (max-width: 1000px) {
+  .tool-workspace.compact-workspace {
+    grid-template-columns: minmax(290px, 340px) minmax(0, 1fr);
+    gap: 16px;
+  }
+}
+@media (max-width: 760px) {
+  .workspace-view-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    margin-bottom: 16px;
+    border-radius: 16px;
+    background: #f3e5fa;
+  }
+  .workspace-view-tabs button {
+    flex: 1;
+    min-height: 44px;
+    padding: 10px 16px;
+    border-radius: 12px;
+    color: #733791;
+    font-weight: 900;
+  }
+  .workspace-view-tabs button[aria-selected='true'] {
+    background: #fffafd;
+    color: #57246e;
+    box-shadow: 0 2px 5px #7731a81a;
+  }
+  .compact-workspace .tool-run {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    border-top: 1px solid #ead9ee;
+  }
+  .compact-workspace .tool-controls {
+    overflow: clip;
+  }
+  .compact-workspace .tool-result[hidden],
+  .compact-workspace .tool-controls[hidden] {
+    display: none;
+  }
 }

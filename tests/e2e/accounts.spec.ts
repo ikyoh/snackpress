@@ -69,6 +69,7 @@ test('compte, configurations, autre appareil, conflit et suppression', async ({
   await page.setViewportSize({ width: 1440, height: 1000 })
   await register(page, email)
   await page.getByLabel('Largeur finie', { exact: true }).fill('100')
+  await page.getByText('Enregistrer ou gérer les configurations', { exact: true }).click()
   await page.getByLabel('Nom de la configuration').fill('Cartes atelier')
   await page.getByRole('button', { name: 'Enregistrer sous…' }).click()
   await expect(
@@ -95,12 +96,14 @@ test('compte, configurations, autre appareil, conflit et suppression', async ({
   await expect(other.getByText('Cartes atelier', { exact: true })).toHaveCount(0)
   await login(other, email)
   await expect(other.getByLabel('Largeur finie', { exact: true })).toHaveValue('100')
+  await other.getByText('Enregistrer ou gérer les configurations', { exact: true }).click()
   await other.getByLabel('Largeur finie', { exact: true }).fill('110')
   await expect(other.getByText(/Modifiée —/)).toBeVisible()
   await other.getByRole('button', { name: 'Mettre à jour', exact: true }).click()
   await expect(
     other.getByRole('region', { name: 'Mes configurations' }).getByRole('status'),
   ).toContainText('mise à jour')
+  await page.getByText('Enregistrer ou gérer les configurations', { exact: true }).click()
   await page.getByLabel('Largeur finie', { exact: true }).fill('120')
   await page.getByRole('button', { name: 'Mettre à jour', exact: true }).click()
   await expect(page.getByRole('alert')).toContainText('autre appareil')
