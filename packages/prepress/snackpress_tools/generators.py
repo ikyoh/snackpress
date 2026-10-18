@@ -371,6 +371,7 @@ def club(folder, files, p):
             "Estimation pour dos carré collé, hors couverture. Compression, "
             "colle et conditions de reliure varient : confirmer au relieur."
         ),
+        branded_header=True,
     )
     return ToolResult(
         tool="club-sandwich",
