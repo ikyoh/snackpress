@@ -1,4 +1,5 @@
 import { pizzaField, pizzaValue, visiblePizzaField } from './pizza'
+import { visibleTacoField } from './taco'
 import { SettingsSection } from './SettingsSection'
 import { Configurations } from './Configurations'
 import { ProductSelector, snapshotLabels, type Snapshot } from './PrintCatalog'
@@ -234,10 +235,8 @@ export function BurgerEditor({
                     .filter((f) => {
                       if (template.id === 'pizza')
                         return visiblePizzaField(f.key, options.template_settings)
-                      return !(
-                        template.id === 'taco' &&
-                        options.template_settings.fold === 'gate' &&
-                        f.key === 'panels'
+                      return (
+                        template.id !== 'taco' || visibleTacoField(f.key, options.template_settings)
                       )
                     })
                     .map((field) => (
@@ -267,7 +266,9 @@ export function BurgerEditor({
                 Chaque visuel aura une page seule et une page avec les repères. Le format doit
                 correspondre au format fini ou au gabarit complet, sans déformation.
                 {options.template_tool === 'pdf' &&
-                  ' Ajoutez le gabarit PDF d’une page en dernier ; ses zones blanches laisseront voir le visuel.'}
+                  ' Ajoutez le gabarit PDF en dernier : une page commune ou deux pages recto / verso de même format. Ses zones blanches laisseront voir le visuel.'}
+                {(options.template_tool === 'taco' || options.template_tool === 'pdf') &&
+                  ' Avec deux faces de gabarit, les repères recto et verso alternent dans l’ordre des pages des fichiers visuels. Les finitions sont exclues de cette alternance.'}
               </p>
             )}
           </SettingsSection>

@@ -50,6 +50,7 @@ test('Taco : l’aperçu conserve les panneaux et le focus pendant les modificat
     .filter({ has: page.getByText('Format', { exact: true }) })
   await format.locator('summary').click()
   await openSettings(page, 'Pliage')
+  await page.getByLabel('Type de pli', { exact: true }).selectOption('roll')
   const panels = page.getByLabel('Nombre de panneaux', { exact: true })
   await panels.fill('4')
   await expect(live.getByRole('alert', { includeHidden: true })).toContainText(

@@ -19,7 +19,8 @@ const groups: Record<string, Group[]> = {
   ],
   taco: [
     { title: 'Format', keys: ['width', 'height'] },
-    { title: 'Pliage', keys: ['fold', 'panels', 'allowance'] },
+    { title: 'Pliage', keys: ['fold', 'panels', 'allowance', 'flap_side'] },
+    { title: 'Recto / Verso', keys: ['turn', 'recto_face'] },
   ],
   burrito: [
     { title: 'Format', keys: ['width', 'height'] },
@@ -98,8 +99,15 @@ export function ToolSettings({
             key={group.title}
             title={group.title}
             summary={summary}
-            defaultOpen={index === 0}
+            defaultOpen={index === 0 || (toolId === 'taco' && group.title === 'Recto / Verso')}
           >
+            {toolId === 'taco' && group.title === 'Recto / Verso' && (
+              <p className="field-hint taco-face-help">
+                Chaque face est vue de face. Gauche-droite échange les bords gauche et droit ;
+                haut-bas échange le haut et le bas. Le repère A désigne le même coin de feuille sur
+                les deux pages.
+              </p>
+            )}
             <div className="tool-fields grouped-tool-fields">
               {members.map((field) => (
                 <div

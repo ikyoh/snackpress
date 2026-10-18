@@ -10,6 +10,7 @@ from reportlab.lib.units import mm
 
 from .catalog import Numbering, ToolResult
 from .common import CORAL, INK, artifact, new_canvas, open_pdf, report
+from .taco_layout import fold_widths as fold_widths
 
 
 def burger(folder, files, p):
@@ -139,76 +140,148 @@ def pizza(folder, files, p):
     )
 
 
-def fold_widths(p):
-    if p.fold == "gate":
-        widths = [
-            p.width / 4 - p.allowance / 2,
-            p.width / 4 + p.allowance / 2,
-            p.width / 4 + p.allowance / 2,
-            p.width / 4 - p.allowance / 2,
-        ]
-    elif p.fold == "roll":
-        # Each successively nested panel loses the same allowance.
-        outer = (p.width + p.allowance * p.panels * (p.panels - 1) / 2) / p.panels
-        widths = [outer - i * p.allowance for i in range(p.panels)]
-    else:
-        widths = [p.width / p.panels] * p.panels
-    if min(widths) <= 5:
-        raise ValueError("Un panneau est trop petit. Réduisez le retrait ou le nombre de panneaux.")
-    return widths
+def taco(folder, files, p, *, guides_only=False):
+    from .taco_layout import (
+        FOLD_NAMES,
+        TURN_NAMES,
+        face_label,
+        face_panels,
+        fold_positions,
+        reference_corner,
+    )
 
-
-def taco(folder, files, p):
-    widths = fold_widths(p)
     path = folder / "plan-pliage.pdf"
     border = 15
-    c = new_canvas(path, p.width + border * 2, p.height + border * 2)
-    x = border
-    for i, width in enumerate(widths):
-        c.setFillColor(colors.HexColor("#eef1e7") if i % 2 == 0 else colors.white)
+    page_width, page_height = p.width + 2 * border, p.height + 2 * border
+    c = new_canvas(path, page_width, page_height)
+
+    def fitted(text, x, y, width, size=8, font="Snack", centered=False):
+        c.setFont(font, min(size, width * mm / max(c.stringWidth(text, font, 1), 1)))
+        draw = c.drawCentredString if centered else c.drawString
+        draw(x * mm, y * mm, text)
+
+    for page_number, face in enumerate(("recto", "verso"), 1):
+        panels = face_panels(p, face)
+        x = border
+        for panel in panels:
+            if not guides_only:
+                c.setFillColor(colors.HexColor("#eef1e7") if panel.number % 2 else colors.white)
+                c.rect(x * mm, border * mm, panel.width * mm, p.height * mm, stroke=0, fill=1)
+                c.setFillColor(colors.black)
+                middle = border + p.height / 2
+                fitted(
+                    f"P{panel.number}",
+                    x + panel.width / 2,
+                    middle + 4,
+                    panel.width - 2,
+                    12,
+                    centered=True,
+                )
+                fitted(
+                    f"{panel.width:g} mm",
+                    x + panel.width / 2,
+                    middle - 2,
+                    panel.width - 2,
+                    9,
+                    centered=True,
+                )
+                if panel.flap:
+                    fitted(
+                        "Rabat rentrant",
+                        x + panel.width / 2,
+                        middle - 8,
+                        panel.width - 2,
+                        8,
+                        centered=True,
+                    )
+            x += panel.width
+        # Paint folds after all panel backgrounds, so the next panel cannot hide them.
         c.setStrokeColor(INK)
-        c.rect(x * mm, border * mm, width * mm, p.height * mm, fill=1)
-        c.setFillColor(INK)
-        c.setFont("Snack", max(5, min(12, width * mm / 12)))
-        c.drawCentredString((x + width / 2) * mm, (border + p.height / 2) * mm, f"Panneau {i + 1}")
-        c.drawCentredString(
-            (x + width / 2) * mm, (border + p.height / 2 - 6) * mm, f"{width:.2f} mm"
-        )
-        x += width
-        if i < len(widths) - 1:
-            c.setStrokeColor(CORAL)
-            c.setDash(3 * mm, 2 * mm)
-            c.line(x * mm, border * mm, x * mm, (border + p.height) * mm)
-            c.setDash()
-    c.setFont("Snack", 8)
-    c.drawString(
-        border * mm, 6 * mm, "Vue à plat — plis corail — contrôler l’ordre des faces au façonnage"
-    )
+        c.setLineWidth(0.25 * mm)
+        c.rect(border * mm, border * mm, p.width * mm, p.height * mm)
+        c.setStrokeColor(CORAL)
+        c.setDash(3 * mm, 2 * mm)
+        for position in fold_positions(p, face):
+            x = (border + position) * mm
+            c.line(x, border * mm, x, (border + p.height) * mm)
+        c.setDash()
+        if not guides_only:
+            c.setFillColor(colors.black)
+            fitted(
+                f"Taco — {face_label(p, face)}",
+                4,
+                page_height - 5,
+                page_width - 8,
+                14,
+                "SnackDisplay",
+            )
+            fitted(
+                f"{FOLD_NAMES[p.fold]} · Retournement : {TURN_NAMES[p.turn]}",
+                4,
+                page_height - 10,
+                page_width - 8,
+                8,
+            )
+            # A marks the same physical corner after either kind of paper turn.
+            ax, ay = reference_corner(p, face)
+            c.circle((border + ax) * mm, (border + ay) * mm, 0.8 * mm, stroke=0, fill=1)
+            fitted("A", border + ax + (2 if ax == 0 else -3), border + ay + (2 if ay else -4), 4, 8)
+            fitted("Repère A : même coin de feuille sur les deux faces.", 4, 9, page_width - 8, 7)
+            fitted(
+                "Plis corail pointillés ; cotes depuis le bord gauche de cette face.",
+                4,
+                5.5,
+                page_width - 8,
+                7,
+            )
+            c.setFont("Snack", 7)
+            c.drawRightString((page_width - 4) * mm, 2 * mm, f"Page {page_number} / 2")
+        c.showPage()
     c.save()
-    sheet = folder / "fiche-pliage.pdf"
     with pikepdf.open(path, allow_overwriting_input=True) as pdf:
-        pdf.pages[0].TrimBox = pikepdf.Array(
-            [border * mm, border * mm, (border + p.width) * mm, (border + p.height) * mm]
-        )
+        for page in pdf.pages:
+            page.TrimBox = pikepdf.Array(
+                [border * mm, border * mm, (border + p.width) * mm, (border + p.height) * mm]
+            )
         pdf.save(path)
+    sheet = folder / "fiche-pliage.pdf"
+    rows = [
+        ("Type de pli", FOLD_NAMES[p.fold]),
+        ("Format à plat", f"{p.width:g} × {p.height:g} mm"),
+        ("Recto / verso", f"{face_label(p, 'recto')} ; {face_label(p, 'verso')}"),
+        ("Retournement du verso", TURN_NAMES[p.turn]),
+        ("Repère A", "Coin haut gauche du recto, identifié sur les deux faces."),
+        ("Retrait", "Sans objet en accordéon" if p.fold == "accordion" else f"{p.allowance:g} mm"),
+    ]
+    for face in ("recto", "verso"):
+        panels = face_panels(p, face)
+        rows += [
+            (
+                f"Panneaux {face}, de gauche à droite",
+                "; ".join(
+                    f"P{panel.number} : {panel.width:g} mm"
+                    + (" (rabat rentrant)" if panel.flap else "")
+                    for panel in panels
+                ),
+            ),
+            (
+                f"Plis {face} depuis le bord gauche",
+                " / ".join(f"{position:g} mm" for position in fold_positions(p, face)),
+            ),
+        ]
     report(
         sheet,
         "Taco — plan de panneaux",
-        [
-            ("Type", p.fold),
-            ("À plat", f"{p.width} × {p.height} mm"),
-            *[(f"Panneau {i + 1} (gauche à droite)", f"{w:.3f} mm") for i, w in enumerate(widths)],
-        ],
-        (
-            "Schéma indicatif, sans simulation de pliage. Valider dimensions, "
-            "retraits et faces avec le façonnier."
-        ),
+        rows,
+        "P1, P2… identifient les mêmes panneaux physiques sur les deux faces, "
+        "sans imposer l’ordre de lecture. Schéma indicatif, sans simulation de pliage. "
+        "Valider retraits et faces avec le façonnier.",
     )
     return ToolResult(
         tool="taco",
-        summary=f"Plan à plat de {len(widths)} panneaux.",
-        metrics={"Panneaux": len(widths), "Largeur totale (mm)": round(sum(widths), 3)},
-        artifacts=[artifact(path, "Plan de pliage 1:1"), artifact(sheet, "Fiche des panneaux")],
+        summary=f"Plan recto / verso de {len(panels)} panneaux, avec repères correspondants.",
+        metrics={"Panneaux": len(panels), "Largeur totale (mm)": p.width, "Faces": 2},
+        artifacts=[artifact(path, "Plan recto / verso 1:1"), artifact(sheet, "Fiche des panneaux")],
     )
 
 

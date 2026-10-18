@@ -1,4 +1,26 @@
 /* A shared reading surface for every generated PDF. Paper stays true to the file. */
+.pdf-face-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pdf-face-switch button {
+  min-height: 44px;
+  padding: 10px 18px;
+  border: 1px solid #d5b7e5;
+  border-radius: 12px;
+  background: #fffaff;
+  color: #633774;
+  font-weight: 800;
+}
+.pdf-face-switch button[aria-pressed='true'] {
+  background: #733791;
+  border-color: #733791;
+  color: white;
+}
+.pdf-face-switch button:hover:not([aria-pressed='true']) {
+  background: #f0e3f8;
+}
 .artifact-stage:has(.pdf-viewer) {
   display: block;
   padding: 0;

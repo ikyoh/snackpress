@@ -26,10 +26,29 @@ def template(folder, files, p):
         return None
     if p.template_tool == "pdf":
         path = files[-1]
-        with open_pdf(path, max_pages=1) as doc:
+        with open_pdf(path, max_pages=2) as doc:
             page = doc.pages[0]
             w, h = dimensions(page)
             crop, trim = page.cropbox, page.trimbox
+            for back in list(doc.pages)[1:]:
+                if (
+                    any(abs(a - b) > 0.01 for a, b in zip(dimensions(back), (w, h), strict=True))
+                    or any(
+                        abs(float(a) - float(b)) > 0.01
+                        for a, b in zip(
+                            list(back.cropbox) + list(back.trimbox),
+                            list(crop) + list(trim),
+                            strict=True,
+                        )
+                    )
+                    or int(back.obj.get("/Rotate", 0)) % 360
+                    != int(page.obj.get("/Rotate", 0)) % 360
+                    or float(back.obj.get("/UserUnit", 1)) != float(page.obj.get("/UserUnit", 1))
+                ):
+                    raise ValueError(
+                        "Les deux faces du gabarit PDF doivent avoir les mêmes formats "
+                        "et boîtes de page."
+                    )
             if int(page.obj.get("/Rotate", 0)) % 360 == 0:
                 unit = float(page.obj.get("/UserUnit", 1)) / mm
                 ox, oy = float(trim[0] - crop[0]) * unit, float(trim[1] - crop[1]) * unit
@@ -43,25 +62,26 @@ def template(folder, files, p):
     work = folder / "gabarit-burger"
     work.mkdir()
     result = {"pizza": pizza, "taco": taco, "burrito": burrito, "sushi": sushi}[p.template_tool](
-        work, [], settings
+        work, [], settings, **({"guides_only": True} if p.template_tool == "taco" else {})
     )
     path = work / result.artifacts[0].name
     # Keep vector strokes (cut, fold, safety, eyelets); omit fills and panel labels.
     with pikepdf.open(path, allow_overwriting_input=True) as doc:
-        commands, in_text = [], False
-        for operands, operator in pikepdf.parse_content_stream(doc.pages[0]):
-            op = str(operator)
-            if op == "BT":
-                in_text = True
-            elif op == "ET":
-                in_text = False
-            elif not in_text:
-                if op in {"f", "F", "f*"}:
-                    operator = pikepdf.Operator("n")
-                elif op in {"B", "B*", "b", "b*"}:
-                    operator = pikepdf.Operator("S" if op.startswith("B") else "s")
-                commands.append((operands, operator))
-        doc.pages[0].Contents = doc.make_stream(pikepdf.unparse_content_stream(commands))
+        for page in doc.pages:
+            commands, in_text = [], False
+            for operands, operator in pikepdf.parse_content_stream(page):
+                op = str(operator)
+                if op == "BT":
+                    in_text = True
+                elif op == "ET":
+                    in_text = False
+                elif not in_text:
+                    if op in {"f", "F", "f*"}:
+                        operator = pikepdf.Operator("n")
+                    elif op in {"B", "B*", "b", "b*"}:
+                        operator = pikepdf.Operator("S" if op.startswith("B") else "s")
+                    commands.append((operands, operator))
+            page.Contents = doc.make_stream(pikepdf.unparse_content_stream(commands))
         w, h = dimensions(doc.pages[0])
         doc.save(path)
     origin = (
@@ -115,10 +135,13 @@ def generate(
     )
     if guide:
         guide_path, (gw, gh), (ox, oy, fw, fh) = guide
+        with open_pdf(guide_path, max_pages=2) as doc:
+            guide_faces = len(doc.pages)
     path = folder / "bat.pdf"
     c = new_canvas(path, 210, 297)
     guide_placements = []
     page_index = 0
+    artwork_index = 0
     specs = [
         ("Projet", p.title),
         ("Date du BAT", date),
@@ -134,6 +157,7 @@ def generate(
             w, h = sizes[file_index][index]
             image, _ = render_page(source, index, dpi=min(120, 1100 * 25.4 / max(w, h)))
             marked = guide is not None and file_index < p.expected_files
+            guide_face = artwork_index % guide_faces if marked else 0
             full = marked and abs(w - gw) <= 1 and abs(h - gh) <= 1
             if marked and not full and not (abs(w - fw) <= 1 and abs(h - fh) <= 1):
                 raise ValueError(
@@ -155,7 +179,13 @@ def generate(
                 c.drawString(
                     18 * mm,
                     254 * mm,
-                    "Visuel avec repères de gabarit" if with_guides else "Visuel seul",
+                    (
+                        f"Visuel avec repères — {'Recto' if guide_face == 0 else 'Verso'}"
+                        if guide_faces == 2
+                        else "Visuel avec repères de gabarit"
+                    )
+                    if with_guides
+                    else "Visuel seul",
                 )
                 ix, iy = (ox, oy) if with_guides and not full else (0, 0)
                 c.drawImage(
@@ -173,6 +203,7 @@ def generate(
                             pikepdf.Rectangle(
                                 x * mm, y * mm, (x + gw * scale) * mm, (y + gh * scale) * mm
                             ),
+                            guide_face,
                         )
                     )
                 c.setFont("Snack", 8)
@@ -185,16 +216,19 @@ def generate(
                 c.drawString(18 * mm, 22 * mm, f"Client : {p.client[:75] or 'Non renseigné'}")
                 c.showPage()
                 page_index += 1
+            if marked:
+                artwork_index += 1
     c.save()
     if guide_placements:
         with (
-            open_pdf(guide_path, max_pages=1) as source,
+            open_pdf(guide_path, max_pages=2) as source,
             pikepdf.open(path, allow_overwriting_input=True) as proof,
         ):
             # Import native PDF objects once; reuse the form on all marked pages.
-            form = proof.copy_foreign(source.pages[0].as_form_xobject())
+            forms = [proof.copy_foreign(page.as_form_xobject()) for page in source.pages]
             multiply = pikepdf.Dictionary(Type=pikepdf.Name.ExtGState, BM=pikepdf.Name.Multiply)
-            for index, rect in guide_placements:
+            for index, rect, guide_face in guide_placements:
+                form = forms[guide_face]
                 page = proof.pages[index]
                 state_name = page.add_resource(multiply, pikepdf.Name.ExtGState)
                 form_name = page.add_resource(form, pikepdf.Name.XObject)

@@ -28,7 +28,8 @@ import { Configurations } from './Configurations'
 import { BurgerEditor, burgerDefaults, burgerLabels, type BurgerOptions } from './BurgerEditor'
 import { request } from './api'
 import { Button } from './components/ui/button'
-import { PdfPreview } from './PdfPreview'
+import { PdfFaceSwitch, PdfPreview } from './PdfPreview'
+import { visibleTacoField } from './taco'
 import { LivePreview, useLivePreview } from './LivePreview'
 import { FortunePreview, FortuneSettings, newNumbering, type Numbering } from './FortuneEditor'
 import type { components } from '../../../packages/api-client/schema'
@@ -359,7 +360,7 @@ function visibleField(tool: string, field: string, values: Values) {
     if (field === 'pages') return values.operation !== 'merge'
     if (field === 'rotation') return values.operation === 'rotate'
   }
-  if (tool === 'taco' && field === 'panels') return values.fold !== 'gate'
+  if (tool === 'taco') return visibleTacoField(field, values)
   if (tool === 'layer-cake' && ['gap', 'flip'].includes(field)) return values.mode === 'repeat'
   if (tool === 'fortune-cookie' && field === 'payload') return values.code !== 'none'
   return true
@@ -1071,6 +1072,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                 }
                 overlayLabel={pizzaFocusLabel(pizzaFocus, values)}
                 overlayArtifact="gabarit.pdf"
+                faceArtifact={tool.id === 'taco' ? 'plan-pliage.pdf' : undefined}
               />
             </>
           ) : (
@@ -1113,26 +1115,32 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                         ))}
                       </select>
                     </label>
-                    {totalPages > 1 && (
-                      <div className="page-navigation">
-                        <button
-                          aria-label="Page précédente"
-                          onClick={() => setPage((n) => n - 1)}
-                          disabled={page <= 1}
-                        >
-                          <ChevronLeft size={16} />
-                        </button>
-                        <span>
-                          {page} / {totalPages}
-                        </span>
-                        <button
-                          aria-label="Page suivante"
-                          onClick={() => setPage((n) => n + 1)}
-                          disabled={page >= totalPages}
-                        >
-                          <ChevronRight size={16} />
-                        </button>
-                      </div>
+                    {tool.id === 'taco' &&
+                    selected?.name === 'plan-pliage.pdf' &&
+                    totalPages === 2 ? (
+                      <PdfFaceSwitch page={page} onChange={setPage} />
+                    ) : (
+                      totalPages > 1 && (
+                        <div className="page-navigation">
+                          <button
+                            aria-label="Page précédente"
+                            onClick={() => setPage((n) => n - 1)}
+                            disabled={page <= 1}
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+                          <span>
+                            {page} / {totalPages}
+                          </span>
+                          <button
+                            aria-label="Page suivante"
+                            onClick={() => setPage((n) => n + 1)}
+                            disabled={page >= totalPages}
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      )
                     )}
                   </div>
                   <div className="artifact-stage">

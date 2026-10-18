@@ -7,6 +7,29 @@ import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import type { Job } from './api'
 GlobalWorkerOptions.workerSrc = workerUrl
 
+export function PdfFaceSwitch({
+  page,
+  onChange,
+}: {
+  page: number
+  onChange: (page: number) => void
+}) {
+  return (
+    <div className="pdf-face-switch" role="group" aria-label="Face du plan de pliage">
+      {['Recto', 'Verso'].map((face, index) => (
+        <button
+          key={face}
+          type="button"
+          aria-pressed={page === index + 1}
+          onClick={() => onChange(index + 1)}
+        >
+          {face}
+        </button>
+      ))}
+    </div>
+  )
+}
+
 export function useArtwork(job: Job | null) {
   const [images, setImages] = useState<string[]>([])
   const [error, setError] = useState('')

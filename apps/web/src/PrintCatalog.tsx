@@ -11,6 +11,7 @@ import {
 } from './components/ui/accordion'
 import type { components } from '../../../packages/api-client/schema'
 import { PizzaTemplatePicker, usePizzaTemplates } from './PizzaTemplates'
+import { visibleTacoField } from './taco'
 import './print-catalog.css'
 
 type Tool = components['schemas']['ToolDefinition']
@@ -703,6 +704,7 @@ export function VariantEditor({
                     ?.fields.filter(
                       (f) =>
                         !['width', 'height', 'bleed'].includes(f.key) &&
+                        (g.tool !== 'taco' || visibleTacoField(f.key, g.settings)) &&
                         !(g.tool === 'pizza' && /^(width|height)_/.test(f.key)),
                     )
                     .map((f) => {

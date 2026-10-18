@@ -52,18 +52,31 @@ def component_guide(folder, component):
     top = max(layer[1][1] - layer[2][1] - component.height for layer in layers)
     width, height = component.width + left + right, component.height + bottom + top
     output = pikepdf.Pdf.new()
-    page = output.add_blank_page(page_size=(width * mm, height * mm))
-    page.TrimBox = pikepdf.Array(
-        [left * mm, bottom * mm, (left + component.width) * mm, (bottom + component.height) * mm]
-    )
-    for path, (w, h), (x, y, _, _) in layers:
+    face_count = 1
+    for path, *_ in layers:
         with pikepdf.open(path) as source:
-            page.add_overlay(
-                source.pages[0],
-                pikepdf.Rectangle(
-                    (left - x) * mm, (bottom - y) * mm, (left - x + w) * mm, (bottom - y + h) * mm
-                ),
-            )
+            face_count = max(face_count, len(source.pages))
+    for face in range(face_count):
+        page = output.add_blank_page(page_size=(width * mm, height * mm))
+        page.TrimBox = pikepdf.Array(
+            [
+                left * mm,
+                bottom * mm,
+                (left + component.width) * mm,
+                (bottom + component.height) * mm,
+            ]
+        )
+        for path, (w, h), (x, y, _, _) in layers:
+            with pikepdf.open(path) as source:
+                page.add_overlay(
+                    source.pages[face % len(source.pages)],
+                    pikepdf.Rectangle(
+                        (left - x) * mm,
+                        (bottom - y) * mm,
+                        (left - x + w) * mm,
+                        (bottom - y + h) * mm,
+                    ),
+                )
     path = folder / "traces.pdf"
     output.save(path)
     output.close()

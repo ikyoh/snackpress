@@ -105,6 +105,7 @@ def test_multiple_guides_share_trim_origin(tmp_path):
         assert "Zone de sécurité" in marked_text and "Pliage" in marked_text
     guide = next(a for a in result.artifacts if "traces" in a.name)
     with pikepdf.open(output / guide.name) as doc:
+        assert len(doc.pages) == 2
         trim = doc.pages[0].trimbox
         assert float(trim[0]) / mm == pytest.approx(15)
         assert float(trim[2] - trim[0]) / mm == pytest.approx(297)
@@ -119,6 +120,20 @@ def test_multiple_guides_share_trim_origin(tmp_path):
         layers = list(dict(forms[0].Resources.XObject).values())
         assert len(layers) == 2
         assert all(layer.Subtype == "/Form" for layer in layers)
+        # The combined guide must also carry the mirrored Taco layer on the verso.
+        verso = doc.pages[3]
+        combined = next(
+            obj for obj in dict(verso.Resources.XObject).values() if obj.Subtype == "/Form"
+        )
+        positions = [
+            [
+                float(args[0]) / mm - 15
+                for args, op in pikepdf.parse_content_stream(layer)
+                if str(op) == "m" and len(args) == 2 and abs(float(args[1]) / mm - 15) < 0.01
+            ]
+            for layer in dict(combined.Resources.XObject).values()
+        ]
+        assert any(values == pytest.approx([97, 196]) for values in positions)
 
 
 def test_finish_masks_and_compatibility_rules(tmp_path):

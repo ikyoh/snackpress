@@ -77,6 +77,9 @@ class Taco(Params):
     fold: Literal["accordion", "roll", "gate"] = "accordion"
     panels: int = Field(default=3, ge=2, le=8)
     allowance: float = Field(default=2, ge=0, le=10)
+    turn: Literal["left_right", "top_bottom"] = "left_right"
+    recto_face: Literal["outside", "inside"] = "outside"
+    flap_side: Literal["right", "left"] = "right"
 
 
 class Pizza(Params):
@@ -388,6 +391,21 @@ DEFINITIONS = [
             ),
             number("panels", "Nombre de panneaux", 3, "", 2, 8, 1),
             number("allowance", "Retrait du panneau rentrant", 2, high=10),
+            choice(
+                "flap_side",
+                "Côté du rabat rentrant au recto",
+                [("right", "Droite"), ("left", "Gauche")],
+            ),
+            choice(
+                "turn",
+                "Retournement du verso",
+                [("left_right", "Gauche-droite"), ("top_bottom", "Haut-bas")],
+            ),
+            choice(
+                "recto_face",
+                "Face représentée au recto",
+                [("outside", "Extérieur du dépliant"), ("inside", "Intérieur du dépliant")],
+            ),
         ],
     ),
     ToolDefinition(

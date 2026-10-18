@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react'
 import { ApiError, post, request } from './api'
-import { PdfPreview } from './PdfPreview'
+import { PdfFaceSwitch, PdfPreview } from './PdfPreview'
 import type { components } from '../../../packages/api-client/schema'
 
 type Preview = components['schemas']['PreviewResult']
@@ -145,6 +145,7 @@ export function LivePreview({
   pdfOverlay,
   overlayLabel,
   overlayArtifact,
+  faceArtifact,
 }: {
   state: ReturnType<typeof useLivePreview>
   pageNumber?: number
@@ -153,6 +154,7 @@ export function LivePreview({
   pdfOverlay?: ReactNode
   overlayLabel?: string
   overlayArtifact?: string
+  faceArtifact?: string
 }) {
   const { preview, updating, error, stale } = state
   const [artifactName, setArtifactName] = useState('')
@@ -167,7 +169,11 @@ export function LivePreview({
   const generation = preview?.generation
   useEffect(() => {
     setPage(1)
-  }, [generation, artifactName])
+  }, [artifactName])
+  useEffect(() => {
+    // Preserve the selected face while its folding plan is recalculated.
+    if (selected?.name !== faceArtifact) setPage(1)
+  }, [generation, selected?.name, faceArtifact])
   const url =
     preview && selected
       ? `/api/tool-previews/${preview.id}/${preview.generation}/files/${encodeURIComponent(selected.name)}`
@@ -217,28 +223,32 @@ export function LivePreview({
                 ))}
               </select>
             </label>
-            {(selected.pages || 1) > 1 && (
-              <div className="page-navigation">
-                <button
-                  type="button"
-                  aria-label="Page précédente de l’aperçu"
-                  disabled={currentPage <= 1}
-                  onClick={() => changePage(currentPage - 1)}
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <span>
-                  {currentPage} / {selected.pages}
-                </span>
-                <button
-                  type="button"
-                  aria-label="Page suivante de l’aperçu"
-                  disabled={currentPage >= (selected.pages || 1)}
-                  onClick={() => changePage(currentPage + 1)}
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
+            {selected.name === faceArtifact && selected.pages === 2 ? (
+              <PdfFaceSwitch page={currentPage} onChange={changePage} />
+            ) : (
+              (selected.pages || 1) > 1 && (
+                <div className="page-navigation">
+                  <button
+                    type="button"
+                    aria-label="Page précédente de l’aperçu"
+                    disabled={currentPage <= 1}
+                    onClick={() => changePage(currentPage - 1)}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span>
+                    {currentPage} / {selected.pages}
+                  </span>
+                  <button
+                    type="button"
+                    aria-label="Page suivante de l’aperçu"
+                    disabled={currentPage >= (selected.pages || 1)}
+                    onClick={() => changePage(currentPage + 1)}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+              )
             )}
           </div>
           {showOverlay && overlayLabel && (
