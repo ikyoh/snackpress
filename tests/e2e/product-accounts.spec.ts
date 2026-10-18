@@ -27,16 +27,42 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
   expect(
     (await page.request.post('/api/auth/login', { headers, data: { email, password } })).status(),
   ).toBe(200)
+  const fixedResponse = await page.request.post('/api/configurations?tool_id=pizza', {
+    headers,
+    data: { name: 'Invitation fixe', settings: { width: 85, height: 55 } },
+  })
+  expect(fixedResponse.status()).toBe(201)
+  const fixed = await fixedResponse.json()
+  const boundedResponse = await page.request.post('/api/configurations?tool_id=pizza', {
+    headers,
+    data: {
+      name: 'Invitation variable',
+      settings: { width: 100, height: 55, width_mode: 'bounded', width_min: 90, width_max: 150 },
+    },
+  })
+  expect(boundedResponse.status()).toBe(201)
+  const bounded = await boundedResponse.json()
   await page.goto('/?view=products')
   await expect(page.getByRole('button', { name: 'Mon compte', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Ajouter un produit', exact: true }).click()
   await page.getByLabel('Nom du produit', { exact: true }).fill('Invitation atelier')
   await page.getByLabel('Nom de la déclinaison', { exact: true }).fill('Petit format')
   await page.getByLabel('Support matière', { exact: true }).selectOption('mat350')
-  await page.getByLabel('Ajouter un tracé').selectOption('pizza')
+  await page
+    .getByLabel('Gabarit Pizza', { exact: true })
+    .selectOption(`${fixed.id}:${fixed.revision}`)
+  await expect(page.getByLabel('Largeur finie (mm)', { exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('Hauteur finie (mm)', { exact: true })).toHaveCount(0)
   await page.getByRole('button', { name: 'Dupliquer la déclinaison' }).click()
   await page.getByLabel('Nom de la déclinaison', { exact: true }).fill('Grand format')
-  await page.getByLabel('Largeur finie (mm)', { exact: true }).fill('100')
+  await page
+    .getByLabel('Gabarit Pizza', { exact: true })
+    .selectOption(`${bounded.id}:${bounded.revision}`)
+  await page.screenshot({ path: 'test-results/product-pizza-template-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/product-pizza-template-mobile.png', fullPage: true })
+  await page.setViewportSize({ width: 1280, height: 900 })
   await page.getByRole('button', { name: 'Enregistrer le catalogue', exact: true }).click()
   await expect(page.getByRole('status')).toContainText('Catalogue enregistré')
   await page.reload()
@@ -50,6 +76,13 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
     .getAttribute('value')
   await page.getByLabel('Produit', { exact: true }).selectOption(productId!)
   await expect(page.getByLabel('Déclinaison du produit').locator('option')).toHaveCount(2)
+  await expect(page.getByLabel('Largeur finie (mm)', { exact: true })).toHaveCount(0)
+  await page.getByLabel('Déclinaison du produit').selectOption({ label: 'Grand format' })
+  const width = page.getByLabel('Largeur finie (mm)', { exact: true })
+  await expect(width).toHaveAttribute('min', '90')
+  await expect(width).toHaveAttribute('max', '150')
+  await width.fill('120')
+  await expect(page.getByLabel('Hauteur finie (mm)', { exact: true })).toHaveCount(0)
   await page.getByLabel('Mode du BAT').selectOption('free')
   await page.getByLabel('Nom du produit pour ce BAT').fill('Libre sauvegardé')
   await page.getByRole('button', { name: 'Enregistrer comme nouveau produit' }).click()

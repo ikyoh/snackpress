@@ -68,7 +68,12 @@ class Tickets(Spec):
     code_y: float = Field(default=5, ge=0, le=5000)
 
 
+class PizzaTemplate(Named):
+    revision: int = Field(ge=1)
+
+
 class Component(Named):
+    pizza_template: PizzaTemplate | None = None
     width: float = Field(default=85, gt=5, le=5000)
     height: float = Field(default=55, gt=5, le=5000)
     bleed: float = Field(default=3, ge=0, le=30)
@@ -94,6 +99,21 @@ class Component(Named):
                 f"La pagination de {self.name} doit être un multiple de {self.page_multiple}."
             )
         tools = [g.tool for g in self.guides]
+        if self.pizza_template:
+            pizza = next((g for g in self.guides if g.tool == "pizza"), None)
+            if pizza is None:
+                raise ValueError("Le gabarit Pizza sélectionné doit être conservé dans les tracés.")
+            template_settings = MODELS["pizza"].model_validate(pizza.settings).model_dump()
+            for axis, label in (("width", "largeur"), ("height", "hauteur")):
+                if axis == "height" and template_settings["shape"] == "circle":
+                    continue
+                if (
+                    template_settings[f"{axis}_mode"] == "fixed"
+                    and abs(getattr(self, axis) - template_settings[axis]) > 0.01
+                ):
+                    raise ValueError(f"La {label} est fixée par le gabarit Pizza sélectionné.")
+            if abs(self.bleed - template_settings["bleed"]) > 0.01:
+                raise ValueError("Le fond perdu est fixé par le gabarit Pizza sélectionné.")
         if len(set(tools)) != len(tools):
             raise ValueError("Un seul tracé de chaque outil par composant.")
         if "pizza" in tools and "sushi" in tools:

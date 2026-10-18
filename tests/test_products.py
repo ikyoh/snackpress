@@ -209,3 +209,46 @@ def test_missing_product_does_not_fall_back_to_classic():
     with pytest.raises(ValidationError, match="Choisissez un produit"):
         Burger(source_mode="catalog")
     assert Burger().source_mode == "classic"
+
+
+def test_product_pizza_template_dimensions_and_frozen_proof(tmp_path):
+    snapshot = specification().model_dump()
+    component = snapshot["variant"]["components"][0]
+    component["pizza_template"] = {"id": "pizza-config", "name": "Carte atelier", "revision": 1}
+    component["guides"] = [
+        {
+            "tool": "pizza",
+            "settings": {
+                "width": component["width"],
+                "height": component["height"],
+                "bleed": component["bleed"],
+            },
+        }
+    ]
+    valid = Snapshot.model_validate(snapshot)
+    assert valid.variant.components[0].pizza_template.name == "Carte atelier"
+    component["width"] += 10
+    with pytest.raises(ValueError, match="fixée par le gabarit"):
+        Snapshot.model_validate(snapshot)
+    settings = component["guides"][0]["settings"]
+    settings.update(width_mode="bounded", width_min=80, width_max=120)
+    valid = Snapshot.model_validate(snapshot)
+    component["width"] = 130
+    with pytest.raises(ValueError, match="comprise entre"):
+        Snapshot.model_validate(snapshot)
+    component["width"] = 100
+    component["bleed"] += 1
+    with pytest.raises(ValueError, match="fond perdu est fixé"):
+        Snapshot.model_validate(snapshot)
+    component["bleed"] -= 1
+    component["guides"] = []
+    with pytest.raises(ValueError, match="conservé dans les tracés"):
+        Snapshot.model_validate(snapshot)
+    files = artwork(tmp_path, valid)
+    output = tmp_path / "proof"
+    output.mkdir()
+    result = run(output, "burger", files, {"product_snapshot": valid.model_dump()})
+    assert result.artifacts
+    frozen = json.loads((output / "reglages.json").read_text())["settings"]["product_snapshot"]
+    assert frozen["variant"]["components"][0]["pizza_template"]["name"] == "Carte atelier"
+    assert frozen["variant"]["components"][0]["width"] == valid.variant.components[0].width

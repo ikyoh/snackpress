@@ -70,6 +70,36 @@ def test_pizza_validates_curves_and_safety():
     assert Pizza(shape="circle", width=80, height=10).height == 80
 
 
+@pytest.mark.parametrize("axis", ["width", "height"])
+def test_pizza_bounded_dimensions(axis):
+    settings = {f"{axis}_mode": "bounded", f"{axis}_min": 40, f"{axis}_max": 100}
+    for value in (40, 70, 100):
+        assert getattr(Pizza(**settings, **{axis: value}), axis) == value
+    for value in (39.9, 100.1):
+        with pytest.raises(ValueError, match="comprise entre"):
+            Pizza(**settings, **{axis: value})
+    with pytest.raises(ValueError, match="borne minimale"):
+        Pizza(**{**settings, f"{axis}_min": 101})
+    # Bounds do not constrain a dimension after switching back to fixed mode.
+    assert getattr(Pizza(**{**settings, f"{axis}_mode": "fixed", axis: 120}), axis) == 120
+
+
+def test_pizza_circle_uses_diameter_bounds_only():
+    pizza = Pizza(
+        shape="circle",
+        width=70,
+        width_mode="bounded",
+        width_min=50,
+        width_max=100,
+        height_mode="bounded",
+        height_min=200,
+        height_max=300,
+    )
+    assert pizza.width == pizza.height == 70
+    with pytest.raises(ValueError, match="comprise entre"):
+        Pizza(shape="circle", width=110, width_mode="bounded", width_min=50, width_max=100)
+
+
 @pytest.mark.parametrize("tool", list(CATALOG))
 def test_every_tool_produces_readable_deliverables(tool, tmp_path, source):
     folder = tmp_path / tool

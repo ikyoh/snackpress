@@ -1,3 +1,4 @@
+import { pizzaField, visiblePizzaField } from './pizza'
 import { Configurations } from './Configurations'
 import { ProductSelector, snapshotLabels, type Snapshot } from './PrintCatalog'
 import type { components } from '../../../packages/api-client/schema'
@@ -214,10 +215,8 @@ export function BurgerEditor({
               <div className="tool-fields">
                 {template.fields
                   .filter((f) => {
-                    if (template.id === 'pizza' && options.template_settings.shape === 'circle')
-                      return !['height', 'corner_radius'].includes(f.key)
-                    if (template.id === 'pizza' && options.template_settings.shape === 'ellipse')
-                      return f.key !== 'corner_radius'
+                    if (template.id === 'pizza')
+                      return visiblePizzaField(f.key, options.template_settings)
                     return !(
                       template.id === 'taco' &&
                       options.template_settings.fold === 'gate' &&
@@ -227,7 +226,9 @@ export function BurgerEditor({
                   .map((field) => (
                     <div key={field.key}>
                       {renderField(
-                        field,
+                        template.id === 'pizza'
+                          ? pizzaField(field, options.template_settings)
+                          : field,
                         options.template_settings[field.key] ?? field.default,
                         (value) =>
                           update({

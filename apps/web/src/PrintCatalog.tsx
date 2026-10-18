@@ -10,6 +10,7 @@ import {
   AccordionTrigger,
 } from './components/ui/accordion'
 import type { components } from '../../../packages/api-client/schema'
+import { PizzaTemplatePicker, usePizzaTemplates } from './PizzaTemplates'
 import './print-catalog.css'
 
 type Tool = components['schemas']['ToolDefinition']
@@ -49,6 +50,7 @@ export type Tickets = {
   code_y: number
 }
 export type Component = {
+  pizza_template?: { id: string; name: string; revision: number } | null
   id: string
   name: string
   width: number
@@ -463,19 +465,74 @@ function TicketEditor({ value, onChange }: { value: Tickets; onChange: (v: Ticke
   )
 }
 
+function ComponentDimensions({
+  component: c,
+  onChange,
+}: {
+  component: Component
+  onChange: (patch: Partial<Component>) => void
+}) {
+  const pizza = c.pizza_template ? c.guides.find((g) => g.tool === 'pizza')?.settings : undefined
+  const circle = pizza?.shape === 'circle'
+  return (
+    <>
+      {(['width', 'height'] as const)
+        .filter((axis) => !(circle && axis === 'height'))
+        .map((axis) => {
+          const label =
+            axis === 'width'
+              ? circle
+                ? 'Diamètre fini (mm)'
+                : 'Largeur finie (mm)'
+              : 'Hauteur finie (mm)'
+          const bounded = pizza?.[`${axis}_mode`] === 'bounded'
+          return pizza && !bounded ? (
+            <p className="field-hint" key={axis}>
+              {label} : {c[axis]} · Fixé par le gabarit Pizza
+            </p>
+          ) : (
+            <Num
+              key={axis}
+              label={label}
+              value={c[axis]}
+              min={bounded ? Math.max(6, Number(pizza?.[`${axis}_min`])) : 6}
+              max={bounded ? Number(pizza?.[`${axis}_max`]) : 5000}
+              onChange={(value) =>
+                onChange(circle ? { width: value, height: value } : { [axis]: value })
+              }
+            />
+          )
+        })}
+      {pizza ? (
+        <p className="field-hint">Fond perdu : {c.bleed} mm · Fixé par le gabarit Pizza</p>
+      ) : (
+        <Num
+          label="Fond perdu attendu (mm)"
+          value={c.bleed}
+          max={30}
+          onChange={(bleed) => onChange({ bleed })}
+        />
+      )}
+    </>
+  )
+}
+
 export function VariantEditor({
   variant,
   materials,
   finishes,
   tools,
   onChange,
+  choosePizza = false,
 }: {
   variant: Variant
   materials: Material[]
   finishes: Finish[]
   tools: Tool[]
   onChange: (v: Variant) => void
+  choosePizza?: boolean
 }) {
+  const pizzaTemplates = usePizzaTemplates(choosePizza)
   function update(index: number, patch: Partial<Component>) {
     onChange({
       ...variant,
@@ -518,25 +575,17 @@ export function VariantEditor({
                 </option>
               ))}
             </Select>
-            <Num
-              label="Largeur finie (mm)"
-              value={c.width}
-              min={6}
-              onChange={(width) => update(index, { width })}
-            />
-            <Num
-              label="Hauteur finie (mm)"
-              value={c.height}
-              min={6}
-              onChange={(height) => update(index, { height })}
-            />
-            <Num
-              label="Fond perdu attendu (mm)"
-              value={c.bleed}
-              max={30}
-              onChange={(bleed) => update(index, { bleed })}
-            />
+            {!choosePizza && (
+              <ComponentDimensions component={c} onChange={(patch) => update(index, patch)} />
+            )}
           </div>
+          {choosePizza && (
+            <PizzaTemplatePicker
+              component={c}
+              source={pizzaTemplates}
+              onChange={(patch) => update(index, patch)}
+            />
+          )}
           <Num
             label="Pagination par multiple de"
             value={c.page_multiple || 1}
@@ -593,7 +642,7 @@ export function VariantEditor({
                 className="print-action-button print-action-button-remove"
                 type="button"
                 disabled={c.slots.length <= 1}
-                aria-label={`<Trash2 size={18} aria-hidden="true" /> Retirer l’emplacement ${slotIndex + 1}`}
+                aria-label={`Retirer l’emplacement ${slotIndex + 1}`}
                 onClick={() => update(index, { slots: c.slots.filter((_, i) => i !== slotIndex) })}
               >
                 <Trash2 size={18} aria-hidden="true" /> Retirer
@@ -645,11 +694,17 @@ export function VariantEditor({
                     }
                   />
                 </>
+              ) : g.tool === 'pizza' && c.pizza_template ? (
+                <p className="field-hint">Gabarit Pizza : {c.pizza_template.name}</p>
               ) : (
                 <div className="tool-fields">
                   {tools
                     .find((t) => t.id === g.tool)
-                    ?.fields.filter((f) => !['width', 'height', 'bleed'].includes(f.key))
+                    ?.fields.filter(
+                      (f) =>
+                        !['width', 'height', 'bleed'].includes(f.key) &&
+                        !(g.tool === 'pizza' && /^(width|height)_/.test(f.key)),
+                    )
                     .map((f) => {
                       const value = g.settings[f.key] ?? f.default
                       const change = (value: string | number) =>
@@ -685,6 +740,7 @@ export function VariantEditor({
                 variant="outline"
                 className="print-action-button print-action-button-remove"
                 type="button"
+                disabled={g.tool === 'pizza' && !!c.pizza_template}
                 onClick={() => update(index, { guides: c.guides.filter((_, i) => i !== gi) })}
               >
                 <Trash2 size={18} aria-hidden="true" /> Retirer ce tracé
@@ -714,6 +770,7 @@ export function VariantEditor({
             {Object.entries(guideNames)
               .filter(
                 ([id]) =>
+                  !(choosePizza && id === 'pizza') &&
                   !c.guides.some((g) => g.tool === id) &&
                   !(id === 'pizza' && c.guides.some((g) => g.tool === 'sushi')) &&
                   !(id === 'sushi' && c.guides.some((g) => g.tool === 'pizza')),
@@ -1079,6 +1136,7 @@ function CatalogManager({
                           </Button>
                         </div>
                         <VariantEditor
+                          choosePizza
                           variant={variant}
                           materials={draft.materials.filter((m) =>
                             product.material_ids.includes(m.id),
@@ -1672,6 +1730,34 @@ function PersonalProductSelector({
               .map((c) => `${c.name} : ${c.width} × ${c.height} mm`)
               .join(' · ')}
           </p>
+          {mode === 'catalog' &&
+            !customize &&
+            snapshot.variant.components.map(
+              (c, index) =>
+                c.pizza_template && (
+                  <div key={c.id} className="print-block">
+                    <h4>
+                      {c.name} — {c.pizza_template.name}
+                    </h4>
+                    <div className="tool-fields">
+                      <ComponentDimensions
+                        component={c}
+                        onChange={(patch) =>
+                          onChange({
+                            ...snapshot,
+                            variant: {
+                              ...snapshot.variant,
+                              components: snapshot.variant.components.map((item, i) =>
+                                i === index ? { ...item, ...patch } : item,
+                              ),
+                            },
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+                ),
+            )}
           {mode === 'catalog' && (
             <Checks
               title="Options du BAT"

@@ -501,6 +501,7 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            pizza_template?: components["schemas"]["PizzaTemplate"] | null;
             /**
              * Width
              * @default 85
@@ -714,6 +715,15 @@ export interface components {
             available_bleed: number;
             /** Trim */
             trim: number[];
+        };
+        /** PizzaTemplate */
+        PizzaTemplate: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Revision */
+            revision: number;
         };
         /** Placement */
         Placement: {

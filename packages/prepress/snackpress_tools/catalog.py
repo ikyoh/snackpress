@@ -84,11 +84,28 @@ class Pizza(Params):
     corner_radius: float = Field(default=0, ge=0, le=1000)
     width: float = Field(default=85, gt=0, le=2000)
     height: float = Field(default=55, gt=0, le=2000)
+    width_mode: Literal["fixed", "bounded"] = "fixed"
+    width_min: float = Field(default=0.1, gt=0, le=2000)
+    width_max: float = Field(default=2000, gt=0, le=2000)
+    height_mode: Literal["fixed", "bounded"] = "fixed"
+    height_min: float = Field(default=0.1, gt=0, le=2000)
+    height_max: float = Field(default=2000, gt=0, le=2000)
     bleed: float = Field(default=3, ge=0, le=30)
     safety: float = Field(default=4, ge=0, le=100)
 
     @model_validator(mode="after")
     def inside(self):
+        for axis, label in (("width", "largeur"), ("height", "hauteur")):
+            if axis == "height" and self.shape == "circle":
+                continue
+            if getattr(self, f"{axis}_mode") == "bounded":
+                low, high = getattr(self, f"{axis}_min"), getattr(self, f"{axis}_max")
+                if low > high:
+                    raise ValueError(
+                        f"La borne minimale de {label} doit être inférieure ou égale au maximum."
+                    )
+                if not low <= getattr(self, axis) <= high:
+                    raise ValueError(f"La {label} doit être comprise entre {low:g} et {high:g} mm.")
         if self.shape == "circle":
             self.height = self.width
         elif self.shape == "rectangle" and self.corner_radius * 2 > min(self.width, self.height):
@@ -372,7 +389,21 @@ DEFINITIONS = [
                     ("ellipse", "Ovale"),
                 ],
             ),
+            choice(
+                "width_mode",
+                "Réglage de la largeur",
+                [("fixed", "Valeur fixe"), ("bounded", "Entre min et max")],
+            ),
+            number("width_min", "Largeur minimale", 0.1, low=0.1),
+            number("width_max", "Largeur maximale", 2000, low=0.1),
             number("width", "Largeur finie", 85, low=0.1),
+            choice(
+                "height_mode",
+                "Réglage de la hauteur",
+                [("fixed", "Valeur fixe"), ("bounded", "Entre min et max")],
+            ),
+            number("height_min", "Hauteur minimale", 0.1, low=0.1),
+            number("height_max", "Hauteur maximale", 2000, low=0.1),
             number("height", "Hauteur finie", 55, low=0.1),
             number(
                 "corner_radius",

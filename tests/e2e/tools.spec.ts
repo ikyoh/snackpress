@@ -34,6 +34,44 @@ test('pizza : forme ronde et coins arrondis', async ({ page }) => {
   await expect(page.getByLabel('Hauteur finie', { exact: true })).toBeVisible()
 })
 
+test('pizza : dimensions fixes ou bornées', async ({ page }) => {
+  await page.goto('/?tool=pizza')
+  const width = page.getByLabel('Largeur finie', { exact: true })
+  await expect(page.getByLabel('Largeur minimale', { exact: true })).toHaveCount(0)
+  await page.getByLabel('Réglage de la largeur', { exact: true }).selectOption('bounded')
+  await page.getByLabel('Largeur minimale', { exact: true }).fill('50')
+  await page.getByLabel('Largeur maximale', { exact: true }).fill('100')
+  await width.fill('110')
+  expect(await width.evaluate((el: HTMLInputElement) => el.validity.rangeOverflow)).toBe(true)
+  await width.fill('70')
+  await page.getByLabel('Réglage de la hauteur', { exact: true }).selectOption('bounded')
+  await page.getByLabel('Hauteur minimale', { exact: true }).fill('40')
+  await page.getByLabel('Hauteur maximale', { exact: true }).fill('90')
+  await page.getByLabel('Hauteur finie', { exact: true }).fill('60')
+  await page.screenshot({ path: 'test-results/pizza-bounds-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/pizza-bounds-mobile.png', fullPage: true })
+  const response = page.waitForResponse((r) => r.url().includes('/api/tools/pizza/run'))
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
+  const result = await response
+  expect(result.status(), await result.text()).toBe(201)
+  const data = await result.json()
+  expect(data.metrics['Largeur finie (mm)']).toBe(70)
+  expect(data.metrics['Hauteur finie (mm)']).toBe(60)
+  await page.getByLabel('Forme', { exact: true }).selectOption('circle')
+  await expect(page.getByLabel('Réglage de la hauteur', { exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('Diamètre minimal', { exact: true })).toHaveValue('50')
+  await page.getByLabel('Réglage du diamètre', { exact: true }).selectOption('fixed')
+  await expect(page.getByLabel('Diamètre minimal', { exact: true })).toHaveCount(0)
+  await page.getByLabel('Diamètre fini', { exact: true }).fill('120')
+  expect(
+    await page
+      .getByLabel('Diamètre fini', { exact: true })
+      .evaluate((el: HTMLInputElement) => el.checkValidity()),
+  ).toBe(true)
+})
+
 for (const [id, name, needsFile] of tools) {
   test(`${name} : réglages, traitement, aperçu et téléchargement`, async ({ page }) => {
     const errors: string[] = []

@@ -32,6 +32,7 @@ import { PdfPreview } from './PdfPreview'
 import { LivePreview, useLivePreview } from './LivePreview'
 import { FortunePreview, FortuneSettings, newNumbering, type Numbering } from './FortuneEditor'
 import type { components } from '../../../packages/api-client/schema'
+import { pizzaField, visiblePizzaField } from './pizza'
 import './studio.css'
 
 type Tool = components['schemas']['ToolDefinition']
@@ -345,10 +346,7 @@ function Catalog({ tools }: { tools: Tool[] }) {
 }
 
 function visibleField(tool: string, field: string, values: Values) {
-  if (tool === 'pizza') {
-    if (values.shape === 'circle') return !['height', 'corner_radius'].includes(field)
-    if (values.shape === 'ellipse' && field === 'corner_radius') return false
-  }
+  if (tool === 'pizza') return visiblePizzaField(field, values)
   if (tool === 'club-sandwich') {
     if (['gsm', 'bulk'].includes(field)) return values.mode === 'bulk'
     if (field === 'caliper') return values.mode === 'caliper'
@@ -828,11 +826,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                     .map((field) => (
                       <Setting
                         key={field.key}
-                        field={
-                          tool.id === 'pizza' && values.shape === 'circle' && field.key === 'width'
-                            ? { ...field, label: 'Diamètre fini' }
-                            : field
-                        }
+                        field={tool.id === 'pizza' ? pizzaField(field, values) : field}
                         value={values[field.key] ?? field.default}
                         update={(value) => change(field.key, value)}
                         disabled={

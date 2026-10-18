@@ -1287,6 +1287,16 @@
             "minLength": 1,
             "title": "Name"
           },
+          "pizza_template": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PizzaTemplate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "width": {
             "type": "number",
             "maximum": 5000.0,
@@ -1794,6 +1804,36 @@
           "trim"
         ],
         "title": "PageInfo"
+      },
+      "PizzaTemplate": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9_-]+$",
+            "title": "Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Name"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "revision"
+        ],
+        "title": "PizzaTemplate"
       },
       "Placement": {
         "properties": {
