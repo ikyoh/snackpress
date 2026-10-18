@@ -39,6 +39,7 @@ test('pizza : dimensions fixes ou bornées', async ({ page }) => {
   await page.goto('/?tool=pizza')
   const width = page.getByLabel('Largeur finie', { exact: true })
   await expect(page.getByLabel('Largeur minimale', { exact: true })).toHaveCount(0)
+  await page.locator('.pizza-dimension-limits > summary').click()
   await page.getByLabel('Réglage de la largeur', { exact: true }).selectOption('bounded')
   await page.getByLabel('Largeur minimale', { exact: true }).fill('50')
   await page.getByLabel('Largeur maximale', { exact: true }).fill('100')
@@ -77,6 +78,7 @@ test('pizza : dimensions fixes ou bornées', async ({ page }) => {
 test('pizza : sécurité et zones inexploitables par côté', async ({ page }) => {
   await page.goto('/?tool=pizza')
   await page.getByRole('button', { name: 'Zone de sécurité', exact: true }).click()
+  await page.locator('[data-pizza-section=safety]').getByRole('checkbox').check()
   for (const [label, value] of [
     ['Sécurité — haut', '3'],
     ['Sécurité — bas', '5'],
@@ -87,13 +89,15 @@ test('pizza : sécurité et zones inexploitables par côté', async ({ page }) =
     ['Zone inexploitable — gauche', '5'],
     ['Zone inexploitable — droite', '2'],
   ]) {
-    if (label === 'Zone inexploitable — haut')
+    if (label === 'Zone inexploitable — haut') {
       await page.getByRole('button', { name: 'Zone inexploitable', exact: true }).click()
+      await page.locator('[data-pizza-section=unusable]').getByRole('checkbox').check()
+    }
     await page.getByLabel(label, { exact: true }).fill(value)
   }
   await expect(page.getByRole('button', { name: 'Zone de sécurité', exact: true })).toHaveAttribute(
     'aria-expanded',
-    'false',
+    'true',
   )
   await expect(
     page.getByRole('button', { name: 'Zone inexploitable', exact: true }),
@@ -124,10 +128,10 @@ test('pizza : réglages compacts, aperçu sticky et onglets mobiles', async ({ p
   const safety = page.getByRole('button', { name: 'Zone de sécurité', exact: true })
   await expect(format).toHaveAttribute('aria-expanded', 'true')
   await expect(safety).toHaveAttribute('aria-expanded', 'false')
-  await expect(page.getByLabel('Sécurité — haut', { exact: true })).toBeHidden()
+  await expect(page.getByLabel('Sécurité — tous les côtés', { exact: true })).toBeHidden()
   await safety.click()
+  await page.locator('[data-pizza-section=safety]').getByRole('checkbox').check()
   await page.getByLabel('Sécurité — haut', { exact: true }).fill('6')
-  await format.click()
   await expect(safety).toContainText('H 6')
   const width = page.getByLabel('Largeur finie', { exact: true })
   await width.fill('2500')

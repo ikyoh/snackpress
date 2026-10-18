@@ -14,8 +14,10 @@ for (const mobile of [false, true]) {
 
     // An unfinished value in another panel must not interrupt the current edit.
     await page.getByLabel('Largeur finie', { exact: true }).fill('2500')
+    await page.getByRole('button', { name: 'Format', exact: true }).click()
     const safety = page.getByRole('button', { name: 'Zone de sécurité', exact: true })
     await safety.click()
+    await page.locator('[data-pizza-section=safety]').getByRole('checkbox').check()
     const top = page.getByLabel('Sécurité — haut', { exact: true })
     await top.fill('6')
     await expect(live.getByRole('alert', { includeHidden: true })).toContainText(

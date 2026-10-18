@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { CSSProperties } from 'react'
+import type { CSSProperties, ReactNode } from 'react'
 import { FileText, LoaderCircle, Maximize, Minimize, Scan, ZoomIn, ZoomOut } from 'lucide-react'
 import type { PDFDocumentProxy, RenderTask } from 'pdfjs-dist'
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist'
@@ -69,11 +69,13 @@ export function PdfPreview({
   page: number,
   retainPrevious = false,
   scrollable = true,
+  overlay,
 }: {
   url: string
   page: number
   retainPrevious?: boolean
   scrollable?: boolean
+  overlay?: ReactNode
 }) {
   const viewer = useRef<HTMLDivElement>(null)
   const stage = useRef<HTMLDivElement>(null)
@@ -269,17 +271,20 @@ export function PdfPreview({
         aria-busy={!ready && !error}
       >
         <div className="pdf-paper-space">
-          <canvas
-            className="pdf-canvas"
-            ref={ref}
-            data-ready={ready}
-            aria-label={`Aperçu PDF, page ${number}`}
-            role="img"
-            style={{
-              visibility:
-                (ready || (retainPrevious && hasPainted)) && !error ? 'visible' : 'hidden',
-            }}
-          />
+          <div className="pdf-paper">
+            <canvas
+              className="pdf-canvas"
+              ref={ref}
+              data-ready={ready}
+              aria-label={`Aperçu PDF, page ${number}`}
+              role="img"
+              style={{
+                visibility:
+                  (ready || (retainPrevious && hasPainted)) && !error ? 'visible' : 'hidden',
+              }}
+            />
+            {ready && !error && overlay && <div className="pdf-overlay">{overlay}</div>}
+          </div>
         </div>
         {error ? (
           <div className="pdf-viewer-state pdf-viewer-error" role="alert">

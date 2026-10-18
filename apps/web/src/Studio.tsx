@@ -32,8 +32,9 @@ import { PdfPreview } from './PdfPreview'
 import { LivePreview, useLivePreview } from './LivePreview'
 import { FortunePreview, FortuneSettings, newNumbering, type Numbering } from './FortuneEditor'
 import type { components } from '../../../packages/api-client/schema'
-import { pizzaField, pizzaValue, visiblePizzaField } from './pizza'
+import { pizzaErrors, pizzaValue, visiblePizzaField } from './pizza'
 import { PizzaSettings } from './PizzaSettings'
+import { PizzaHighlight, pizzaFocusLabel } from './PizzaHighlight'
 import { ToolSettings } from './ToolSettings'
 import { SettingsSection } from './SettingsSection'
 import './studio.css'
@@ -370,19 +371,28 @@ function Setting({
   update,
   disabled,
   displayLabel,
+  validationError,
+  required = false,
 }: {
   field: ToolField
   value: string | number
   update: (value: string | number) => void
   disabled?: boolean
   displayLabel?: string
+  validationError?: string
+  required?: boolean
 }) {
   const id = useId()
+  const inputRef = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    inputRef.current?.setCustomValidity(validationError ?? '')
+  }, [validationError])
   const labelProps = {
     id,
     'aria-labelledby': displayLabel ? undefined : `${id}-label`,
     'aria-label': displayLabel ? field.label : undefined,
-    'aria-describedby': `${id}-help`,
+    'aria-describedby': `${id}-help${validationError ? ` ${id}-error` : ''}`,
+    'aria-invalid': validationError ? true : undefined,
   }
   return (
     <label
@@ -407,6 +417,8 @@ function Setting({
         <span className="input-wrap">
           <input
             {...labelProps}
+            ref={inputRef}
+            required={required}
             type="number"
             min={field.min ?? undefined}
             max={field.max ?? undefined}
@@ -423,6 +435,11 @@ function Setting({
       <small id={`${id}-help`} className={field.help ? 'field-hint' : 'sr-only'}>
         {[field.unit, field.help].filter(Boolean).join(' · ')}
       </small>
+      {validationError && (
+        <small id={`${id}-error`} className="field-error">
+          {validationError}
+        </small>
+      )}
     </label>
   )
 }
@@ -431,7 +448,9 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
   const [values, setValues] = useState<Values>(() =>
     Object.fromEntries(tool.fields.map((f) => [f.key, f.default])),
   )
-  const [pizzaSection, setPizzaSection] = useState('format')
+  const [pizzaSections, setPizzaSections] = useState(['format'])
+  const [pizzaFocus, setPizzaFocus] = useState('')
+  const pizzaValidation = tool.id === 'pizza' ? pizzaErrors(tool.fields, values) : {}
   const [mobileView, setMobileView] = useState<'settings' | 'preview'>('settings')
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 760px)').matches)
   const workspaceId = useId()
@@ -506,8 +525,14 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
     available: ready,
     paused: busy || !!result,
     // Preview validation must not fire invalid events that reveal panels or move focus.
-    valid: () => formRef.current?.matches(':valid') ?? false,
+    valid: () =>
+      Object.keys(pizzaValidation).length === 0 && (formRef.current?.matches(':valid') ?? false),
   })
+  function changePizza(patch: Values) {
+    setValues((old) => ({ ...old, ...patch }))
+    setResult(null)
+    setError('')
+  }
   function change(key: string, value: string | number) {
     setValues((old) => {
       const next = { ...old, [key]: value }
@@ -710,6 +735,14 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
           hidden={isMobile && mobileView !== 'settings'}
           onInvalidCapture={(event) => {
             const input = event.target as HTMLInputElement
+            if (tool.id === 'pizza') {
+              // Reveal only the first invalid field on submission, without jumping between panels.
+              const first = formRef.current?.querySelector(':invalid:not(fieldset)')
+              if (first && first !== input) {
+                event.preventDefault()
+                return
+              }
+            }
             const section = input.closest<HTMLElement>('[data-pizza-section]')?.dataset.pizzaSection
             let reveal = isMobile && mobileView !== 'settings'
             for (
@@ -722,8 +755,8 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                 reveal = true
               }
             }
-            if (section && section !== pizzaSection) {
-              setPizzaSection(section)
+            if (section && !pizzaSections.includes(section)) {
+              setPizzaSections((old) => (old.includes(section) ? old : [...old, section]))
               reveal = true
             }
             if (reveal) {
@@ -908,14 +941,19 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   <PizzaSettings
                     fields={tool.fields}
                     values={values}
-                    section={pizzaSection}
-                    onSectionChange={setPizzaSection}
-                    renderField={(field, displayLabel) => (
+                    sections={pizzaSections}
+                    onSectionsChange={setPizzaSections}
+                    onChange={changePizza}
+                    onFocusField={setPizzaFocus}
+                    errors={pizzaValidation}
+                    renderField={(field, options) => (
                       <Setting
-                        field={pizzaField(field, values)}
-                        displayLabel={displayLabel}
-                        value={pizzaValue(field, values)}
-                        update={(value) => change(field.key, value)}
+                        field={field}
+                        displayLabel={options.displayLabel}
+                        value={options.value ?? pizzaValue(field, values)}
+                        update={options.update ?? ((value) => change(field.key, value))}
+                        validationError={options.error}
+                        required
                       />
                     )}
                   />
@@ -1023,7 +1061,17 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   />
                 </details>
               )}
-              <LivePreview state={livePreview} scrollable={false} />
+              <LivePreview
+                state={livePreview}
+                scrollable={false}
+                pdfOverlay={
+                  tool.id === 'pizza' && pizzaFocus ? (
+                    <PizzaHighlight values={values} field={pizzaFocus} />
+                  ) : undefined
+                }
+                overlayLabel={pizzaFocusLabel(pizzaFocus, values)}
+                overlayArtifact="gabarit.pdf"
+              />
             </>
           ) : (
             <>

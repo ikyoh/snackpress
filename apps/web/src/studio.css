@@ -1090,11 +1090,76 @@
 .pizza-setting-number {
   grid-column: auto;
 }
+.pizza-setting-common {
+  grid-column: 1 / -1;
+}
 .pizza-setting .tool-field {
   margin: 0;
 }
+.pizza-setting .field-error {
+  color: #9b2446;
+  font-size: var(--text-caption);
+  line-height: 1.5;
+}
+.pizza-setting [aria-invalid='true'] {
+  border-color: #b22e53;
+}
+.pizza-side-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin: 0 0 14px;
+  color: #633774;
+  font-size: var(--text-small);
+  font-weight: 750;
+  cursor: pointer;
+}
+.pizza-side-toggle input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  accent-color: #733791;
+}
+.pizza-side-toggle + .field-hint {
+  margin: -6px 0 16px;
+}
+.pizza-dimension-limits {
+  margin-top: 18px;
+}
+.pizza-dimension-limits > summary {
+  min-height: 44px;
+  padding-block: 10px;
+  color: #633774;
+  font-weight: 800;
+  cursor: pointer;
+}
+.pizza-dimension-limits .field-hint {
+  margin: 0 0 14px;
+}
+.pizza-highlight {
+  display: block;
+  width: 100%;
+  height: 100%;
+  color: #792bc4;
+}
+.pizza-highlight-line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+.pizza-highlight-line :is(rect, ellipse, line, path) {
+  vector-effect: non-scaling-stroke;
+}
+.pdf-overlay-label {
+  margin: 0;
+  padding: 10px 16px;
+  color: #633774;
+  font-size: var(--text-small);
+  background: #f5ecfb;
+}
 .tool-controls .compact-configurations {
-  padding: 20px;
+  padding: 0;
   border-bottom: 1px solid #ead9ee;
 }
 .compact-configurations .configuration-management {

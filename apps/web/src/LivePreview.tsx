@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { ChevronLeft, ChevronRight, LoaderCircle } from 'lucide-react'
 import { ApiError, post, request } from './api'
 import { PdfPreview } from './PdfPreview'
@@ -142,16 +142,23 @@ export function LivePreview({
   pageNumber,
   onPageChange,
   scrollable = true,
+  pdfOverlay,
+  overlayLabel,
+  overlayArtifact,
 }: {
   state: ReturnType<typeof useLivePreview>
   pageNumber?: number
   onPageChange?: (page: number) => void
   scrollable?: boolean
+  pdfOverlay?: ReactNode
+  overlayLabel?: string
+  overlayArtifact?: string
 }) {
   const { preview, updating, error, stale } = state
   const [artifactName, setArtifactName] = useState('')
   const [page, setPage] = useState(1)
   const selected = preview?.artifacts.find((a) => a.name === artifactName) || preview?.artifacts[0]
+  const showOverlay = !!pdfOverlay && selected?.name === overlayArtifact && !stale && !updating
   const currentPage = Math.min(pageNumber ?? page, selected?.pages || 1)
   const changePage = (next: number) => {
     setPage(next)
@@ -234,9 +241,17 @@ export function LivePreview({
               </div>
             )}
           </div>
+          {showOverlay && overlayLabel && (
+            <p className="pdf-overlay-label">Surlignage de lecture : {overlayLabel}</p>
+          )}
           <div className="artifact-stage">
             {selected.media_type === 'application/pdf' ? (
-              <PdfPreview url={url} page={currentPage} scrollable={scrollable} />
+              <PdfPreview
+                url={url}
+                page={currentPage}
+                scrollable={scrollable}
+                overlay={showOverlay ? pdfOverlay : undefined}
+              />
             ) : (
               <img src={url} alt={selected.label} />
             )}

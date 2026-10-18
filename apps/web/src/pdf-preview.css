@@ -110,6 +110,15 @@
     0 8px 24px #43285224,
     0 2px 5px #43285212;
 }
+.pdf-paper {
+  position: relative;
+  flex: none;
+}
+.pdf-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
 .pdf-viewer-state {
   position: absolute;
   inset: 0;
