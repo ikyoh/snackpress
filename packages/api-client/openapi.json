@@ -75,6 +75,43 @@
         }
       }
     },
+    "/api/tools/burger/example": {
+      "post": {
+        "summary": "Burger Example",
+        "operationId": "burger_example_api_tools_burger_example_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_burger_example_api_tools_burger_example_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tool-jobs/{job_id}": {
       "get": {
         "summary": "Get Tool Result",
@@ -1182,6 +1219,26 @@
           "media_type"
         ],
         "title": "Artifact"
+      },
+      "Body_burger_example_api_tools_burger_example_post": {
+        "properties": {
+          "settings": {
+            "type": "string",
+            "title": "Settings",
+            "default": "{}"
+          },
+          "files": {
+            "items": {
+              "type": "string",
+              "contentMediaType": "application/octet-stream"
+            },
+            "type": "array",
+            "title": "Files",
+            "default": []
+          }
+        },
+        "type": "object",
+        "title": "Body_burger_example_api_tools_burger_example_post"
       },
       "Body_create_preview_api_tools__tool_id__previews_post": {
         "properties": {

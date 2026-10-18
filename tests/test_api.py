@@ -1,4 +1,5 @@
 import importlib
+import json
 from datetime import datetime, timedelta
 
 import pytest
@@ -90,6 +91,39 @@ def test_tools_catalog_validation_generation_and_delete(api):
         == 422
     )
     assert client.post("/api/tools/tiramisu/run").status_code == 422
+
+
+def test_burger_example_matches_current_template_and_can_be_loaded(api):
+    client, module = api
+    settings = json.dumps(
+        {"template_tool": "taco", "template_settings": {"width": 420, "height": 180}}
+    )
+    response = client.post("/api/tools/burger/example", data={"settings": settings})
+    assert response.status_code == 201, response.text
+    example = response.json()
+    url = f"/api/tool-jobs/{example['id']}"
+    files = [
+        ("files", (a["name"], client.get(f"{url}/files/{a['name']}").content))
+        for a in example["artifacts"]
+    ]
+    proof = client.post("/api/tools/burger/run", data={"settings": settings}, files=files)
+    assert proof.status_code == 201, proof.text
+    assert proof.json()["metrics"]["Faces"] == 2
+    assert client.delete(url).status_code == 204
+    assert not (module.DATA / example["id"]).exists()
+    assert (
+        client.post(
+            "/api/tools/burger/example", data={"settings": '{"template_tool":"pdf"}'}
+        ).status_code
+        == 422
+    )
+    assert (
+        client.post(
+            "/api/tools/burger/example",
+            data={"settings": '{"template_tool":"taco","template_settings":{"width":0}}'},
+        ).status_code
+        == 422
+    )
 
 
 def test_tools_pdf_processing_and_failed_import_cleanup(api, source):

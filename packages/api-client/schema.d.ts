@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/tools/burger/example": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Burger Example */
+        post: operations["burger_example_api_tools_burger_example_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/tool-jobs/{job_id}": {
         parameters: {
             query?: never;
@@ -454,6 +471,19 @@ export interface components {
             media_type: string;
             /** Pages */
             pages?: number | null;
+        };
+        /** Body_burger_example_api_tools_burger_example_post */
+        Body_burger_example_api_tools_burger_example_post: {
+            /**
+             * Settings
+             * @default {}
+             */
+            settings: string;
+            /**
+             * Files
+             * @default []
+             */
+            files: string[];
         };
         /** Body_create_preview_api_tools__tool_id__previews_post */
         Body_create_preview_api_tools__tool_id__previews_post: {
@@ -1190,6 +1220,39 @@ export interface operations {
         requestBody?: {
             content: {
                 "multipart/form-data": components["schemas"]["Body_run_tool_api_tools__tool_id__run_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ToolResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    burger_example_api_tools_burger_example_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_burger_example_api_tools_burger_example_post"];
             };
         };
         responses: {

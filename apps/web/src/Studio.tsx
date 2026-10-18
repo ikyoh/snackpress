@@ -572,6 +572,37 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
     setError('')
     setBusy(true)
     try {
+      if (tool.id === 'burger') {
+        const data = new FormData()
+        data.append('settings', JSON.stringify(settings))
+        if (burger.template_tool === 'pdf') {
+          const template = files[burgerRoles.length - 1]
+          if (!template)
+            throw new Error('Importez le gabarit PDF avant de charger un exemple à son format.')
+          data.append('files', template)
+        }
+        const generated = await request<Result>('/api/tools/burger/example', {
+          method: 'POST',
+          body: data,
+        })
+        try {
+          const demo = await Promise.all(
+            generated.artifacts.map(async (artifact) => {
+              const response = await fetch(
+                `/api/tool-jobs/${generated.id}/files/${encodeURIComponent(artifact.name)}`,
+              )
+              if (!response.ok) throw new Error('Exemple indisponible. Réessayez.')
+              return new File([await response.blob()], artifact.name, { type: artifact.media_type })
+            }),
+          )
+          setFiles(demo)
+          setResult(null)
+        } finally {
+          // The files now live in the browser; release the temporary example job.
+          await request(`/api/tool-jobs/${generated.id}`, { method: 'DELETE' }).catch(() => {})
+        }
+        return
+      }
       const name =
         tool.id === 'layer-cake' && values.mode === 'booklet'
           ? 'exemple-livret.pdf'
@@ -901,6 +932,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                       <button
                         type="button"
                         className="example-button"
+                        disabled={busy}
                         onClick={() => void example()}
                       >
                         Charger un exemple <ArrowRight size={13} />

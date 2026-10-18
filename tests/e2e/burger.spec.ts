@@ -39,3 +39,39 @@ test('Burger : couverture et intérieur peuvent être répartis en plusieurs fic
   await expect(page.getByRole('listitem').filter({ hasText: 'Couverture' })).toHaveCount(4)
   await expect(page.getByRole('listitem').filter({ hasText: 'Intérieur' })).toHaveCount(1)
 })
+
+test('Burger : charger un exemple reprend le gabarit et les fichiers attendus', async ({
+  page,
+}) => {
+  test.setTimeout(60_000)
+  await page.goto('/?tool=burger')
+  await page.getByLabel('Type de document').selectOption('card')
+  await openSettings(page, 'Finitions et fichiers séparés')
+  await page.getByRole('button', { name: 'Ajouter une finition' }).click()
+  await page.getByLabel('Finition 1', { exact: true }).fill('Vernis')
+  await openSettings(page, 'Gabarit')
+  await page.getByLabel('Gabarit à superposer').selectOption('taco')
+  await page.getByLabel('Largeur à plat', { exact: true }).fill('420')
+  await page.getByLabel('Hauteur à plat', { exact: true }).fill('180')
+  const exampleResponse = page.waitForResponse((r) => r.url().endsWith('/api/tools/burger/example'))
+  await page.getByRole('button', { name: 'Charger un exemple' }).click()
+  const example = await exampleResponse
+  expect(example.status(), await example.text()).toBe(201)
+  const exampleId = (await example.json()).id
+  await expect(page.locator('.tool-upload-section .tool-file')).toHaveCount(3)
+  await expect(page.locator('.tool-file').filter({ hasText: 'Recto' })).toBeVisible()
+  await expect(page.locator('.tool-file').filter({ hasText: 'Verso' })).toBeVisible()
+  await expect(page.locator('.tool-file').filter({ hasText: 'Finition : Vernis' })).toBeVisible()
+  const generate = page.getByRole('button', { name: 'Générer le fichier final', exact: true })
+  await expect(generate).toBeEnabled()
+  const resultResponse = page.waitForResponse((r) => r.url().endsWith('/api/tools/burger/run'))
+  await generate.click()
+  const result = await resultResponse
+  expect(result.status(), await result.text()).toBe(201)
+  const data = await result.json()
+  expect(data.metrics.Faces).toBe(2)
+  expect(data.metrics.Finitions).toBe(1)
+  await expect(page.locator('canvas[data-ready=true]')).toBeVisible()
+  const removed = await page.request.get(`/api/tool-jobs/${exampleId}`)
+  expect(removed.status()).toBe(404)
+})

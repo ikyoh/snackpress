@@ -32,7 +32,7 @@ Le gabarit Burger peut reprendre les réglages et configurations personnelles de
 - Sources et résultats stockés dans le répertoire privé `.data`, purge au démarrage puis chaque minute après 24 heures. Suppression immédiate d’un résultat depuis son écran.
 - Usage local individuel ; les identifiants aléatoires de travaux ne remplacent pas une authentification pour un déploiement public.
 
-Les exemples fournis sont synthétiques : carte recto verso, version modifiée, fond d’une page et livret de huit pages. Aucun fichier client n’est inclus.
+Les exemples fournis sont synthétiques : carte recto verso, version modifiée, fond d’une page et livret de huit pages. Dans Burger, « Charger un exemple » génère les fichiers visuels et de finition attendus au format du gabarit paramétré, y compris ses fonds perdus ou son fourreau. Les marges techniques de Taco et Sushi restent hors du visuel. Un gabarit PDF importé est conservé. Aucun fichier client n’est inclus dans les exemples générés.
 
 ## Validation avant production
 

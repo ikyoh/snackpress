@@ -64,11 +64,20 @@ async def stage_files(folder, files, tool_id):
 async def run_tool(
     tool_id: str, settings: str = Form("{}"), files: list[UploadFile] = File(default=[])
 ):
+    return await process_tool(tool_id, settings, files)
+
+
+@router.post("/api/tools/burger/example", response_model=ToolResult, status_code=201)
+async def burger_example(settings: str = Form("{}"), files: list[UploadFile] = File(default=[])):
+    return await process_tool("burger", settings, files, example=True)
+
+
+async def process_tool(tool_id, settings, files, *, example=False):
     svc = service()
     if tool_id not in CATALOG:
         raise HTTPException(404, "Outil inconnu.")
     definition = CATALOG[tool_id]
-    if not definition.min_files <= len(files) <= definition.max_files:
+    if not example and not definition.min_files <= len(files) <= definition.max_files:
         raise HTTPException(
             422, f"Importez de {definition.min_files} à {definition.max_files} fichier(s)."
         )
@@ -76,6 +85,10 @@ async def run_tool(
         params = MODELS[tool_id].model_validate_json(settings)
     except ValidationError as exc:
         raise HTTPException(422, "; ".join(e["msg"] for e in exc.errors())) from exc
+    if example and len(files) != int(params.template_tool == "pdf"):
+        raise HTTPException(
+            422, "Importez le gabarit PDF avant de charger un exemple à son format."
+        )
     svc.purge()
     if sum(p.is_dir() and p.name != "mail-outbox" for p in svc.DATA.iterdir()) >= 100:
         raise HTTPException(429, "Limite de 100 travaux atteinte. Supprimez des travaux.")
@@ -88,7 +101,9 @@ async def run_tool(
         (folder / "tool-request.json").write_text(
             json.dumps({"tool": tool_id, "files": inputs, "settings": params.model_dump()})
         )
-        response = ToolResult.model_validate(await svc.worker("tools", folder))
+        response = ToolResult.model_validate(
+            await svc.worker("tool-example" if example else "tools", folder)
+        )
         response.id = job_id
         (folder / "result.json").write_text(response.model_dump_json(indent=2))
         with Session(svc.engine) as db:
