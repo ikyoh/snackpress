@@ -1,10 +1,13 @@
+import { openSettings } from './settings'
 import { test, expect } from '@playwright/test'
 
 test('Burger : fichiers attendus, finition séparée et repères Pizza', async ({ page }) => {
   await page.goto('/?tool=burger')
   await page.getByLabel('Nombre de fichiers visuels attendus').fill('2')
+  await openSettings(page, 'Finitions et fichiers séparés')
   await page.getByRole('button', { name: 'Ajouter une finition' }).click()
   await page.getByLabel('Finition 1', { exact: true }).fill('Dorure')
+  await openSettings(page, 'Gabarit')
   await page.getByLabel('Gabarit à superposer').selectOption('pizza')
   await page
     .getByLabel('Choisir les fichiers')

@@ -141,10 +141,12 @@ export function LivePreview({
   state,
   pageNumber,
   onPageChange,
+  scrollable = true,
 }: {
   state: ReturnType<typeof useLivePreview>
   pageNumber?: number
   onPageChange?: (page: number) => void
+  scrollable?: boolean
 }) {
   const { preview, updating, error, stale } = state
   const [artifactName, setArtifactName] = useState('')
@@ -234,7 +236,7 @@ export function LivePreview({
           </div>
           <div className="artifact-stage">
             {selected.media_type === 'application/pdf' ? (
-              <PdfPreview url={url} page={currentPage} />
+              <PdfPreview url={url} page={currentPage} scrollable={scrollable} />
             ) : (
               <img src={url} alt={selected.label} />
             )}

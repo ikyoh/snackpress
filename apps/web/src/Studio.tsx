@@ -34,6 +34,8 @@ import { FortunePreview, FortuneSettings, newNumbering, type Numbering } from '.
 import type { components } from '../../../packages/api-client/schema'
 import { pizzaField, pizzaValue, visiblePizzaField } from './pizza'
 import { PizzaSettings } from './PizzaSettings'
+import { ToolSettings } from './ToolSettings'
+import { SettingsSection } from './SettingsSection'
 import './studio.css'
 
 type Tool = components['schemas']['ToolDefinition']
@@ -582,7 +584,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
         body: data,
       })
       setResult(response)
-      if (tool.id === 'pizza') setMobileView('preview')
+      setMobileView('preview')
       setActiveArtifact(
         response.artifacts?.find((a) => ['application/pdf', 'image/png'].includes(a.media_type))
           ?.name || '',
@@ -663,7 +665,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
           </button>
         </div>
       )}
-      {tool.id === 'pizza' && (
+      {
         <div className="workspace-view-tabs" role="tablist" aria-label="Vue de l’atelier">
           {(['settings', 'preview'] as const).map((view) => (
             <button
@@ -695,25 +697,36 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
             </button>
           ))}
         </div>
-      )}
-      <div className={`tool-workspace${tool.id === 'pizza' ? ' compact-workspace' : ''}`}>
+      }
+      <div className="tool-workspace compact-workspace">
         <form
           className="tool-controls"
           onSubmit={run}
           ref={formRef}
           id={`${workspaceId}-settings`}
-          role={tool.id === 'pizza' && isMobile ? 'tabpanel' : undefined}
-          aria-labelledby={
-            tool.id === 'pizza' && isMobile ? `${workspaceId}-settings-tab` : undefined
-          }
-          hidden={tool.id === 'pizza' && isMobile && mobileView !== 'settings'}
+          role={isMobile ? 'tabpanel' : undefined}
+          aria-labelledby={isMobile ? `${workspaceId}-settings-tab` : undefined}
+          hidden={isMobile && mobileView !== 'settings'}
           onInvalidCapture={(event) => {
-            if (tool.id !== 'pizza') return
             const input = event.target as HTMLInputElement
             const section = input.closest<HTMLElement>('[data-pizza-section]')?.dataset.pizzaSection
-            if (section && (section !== pizzaSection || mobileView !== 'settings')) {
-              event.preventDefault()
+            let reveal = isMobile && mobileView !== 'settings'
+            for (
+              let element: HTMLElement | null = input.parentElement;
+              element && element !== formRef.current;
+              element = element.parentElement
+            ) {
+              if (element instanceof HTMLDetailsElement && !element.open) {
+                element.open = true
+                reveal = true
+              }
+            }
+            if (section && section !== pizzaSection) {
               setPizzaSection(section)
+              reveal = true
+            }
+            if (reveal) {
+              event.preventDefault()
               setMobileView('settings')
               setError(input.validationMessage)
               requestAnimationFrame(() => {
@@ -861,7 +874,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   </section>
                 )}
                 <Configurations
-                  compact={tool.id === 'pizza'}
+                  compact
                   toolId={tool.id}
                   settings={settings}
                   onLoad={(saved) => {
@@ -907,45 +920,42 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   />
                 )}
                 {tool.id !== 'pizza' && tool.fields.length > 0 && (
-                  <section className="tool-settings-section">
-                    <h2>
-                      <span className="section-number">{tool.max_files > 0 ? '02' : '01'}</span>Les
-                      réglages
-                    </h2>
-                    <div className="tool-fields">
-                      {tool.fields
-                        .filter(
-                          (f) =>
-                            visibleField(tool.id, f.key, values) &&
-                            !(
-                              tool.id === 'burger' &&
-                              burger.source_mode !== 'classic' &&
-                              f.key === 'paper'
-                            ),
-                        )
-                        .map((field) => (
-                          <Setting
-                            key={field.key}
-                            field={field}
-                            value={values[field.key] ?? field.default}
-                            update={(value) => change(field.key, value)}
-                            disabled={
-                              tool.id === 'sushi' &&
-                              values.shape === 'circle' &&
-                              field.key === 'height'
-                            }
-                          />
-                        ))}
-                    </div>
-                  </section>
+                  <ToolSettings
+                    toolId={tool.id}
+                    fields={tool.fields.filter(
+                      (field) =>
+                        visibleField(tool.id, field.key, values) &&
+                        !(
+                          tool.id === 'burger' &&
+                          burger.source_mode !== 'classic' &&
+                          field.key === 'paper'
+                        ),
+                    )}
+                    values={values}
+                    renderField={(field) => (
+                      <Setting
+                        field={field}
+                        value={values[field.key] ?? field.default}
+                        update={(value) => change(field.key, value)}
+                        disabled={
+                          tool.id === 'sushi' && values.shape === 'circle' && field.key === 'height'
+                        }
+                      />
+                    )}
+                  />
                 )}
                 {tool.id === 'fortune-cookie' && (
-                  <FortuneSettings
-                    items={numberings}
-                    width={Number(values.width)}
-                    height={Number(values.height)}
-                    onChange={changeNumberings}
-                  />
+                  <SettingsSection
+                    title="Positions des numéros"
+                    summary={`${numberings.length} position(s)`}
+                  >
+                    <FortuneSettings
+                      items={numberings}
+                      width={Number(values.width)}
+                      height={Number(values.height)}
+                      onChange={changeNumberings}
+                    />
+                  </SettingsSection>
                 )}
                 {tool.id === 'layer-cake' && (
                   <a className="advanced-workshop" href={toolUrl('imposition')}>
@@ -979,11 +989,9 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
           aria-label="Résultat du traitement"
           aria-busy={busy}
           id={`${workspaceId}-preview`}
-          role={tool.id === 'pizza' && isMobile ? 'tabpanel' : undefined}
-          aria-labelledby={
-            tool.id === 'pizza' && isMobile ? `${workspaceId}-preview-tab` : undefined
-          }
-          hidden={tool.id === 'pizza' && isMobile && mobileView !== 'preview'}
+          role={isMobile ? 'tabpanel' : undefined}
+          aria-labelledby={isMobile ? `${workspaceId}-preview-tab` : undefined}
+          hidden={isMobile && mobileView !== 'preview'}
         >
           <div className="tool-result-header">
             <span>{result ? 'Votre résultat' : 'L’aperçu'}</span>
@@ -1014,7 +1022,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   />
                 </details>
               )}
-              <LivePreview state={livePreview} />
+              <LivePreview state={livePreview} scrollable={false} />
             </>
           ) : (
             <>
@@ -1080,7 +1088,11 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   </div>
                   <div className="artifact-stage">
                     {selected?.media_type === 'application/pdf' ? (
-                      <PdfPreview url={assetUrl(result.id, activeArtifact)} page={page} />
+                      <PdfPreview
+                        url={assetUrl(result.id, activeArtifact)}
+                        page={page}
+                        scrollable={false}
+                      />
                     ) : selected?.media_type === 'image/png' ? (
                       <img src={assetUrl(result.id, activeArtifact)} alt={selected.label} />
                     ) : null}

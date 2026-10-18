@@ -68,10 +68,12 @@ export function PdfPreview({
   url,
   page: number,
   retainPrevious = false,
+  scrollable = true,
 }: {
   url: string
   page: number
   retainPrevious?: boolean
+  scrollable?: boolean
 }) {
   const viewer = useRef<HTMLDivElement>(null)
   const stage = useRef<HTMLDivElement>(null)
@@ -143,7 +145,7 @@ export function PdfPreview({
           (bounds.width - 48) / natural.width,
           (bounds.height - 48) / natural.height,
         )
-        const scale = Math.max(0.05, fit) * zoom
+        const scale = Math.max(scrollable || expanded ? 0.05 : 0.0001, fit) * zoom
         // Render offscreen: rapid page changes never paint over the active page.
         const canvas = document.createElement('canvas')
         const density = Math.min(Math.max(window.devicePixelRatio || 1, 2), 3)
@@ -176,7 +178,7 @@ export function PdfPreview({
       disposed = true
       render?.cancel()
     }
-  }, [pdf, number, bounds, zoom])
+  }, [pdf, number, bounds, zoom, scrollable, expanded])
 
   async function toggleFullscreen() {
     setFullscreenError('')
@@ -188,10 +190,14 @@ export function PdfPreview({
     }
   }
 
+  useEffect(() => {
+    if (!scrollable && !expanded) setZoom(1)
+  }, [scrollable, expanded])
+
   const mm = (value: number) => value.toLocaleString('fr-FR', { maximumFractionDigits: 1 })
   return (
     <div
-      className="pdf-viewer"
+      className={`pdf-viewer${scrollable ? '' : ' pdf-viewer-fit'}`}
       ref={viewer}
       style={
         {
@@ -204,28 +210,32 @@ export function PdfPreview({
           <FileText size={16} /> Aperçu PDF
         </span>
         <div className="pdf-viewer-actions">
-          <button
-            type="button"
-            aria-label="Réduire le zoom"
-            title="Réduire le zoom"
-            disabled={!pdf || zoom <= 0.5}
-            onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
-          >
-            <ZoomOut size={17} />
-          </button>
-          <output className="pdf-zoom" aria-label="Zoom de l’aperçu">
-            {Math.round(zoom * 100)} %
-          </output>
-          <button
-            type="button"
-            aria-label="Agrandir le zoom"
-            title="Agrandir le zoom"
-            disabled={!pdf || zoom >= 3}
-            onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
-          >
-            <ZoomIn size={17} />
-          </button>
-          <span className="pdf-toolbar-separator" />
+          {(scrollable || expanded) && (
+            <>
+              <button
+                type="button"
+                aria-label="Réduire le zoom"
+                title="Réduire le zoom"
+                disabled={!pdf || zoom <= 0.5}
+                onClick={() => setZoom((z) => Math.max(0.5, z - 0.25))}
+              >
+                <ZoomOut size={17} />
+              </button>
+              <output className="pdf-zoom" aria-label="Zoom de l’aperçu">
+                {Math.round(zoom * 100)} %
+              </output>
+              <button
+                type="button"
+                aria-label="Agrandir le zoom"
+                title="Agrandir le zoom"
+                disabled={!pdf || zoom >= 3}
+                onClick={() => setZoom((z) => Math.min(3, z + 0.25))}
+              >
+                <ZoomIn size={17} />
+              </button>
+              <span className="pdf-toolbar-separator" />
+            </>
+          )}
           <button
             type="button"
             aria-label="Ajuster à l’écran"
@@ -251,7 +261,11 @@ export function PdfPreview({
         ref={stage}
         tabIndex={0}
         role="region"
-        aria-label="Document PDF, zone de défilement"
+        aria-label={
+          scrollable || expanded
+            ? 'Document PDF, zone de défilement'
+            : 'Document PDF ajusté à l’écran'
+        }
         aria-busy={!ready && !error}
       >
         <div className="pdf-paper-space">

@@ -1,3 +1,4 @@
+import { openSettings } from './settings'
 import { test, expect } from '@playwright/test'
 
 const tools = [
@@ -144,7 +145,11 @@ test('pizza : réglages compacts, aperçu sticky et onglets mobiles', async ({ p
   await expect(preview).toHaveCSS('position', 'sticky')
   const before = await preview.boundingBox()
   expect(before!.y).toBeGreaterThanOrEqual(23)
-  expect(before!.y + before!.height).toBeLessThanOrEqual(900)
+  await expect(preview).toHaveCSS('overflow-y', 'clip')
+  await expect(page.locator('.pdf-viewport')).toHaveCSS('overflow-y', 'clip')
+  expect(
+    await page.locator('.pdf-viewport').evaluate((el) => el.scrollHeight <= el.clientHeight + 1),
+  ).toBe(true)
   await page.locator('.tool-controls-scroll').evaluate((el) => {
     el.scrollTop = el.scrollHeight
   })
@@ -176,9 +181,14 @@ for (const [id, name, needsFile] of tools) {
     await page.goto(`/?tool=${id}`)
     await expect(page.getByRole('heading', { name: `${name}.`, exact: true })).toBeVisible()
     if (needsFile) await page.getByRole('button', { name: 'Charger un exemple' }).click()
-    if (id === 'fortune-cookie') await page.getByLabel('Nombre d’exemplaires').fill('3')
-    if (id === 'sushi')
+    if (id === 'fortune-cookie') {
+      await openSettings(page, 'Numérotation')
+      await page.getByLabel('Nombre d’exemplaires').fill('3')
+    }
+    if (id === 'sushi') {
+      await openSettings(page, 'Tracés et tons directs')
       await page.getByLabel('Rainages verticaux depuis le bord gauche').fill('20,60')
+    }
     await expect(page.locator('.tool-controls input:invalid')).toHaveCount(0)
     const response = page.waitForResponse((r) => r.url().includes(`/api/tools/${id}/run`))
     await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
@@ -203,6 +213,22 @@ for (const [id, name, needsFile] of tools) {
   })
 }
 
+test('aperçu PDF : grand format entièrement ajusté sans défilement', async ({ page }) => {
+  await page.goto('/?tool=burrito')
+  await page.getByLabel('Largeur finie', { exact: true }).fill('5000')
+  await page.getByLabel('Hauteur finie', { exact: true }).fill('5000')
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
+  const canvas = page.locator('canvas[data-ready=true]')
+  await expect(canvas).toBeVisible({ timeout: 15000 })
+  const viewport = page.locator('.pdf-viewport')
+  await expect(viewport).toHaveCSS('overflow-y', 'clip')
+  const size = await viewport.evaluate((el) => ({ width: el.clientWidth, height: el.clientHeight }))
+  const paper = await canvas.boundingBox()
+  expect(paper!.height).toBeLessThanOrEqual(size.height - 47)
+  expect(paper!.width).toBeLessThanOrEqual(size.width - 47)
+  expect(await viewport.evaluate((el) => el.scrollHeight <= el.clientHeight + 1)).toBe(true)
+})
+
 test('catalogue : tous les outils, recherche et filtre', async ({ page }) => {
   await page.goto('/')
   await expect(page.locator('.tool-card')).toHaveCount(14)
@@ -215,6 +241,27 @@ test('catalogue : tous les outils, recherche et filtre', async ({ page }) => {
   await expect(page.locator('.tool-card')).toHaveCount(4)
   await page.getByLabel('Rechercher un outil').fill('zzzz')
   await expect(page.getByText('Aucun outil ne correspond.')).toBeVisible()
+})
+
+test('tous les ateliers : onglets mobiles et paramètres conservés', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  for (const [id, name] of tools) {
+    await page.goto(`/?tool=${id}`)
+    await expect(page.getByRole('heading', { name: `${name}.`, exact: true })).toBeVisible()
+    const controls = page.locator('.tool-controls')
+    const input = controls.locator('input:not([type=file])').first()
+    const previous = (await input.count()) ? await input.inputValue() : null
+    await expect(controls).toBeVisible()
+    await page.getByRole('tab', { name: 'Aperçu', exact: true }).click()
+    await expect(controls).toBeHidden()
+    await expect(page.locator('.tool-result')).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.getByRole('tab', { name: 'Réglages', exact: true }).click()
+    await expect(controls).toBeVisible()
+    if (previous !== null) await expect(input).toHaveValue(previous)
+    if (id === 'burrito')
+      await page.screenshot({ path: 'test-results/burrito-compact-mobile.png', fullPage: true })
+  }
 })
 
 test('mobile : catalogue et calcul de dos', async ({ page }) => {
@@ -235,6 +282,7 @@ test('mobile : catalogue et calcul de dos', async ({ page }) => {
 
 test('livret piqué : huit pages et navigation du résultat', async ({ page }) => {
   await page.goto('/?tool=layer-cake')
+  await openSettings(page, 'Assemblage')
   await page.getByLabel('Imposition', { exact: true }).selectOption('booklet')
   await page.getByRole('button', { name: 'Charger un exemple' }).click()
   const response = page.waitForResponse((r) => r.url().includes('/api/tools/layer-cake/run'))
@@ -255,6 +303,9 @@ test('aperçu PDF : zoom, ajustement, plein écran et mobile', async ({ page }) 
   const canvas = page.locator('canvas[data-ready=true]')
   await expect(canvas).toBeVisible({ timeout: 15000 })
   await expect(page.locator('.pdf-viewer-footer')).toContainText('327 × 240 mm')
+  await expect(page.locator('.pdf-viewport')).toHaveCSS('overflow-y', 'clip')
+  await page.getByRole('button', { name: 'Afficher en plein écran', exact: true }).click()
+  await expect.poll(() => page.evaluate(() => !!document.fullscreenElement)).toBe(true)
   const initialWidth = await canvas.evaluate((el) => el.getBoundingClientRect().width)
   await page.getByRole('button', { name: 'Agrandir le zoom', exact: true }).click()
   await expect(page.getByLabel('Zoom de l’aperçu')).toHaveText('125 %')
@@ -263,10 +314,9 @@ test('aperçu PDF : zoom, ajustement, plein écran et mobile', async ({ page }) 
     .toBeGreaterThan(initialWidth)
   await page.getByRole('button', { name: 'Ajuster à l’écran', exact: true }).click()
   await expect(page.getByLabel('Zoom de l’aperçu')).toHaveText('100 %')
-  await page.getByRole('button', { name: 'Afficher en plein écran', exact: true }).click()
   await expect
     .poll(() => page.evaluate(() => document.fullscreenElement?.className))
-    .toBe('pdf-viewer')
+    .toContain('pdf-viewer')
   await page.getByRole('button', { name: 'Quitter le plein écran', exact: true }).click()
   await expect(canvas).toBeVisible()
   await page.locator('.pdf-viewer').screenshot({ path: 'test-results/pdf-viewer-desktop.png' })
@@ -287,8 +337,11 @@ test('aperçu PDF indisponible : téléchargement toujours accessible', async ({
 
 test('Fortune Cookie : plusieurs numérotations personnalisées et déplacement', async ({ page }) => {
   await page.goto('/?tool=fortune-cookie')
+  await openSettings(page, 'Numérotation')
   await page.getByLabel('Nombre d’exemplaires').fill('2')
+  await openSettings(page, 'Code')
   await page.getByLabel('Code', { exact: true }).selectOption('none')
+  await openSettings(page, 'Positions des numéros')
   await page.getByRole('button', { name: 'Ajouter une numérotation' }).click()
   const second = page.getByRole('group', { name: 'Numérotation 2', exact: true })
   await second.getByLabel('Position X').fill('35')

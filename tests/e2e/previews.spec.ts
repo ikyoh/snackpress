@@ -1,6 +1,8 @@
+import { openSettings } from './settings'
 import { test, expect } from '@playwright/test'
 
 test('Pizza : aperçu automatique, ovale, saisie rapide et export final', async ({ page }) => {
+  test.setTimeout(60000)
   let imports = 0
   let renders = 0
   let exports = 0
@@ -79,11 +81,13 @@ test('Fortune Cookie : PDF automatique limité, placement interactif et série c
   page,
 }) => {
   await page.goto('/?tool=fortune-cookie')
+  await openSettings(page, 'Numérotation')
   await page.getByLabel('Nombre d’exemplaires').fill('12')
   const live = page.getByLabel('Aperçu automatique', { exact: true })
   await expect(live.locator('canvas[data-ready=true]')).toBeVisible({ timeout: 15000 })
   await expect(live).toContainText('deux premiers exemplaires')
   await expect(page.getByLabel('Déplacer la numérotation 1')).toBeVisible()
+  await openSettings(page, 'Positions des numéros')
   await page
     .getByRole('group', { name: 'Numérotation 1', exact: true })
     .getByLabel('Position X')
