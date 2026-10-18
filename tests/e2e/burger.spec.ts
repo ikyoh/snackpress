@@ -75,3 +75,28 @@ test('Burger : charger un exemple reprend le gabarit et les fichiers attendus', 
   const removed = await page.request.get(`/api/tool-jobs/${exampleId}`)
   expect(removed.status()).toBe(404)
 })
+
+test('Burger : le format attendu inclut le fond perdu sur les quatre côtés', async ({ page }) => {
+  test.setTimeout(60_000)
+  await page.goto('/?tool=burger')
+  await openSettings(page, 'Gabarit')
+  await page.getByLabel('Gabarit à superposer').selectOption('pizza')
+  await page.getByLabel('Largeur finie', { exact: true }).fill('800')
+  await page.getByLabel('Hauteur finie', { exact: true }).fill('2000')
+  await expect(page.getByText(/Fichier attendu : 806 × 2\s?006 mm/)).toBeVisible()
+  await page.getByLabel('Choisir les fichiers').setInputFiles('apps/web/public/exemple-carte.pdf')
+  const generate = page.getByRole('button', { name: 'Générer le fichier final', exact: true })
+  const failedResponse = page.waitForResponse((r) => r.url().endsWith('/api/tools/burger/run'))
+  await generate.click()
+  const failed = await failedResponse
+  expect(failed.status()).toBe(422)
+  expect(await failed.text()).toContain('806 × 2006')
+  await page.getByRole('button', { name: 'Charger un exemple' }).click()
+  await expect(page.locator('.tool-file strong')).toHaveText('exemple-1.pdf')
+  await expect(generate).toBeEnabled()
+  const response = page.waitForResponse((r) => r.url().endsWith('/api/tools/burger/run'))
+  await generate.click()
+  const result = await response
+  expect(result.status(), await result.text()).toBe(201)
+  await expect(page.locator('.tool-success')).toBeVisible()
+})

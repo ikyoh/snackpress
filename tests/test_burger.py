@@ -116,6 +116,8 @@ def test_brochure_grouped_or_split_cover(tmp_path, cover_files):
     "tool,width,height", [("pizza", 85, 55), ("taco", 297, 210), ("burrito", 2000, 1000)]
 )
 def test_registered_template_marks_on_additional_page(tmp_path, tool, width, height):
+    if tool == "pizza":
+        width, height = width + 6, height + 6
     visual = source(tmp_path, "visual.pdf", width=width, height=height)
     out, result = generate(tmp_path, [visual], {"template_tool": tool})
     assert result.metrics["Pages du BAT"] == 2
@@ -153,8 +155,8 @@ def test_import_exported_pdf_template(tmp_path, tool, width, height, settings):
 
 
 def test_vector_guides_on_each_artwork_page_but_not_finish_pages(tmp_path):
-    visual = source(tmp_path, "visual.pdf", pages=2, width=85, height=55)
-    finish = source(tmp_path, "finish.pdf", width=85, height=55)
+    visual = source(tmp_path, "visual.pdf", pages=2)
+    finish = source(tmp_path, "finish.pdf")
     out, result = generate(
         tmp_path,
         [visual, finish],

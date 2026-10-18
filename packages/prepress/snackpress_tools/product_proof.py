@@ -5,6 +5,7 @@ import shutil
 import pikepdf
 from reportlab.lib.units import mm
 
+from .artwork_geometry import validate_page
 from .common import CORAL, artifact, new_canvas, open_pdf, paginate_pdf, report
 from .products import snapshot_slots
 from .proof_layout import guide_key, proof_date
@@ -94,44 +95,28 @@ def generate_product(folder, files, params, preview=False):
         raise ValueError(f"Ce produit attend {len(contract)} fichier(s), un par emplacement.")
     if sum(slot.pages for _, slot in contract) > 200:
         raise ValueError("Le BAT accepte au maximum 200 pages, masques compris.")
-    # Verify every file before producing output. Compare physical TrimBox, not the media size.
-    for source, (component, slot) in zip(files, contract, strict=True):
+    # Normalize only proof copies; never change the uploaded production originals.
+    normalized = folder / "sources-validees"
+    normalized.mkdir()
+    validated = []
+    for index, (source, (component, slot)) in enumerate(zip(files, contract, strict=True)):
         with open_pdf(source, max_pages=200) as doc:
             if len(doc.pages) != slot.pages:
                 raise ValueError(
                     f"{component.name} — {slot.name} : {slot.pages} page(s) attendue(s)."
                 )
             for page in doc.pages:
-                if (
-                    int(page.obj.get("/Rotate", 0)) % 360
-                    or float(page.obj.get("/UserUnit", 1)) != 1
-                ):
-                    raise ValueError(
-                        "Normalisez la rotation et les unités des fichiers du produit."
-                    )
-                x0, y0, x1, y1 = [float(n) / mm for n in page.trimbox]
-                if abs(x1 - x0 - component.width) > 0.1 or abs(y1 - y0 - component.height) > 0.1:
-                    raise ValueError(
-                        f"{component.name} — {slot.name} : format fini attendu "
-                        f"{component.width} × {component.height} mm."
-                    )
-                bx0, by0, bx1, by1 = [float(n) / mm for n in page.bleedbox]
-                mx0, my0, mx1, my1 = [float(n) / mm for n in page.mediabox]
-                if (
-                    min(x0 - mx0, y0 - my0, mx1 - x1, my1 - y1) < -0.1
-                    or min(bx0 - mx0, by0 - my0, mx1 - bx1, my1 - by1) < -0.1
-                    or bx1 <= bx0
-                    or by1 <= by0
-                ):
-                    raise ValueError(
-                        "Les zones de coupe et de fond perdu doivent rester dans la page."
-                    )
-                if component.bleed:
-                    if min(x0 - bx0, y0 - by0, bx1 - x1, by1 - y1) + 0.1 < component.bleed:
-                        raise ValueError(
-                            f"{component.name} — {slot.name} : "
-                            f"fond perdu de {component.bleed} mm attendu."
-                        )
+                validate_page(
+                    page,
+                    component.width,
+                    component.height,
+                    component.bleed,
+                    f"{component.name} — {slot.name}",
+                )
+            target = normalized / f"source-{index}.pdf"
+            doc.save(target)
+            validated.append(target)
+    files = validated
     merged = pikepdf.Pdf.new()
     extras = []
 

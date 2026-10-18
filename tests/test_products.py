@@ -136,6 +136,27 @@ def test_multiple_guides_share_trim_origin(tmp_path):
         assert any(values == pytest.approx([97, 196]) for values in positions)
 
 
+def test_product_accepts_complete_bleed_format_without_trimbox(tmp_path):
+    snapshot = specification("banner")
+    component = snapshot.variant.components[0]
+    component.width, component.height, component.bleed = 800, 2000, 3
+    component.guides = [Guide(tool="pizza")]
+    files = artwork(tmp_path, snapshot)
+    for file in files:
+        with pikepdf.open(file, allow_overwriting_input=True) as pdf:
+            for page in pdf.pages:
+                del page.TrimBox
+            pdf.save(file)
+    originals = [file.read_bytes() for file in files]
+    out = tmp_path / "out"
+    out.mkdir()
+    result = run(out, "burger", files, {"product_snapshot": snapshot.model_dump()})
+    assert result.metrics["Composants"] == 1
+    with pikepdf.open(out / "sources-validees/source-0.pdf") as pdf:
+        assert [float(n) / mm for n in pdf.pages[0].trimbox] == pytest.approx([3, 3, 803, 2003])
+    assert [file.read_bytes() for file in files] == originals
+
+
 def test_finish_masks_and_compatibility_rules(tmp_path):
     snapshot = specification()
     snapshot.variant.finish_ids = ["varnish", "lamination"]

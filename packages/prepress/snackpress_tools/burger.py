@@ -5,6 +5,7 @@ from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 
+from .artwork_geometry import validate_page
 from .catalog import MODELS, ToolResult
 from .common import artifact, dimensions, new_canvas, open_pdf, paginate_pdf, render_page, report
 from .proof_layout import draw_legend, guide_key, header_footer, proof_date
@@ -110,6 +111,25 @@ def generate(
             f"BAT : {expected} fichier(s) attendu(s) : {p.expected_files} visuel(s), "
             f"{len(p.finishes)} finition(s) et {int(p.template_tool == 'pdf')} gabarit PDF."
         )
+    if p.template_tool == "pizza":
+        settings = MODELS["pizza"].model_validate(p.template_settings)
+        normalized = folder / "sources-validees"
+        normalized.mkdir()
+        validated = []
+        for index, source in enumerate(files):
+            with open_pdf(source, max_pages=200) as doc:
+                for number, page in enumerate(doc.pages, 1):
+                    page.CropBox = validate_page(
+                        page,
+                        settings.width,
+                        settings.height,
+                        settings.bleed,
+                        f"{labels[index]}, page {number}",
+                    )
+                target = normalized / f"source-{index}.pdf"
+                doc.save(target)
+                validated.append(target)
+        files = validated
     counts, sizes = [], []
     for source in files[: len(labels)]:
         with open_pdf(source, max_pages=200) as doc:

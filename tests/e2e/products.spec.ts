@@ -6,6 +6,7 @@ test('catalogue produit : carte, masque de finition, BAT et spécifications fig�
   await page.goto('/?tool=burger')
   await page.getByLabel('Mode du BAT').selectOption('catalog')
   await expect(page.getByLabel('Produit', { exact: true })).toHaveValue('card')
+  await expect(page.getByText('Fichier attendu : 91 × 61 mm.', { exact: true })).toBeVisible()
   await page.getByLabel('Vernis sélectif', { exact: true }).check()
   await expect(page.locator('.print-selector ol li')).toHaveCount(3)
   await page

@@ -1733,9 +1733,18 @@ function PersonalProductSelector({
               {snapshot.product_name} — {snapshot.variant.name}
             </strong>
             <br />
-            {snapshot.variant.components
-              .map((c) => `${c.name} : ${c.width} × ${c.height} mm`)
-              .join(' · ')}
+            {snapshot.variant.components.map((c) => (
+              <span key={c.id}>
+                {c.name} — format fini : {c.width.toLocaleString('fr-FR')} ×{' '}
+                {c.height.toLocaleString('fr-FR')} mm. Fond perdu :{' '}
+                {c.bleed.toLocaleString('fr-FR')} mm sur chaque côté.{' '}
+                <strong>
+                  Fichier attendu : {(c.width + 2 * c.bleed).toLocaleString('fr-FR')} ×{' '}
+                  {(c.height + 2 * c.bleed).toLocaleString('fr-FR')} mm.
+                </strong>
+                <br />
+              </span>
+            ))}
           </p>
           {mode === 'catalog' &&
             !customize &&

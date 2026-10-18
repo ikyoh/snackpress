@@ -65,6 +65,16 @@ export function BurgerEditor({
   ) => React.ReactNode
 }) {
   const template = tools.find((tool) => tool.id === options.template_tool)
+  const templateValues = Object.fromEntries(
+    template?.fields.map((field) => [
+      field.key,
+      options.template_settings[field.key] ?? field.default,
+    ]) || [],
+  )
+  const width = Number(templateValues.width)
+  const height = templateValues.shape === 'circle' ? width : Number(templateValues.height)
+  const bleed = Number(templateValues.bleed)
+  const format = (n: number) => n.toLocaleString('fr-FR')
   function update(patch: Partial<BurgerOptions>) {
     onChange({ ...options, ...patch })
   }
@@ -263,8 +273,20 @@ export function BurgerEditor({
             )}
             {options.template_tool !== 'none' && (
               <p className="field-hint">
-                Chaque visuel aura une page seule et une page avec les repères. Le format doit
-                correspondre au format fini ou au gabarit complet, sans déformation.
+                {options.template_tool === 'pizza' ? (
+                  <>
+                    Format fini : {format(width)} × {format(height)} mm. Fond perdu :{' '}
+                    {format(bleed)} mm sur chaque côté.{' '}
+                    <strong>
+                      Fichier attendu : {format(width + 2 * bleed)} × {format(height + 2 * bleed)}{' '}
+                      mm.
+                    </strong>{' '}
+                    Chaque visuel aura une page seule et une page avec les repères, sans
+                    déformation.
+                  </>
+                ) : (
+                  'Chaque visuel aura une page seule et une page avec les repères. Le format doit correspondre au format fini ou au gabarit complet, sans déformation.'
+                )}
                 {options.template_tool === 'pdf' &&
                   ' Ajoutez le gabarit PDF en dernier : une page commune ou deux pages recto / verso de même format. Ses zones blanches laisseront voir le visuel.'}
                 {(options.template_tool === 'taco' || options.template_tool === 'pdf') &&
