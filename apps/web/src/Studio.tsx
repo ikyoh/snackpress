@@ -1135,52 +1135,56 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
               )}
               {previewable.length > 0 && (
                 <>
-                  <div className="artifact-toolbar">
-                    <label>
-                      <span className="sr-only">Document à prévisualiser</span>
-                      <select
-                        aria-label="Document à prévisualiser"
-                        value={activeArtifact}
-                        onChange={(e) => {
-                          setActiveArtifact(e.target.value)
-                          setPage(1)
-                        }}
-                      >
-                        {previewable.map((a) => (
-                          <option key={a.name} value={a.name}>
-                            {a.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {tool.id === 'taco' &&
-                    selected?.name === 'plan-pliage.pdf' &&
-                    totalPages === 2 ? (
-                      <PdfFaceSwitch page={page} onChange={setPage} />
-                    ) : (
-                      totalPages > 1 && (
-                        <div className="page-navigation">
-                          <button
-                            aria-label="Page précédente"
-                            onClick={() => setPage((n) => n - 1)}
-                            disabled={page <= 1}
+                  {(previewable.length > 1 || totalPages > 1) && (
+                    <div className="artifact-toolbar">
+                      {previewable.length > 1 && (
+                        <label>
+                          <span className="sr-only">Document à prévisualiser</span>
+                          <select
+                            aria-label="Document à prévisualiser"
+                            value={activeArtifact}
+                            onChange={(e) => {
+                              setActiveArtifact(e.target.value)
+                              setPage(1)
+                            }}
                           >
-                            <ChevronLeft size={16} />
-                          </button>
-                          <span>
-                            {page} / {totalPages}
-                          </span>
-                          <button
-                            aria-label="Page suivante"
-                            onClick={() => setPage((n) => n + 1)}
-                            disabled={page >= totalPages}
-                          >
-                            <ChevronRight size={16} />
-                          </button>
-                        </div>
-                      )
-                    )}
-                  </div>
+                            {previewable.map((a) => (
+                              <option key={a.name} value={a.name}>
+                                {a.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )}
+                      {tool.id === 'taco' &&
+                      selected?.name === 'plan-pliage.pdf' &&
+                      totalPages === 2 ? (
+                        <PdfFaceSwitch page={page} onChange={setPage} />
+                      ) : (
+                        totalPages > 1 && (
+                          <div className="page-navigation">
+                            <button
+                              aria-label="Page précédente"
+                              onClick={() => setPage((n) => n - 1)}
+                              disabled={page <= 1}
+                            >
+                              <ChevronLeft size={16} />
+                            </button>
+                            <span>
+                              {page} / {totalPages}
+                            </span>
+                            <button
+                              aria-label="Page suivante"
+                              onClick={() => setPage((n) => n + 1)}
+                              disabled={page >= totalPages}
+                            >
+                              <ChevronRight size={16} />
+                            </button>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  )}
                   <div className="artifact-stage">
                     {selected?.media_type === 'application/pdf' ? (
                       <PdfPreview

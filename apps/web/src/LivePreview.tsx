@@ -208,49 +208,53 @@ export function LivePreview({
       )}
       {selected && preview ? (
         <>
-          <div className="artifact-toolbar">
-            <label>
-              <span className="sr-only">Document de l’aperçu automatique</span>
-              <select
-                aria-label="Document de l’aperçu automatique"
-                value={selected.name}
-                onChange={(e) => setArtifactName(e.target.value)}
-              >
-                {preview.artifacts.map((a) => (
-                  <option key={a.name} value={a.name}>
-                    {a.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            {selected.name === faceArtifact && selected.pages === 2 ? (
-              <PdfFaceSwitch page={currentPage} onChange={changePage} />
-            ) : (
-              (selected.pages || 1) > 1 && (
-                <div className="page-navigation">
-                  <button
-                    type="button"
-                    aria-label="Page précédente de l’aperçu"
-                    disabled={currentPage <= 1}
-                    onClick={() => changePage(currentPage - 1)}
+          {(preview.artifacts.length > 1 || (selected.pages || 1) > 1) && (
+            <div className="artifact-toolbar">
+              {preview.artifacts.length > 1 && (
+                <label>
+                  <span className="sr-only">Document de l’aperçu automatique</span>
+                  <select
+                    aria-label="Document de l’aperçu automatique"
+                    value={selected.name}
+                    onChange={(e) => setArtifactName(e.target.value)}
                   >
-                    <ChevronLeft size={16} />
-                  </button>
-                  <span>
-                    {currentPage} / {selected.pages}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="Page suivante de l’aperçu"
-                    disabled={currentPage >= (selected.pages || 1)}
-                    onClick={() => changePage(currentPage + 1)}
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
-              )
-            )}
-          </div>
+                    {preview.artifacts.map((a) => (
+                      <option key={a.name} value={a.name}>
+                        {a.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {selected.name === faceArtifact && selected.pages === 2 ? (
+                <PdfFaceSwitch page={currentPage} onChange={changePage} />
+              ) : (
+                (selected.pages || 1) > 1 && (
+                  <div className="page-navigation">
+                    <button
+                      type="button"
+                      aria-label="Page précédente de l’aperçu"
+                      disabled={currentPage <= 1}
+                      onClick={() => changePage(currentPage - 1)}
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+                    <span>
+                      {currentPage} / {selected.pages}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label="Page suivante de l’aperçu"
+                      disabled={currentPage >= (selected.pages || 1)}
+                      onClick={() => changePage(currentPage + 1)}
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+                )
+              )}
+            </div>
+          )}
           {showOverlay && overlayLabel && (
             <p className="pdf-overlay-label">Surlignage de lecture : {overlayLabel}</p>
           )}
