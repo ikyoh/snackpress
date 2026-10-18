@@ -66,6 +66,6 @@ def test_bat_title_and_page_totals_preserve_pdf_links(tmp_path, source):
     assert assert_page_totals(path) == 2
     with pikepdf.open(path) as pdf:
         assert all(
-            any(a.get("/A", {}).get("/URI") == "https://snackpress.com" for a in page.Annots)
+            any(a.get("/A", {}).get("/URI") == "https://snackpress.app" for a in page.Annots)
             for page in pdf.pages
         )

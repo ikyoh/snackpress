@@ -86,13 +86,13 @@ def test_card_and_separate_finishes(tmp_path):
         for index, page in enumerate(pdf, 1):
             content = page.get_textpage().get_text_range()
             assert f"Date du BAT : {proof_date()}" in content
-            assert "snackpress." in content and "snackpress.com" in content
+            assert "snackpress." in content and "snackpress.app" in content
             assert "Légende des repères" not in content
             assert f"Page {index} / {len(pdf)}" in content
     with pikepdf.open(out / "bat.pdf") as pdf:
         for page in pdf.pages:
             assert page.Resources.Shading  # The logo gradient remains vector artwork.
-            assert any(a.get("/A", {}).get("/URI") == "https://snackpress.com" for a in page.Annots)
+            assert any(a.get("/A", {}).get("/URI") == "https://snackpress.app" for a in page.Annots)
 
 
 @pytest.mark.parametrize("cover_files", [1, 4])

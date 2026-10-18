@@ -7,8 +7,19 @@
   padding: 0;
   margin: 0;
 }
-.print-catalog .catalog-tabs {
+.print-library-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
   margin-bottom: 24px;
+}
+.print-catalog .print-library-toolbar .catalog-tabs {
+  margin: 0;
+}
+.print-guide > .print-action-button-remove {
+  margin-top: 16px;
 }
 .print-layout {
   display: grid;

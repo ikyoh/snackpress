@@ -102,8 +102,8 @@ def header_footer(c, date, date_label="Date du BAT"):
     c.drawRightString(192 * mm, 286 * mm, f"{date_label} : {date}")
     c.setFillColor(colors.black)
     c.setFont("Snack", 8)
-    c.drawString(18 * mm, 11 * mm, "snackpress.com")
-    c.linkURL("https://snackpress.com", (18 * mm, 9 * mm, 49 * mm, 15 * mm), relative=0)
+    c.drawString(18 * mm, 11 * mm, "snackpress.app")
+    c.linkURL("https://snackpress.app", (18 * mm, 9 * mm, 49 * mm, 15 * mm), relative=0)
     c.restoreState()
 
 

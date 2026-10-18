@@ -666,7 +666,7 @@ export function VariantEditor({
           </Button>
           <h4>Gabarits et tracés</h4>
           {c.guides.map((g, gi) => (
-            <fieldset className="print-block" key={g.tool}>
+            <fieldset className="print-block print-guide" key={g.tool}>
               <legend>{guideNames[g.tool]}</legend>
               {g.tool === 'perforation' ? (
                 <>
@@ -956,6 +956,24 @@ function CatalogManager({
                 : 'Gamme de départ. Connectez-vous pour personnaliser et enregistrer votre catalogue.'}
             </p>
             {!signedIn && <Button onClick={open}>Se connecter</Button>}
+          </div>
+          <div className="print-library-toolbar">
+            <nav className="catalog-tabs" aria-label="Bibliothèques d’impression">
+              {[
+                ['products', 'Produits'],
+                ['categories', 'Catégories'],
+                ['materials', 'Supports matières'],
+                ['finishes', 'Façonnages et finitions'],
+              ].map(([id, name]) => (
+                <button
+                  key={id}
+                  className={tab === id ? 'selected' : ''}
+                  onClick={() => setTab(id)}
+                >
+                  {name}
+                </button>
+              ))}
+            </nav>
             <Button
               variant="outline"
               className="print-action-button"
@@ -970,18 +988,6 @@ function CatalogManager({
               <RotateCw size={18} aria-hidden="true" /> Recharger le catalogue
             </Button>
           </div>
-          <nav className="catalog-tabs" aria-label="Bibliothèques d’impression">
-            {[
-              ['products', 'Produits'],
-              ['categories', 'Catégories'],
-              ['materials', 'Supports matières'],
-              ['finishes', 'Façonnages et finitions'],
-            ].map(([id, name]) => (
-              <button key={id} className={tab === id ? 'selected' : ''} onClick={() => setTab(id)}>
-                {name}
-              </button>
-            ))}
-          </nav>
           <form onSubmit={save}>
             <fieldset disabled={source.busy}>
               {tab === 'products' ? (
@@ -1070,9 +1076,10 @@ function CatalogManager({
                             ))}
                           </Select>
                         </div>
-                        <label className="field">
-                          Description
+                        <label className="field tool-field">
+                          <span>Description</span>
                           <textarea
+                            rows={4}
                             value={product.description}
                             maxLength={1000}
                             onChange={(e) => updateProduct({ description: e.target.value })}
