@@ -18,12 +18,24 @@ def test_catalog_auth_isolation_revision_validation_and_persistence(account_api)
     original = client.get("/api/print-catalog").json()
     changed = deepcopy(original)
     changed["catalog"]["products"][0]["name"] = "Carte atelier Alice"
+    changed["catalog"]["finishes"][0]["appearance"] = {
+        "mode": "area",
+        "color": "#123456",
+        "alpha": 0.25,
+        "gradient": True,
+        "end_color": "#abcdef",
+        "angle": 45,
+    }
     response = client.put(
         "/api/print-catalog", json=changed, headers={"X-Snackpress-Account": account}
     )
     assert response.status_code == 200, response.text
     saved = response.json()
     assert saved["revision"] == 1
+    assert (
+        saved["catalog"]["finishes"][0]["appearance"]
+        == (changed["catalog"]["finishes"][0]["appearance"])
+    )
     assert response.headers["cache-control"] == "no-store"
     assert client.put("/api/print-catalog", json=changed).status_code == 409
     assert (

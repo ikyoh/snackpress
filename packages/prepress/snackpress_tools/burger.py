@@ -98,7 +98,18 @@ def template(folder, files, p):
 
 
 def generate(
-    folder, files, p, labels=None, combined_guide=None, legend=None, date=None, *, paginate=True
+    folder,
+    files,
+    p,
+    labels=None,
+    combined_guide=None,
+    legend=None,
+    date=None,
+    *,
+    paginate=True,
+    finish_styles=(),
+    finish_masks=None,
+    finish_page_count=None,
 ):
     if p.product_snapshot is not None:
         from .product_proof import generate_product
@@ -175,7 +186,9 @@ def generate(
         specs.append((label, f"Fichier {file_index + 1} — {count} page(s)"))
         for index in range(count):
             w, h = sizes[file_index][index]
-            image, _ = render_page(source, index, dpi=min(120, 1100 * 25.4 / max(w, h)))
+            dpi = min(120, 1100 * 25.4 / max(w, h))
+            image, _ = render_page(source, index, dpi=dpi)
+            has_finishes = bool(finish_styles) and file_index < p.expected_files
             marked = guide is not None and file_index < p.expected_files
             guide_face = artwork_index % guide_faces if marked else 0
             full = marked and abs(w - gw) <= 1 and abs(h - gh) <= 1
@@ -184,7 +197,12 @@ def generate(
                     f"{label}, page {index + 1} : format {w:.2f} × {h:.2f} mm incompatible "
                     f"avec le gabarit ({fw:g} × {fh:g} mm finis ou {gw:g} × {gh:g} mm à plat)."
                 )
-            for with_guides in [False, True] if marked else [False]:
+            views = [(False, False)]
+            if has_finishes:
+                views.append((False, True))
+            if marked:
+                views.append((True, False))
+            for with_guides, with_finishes in views:
                 bw, bh = (gw, gh) if with_guides else (w, h)
                 bottom = 65 + max(0, (len(legend) + 1) // 2 - 2) * 5 if with_guides else 65
                 height = 249 - bottom
@@ -205,11 +223,30 @@ def generate(
                         else "Visuel avec repères de gabarit"
                     )
                     if with_guides
+                    else "Simulation des finitions"
+                    if with_finishes
                     else "Visuel seul",
                 )
                 ix, iy = (ox, oy) if with_guides and not full else (0, 0)
+                displayed = image
+                if with_finishes:
+                    from .finish_appearance import simulate_finishes
+
+                    displayed = simulate_finishes(
+                        image,
+                        finish_styles,
+                        finish_masks or {},
+                        artwork_index % finish_page_count if finish_page_count else artwork_index,
+                        dpi,
+                    )
+                    c.setFont("Snack", 8)
+                    c.drawString(
+                        18 * mm,
+                        49 * mm,
+                        "Finitions : " + ", ".join(f.name for f in finish_styles)[:110],
+                    )
                 c.drawImage(
-                    ImageReader(image),
+                    ImageReader(displayed),
                     (x + ix * scale) * mm,
                     (y + iy * scale) * mm,
                     width=w * scale * mm,
@@ -236,7 +273,7 @@ def generate(
                 c.drawString(18 * mm, 22 * mm, f"Client : {p.client[:75] or 'Non renseigné'}")
                 c.showPage()
                 page_index += 1
-            if marked:
+            if file_index < p.expected_files:
                 artwork_index += 1
     c.save()
     if guide_placements:

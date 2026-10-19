@@ -208,6 +208,18 @@ def generate_product(folder, files, params, preview=False):
             legend=legend,
             date=date,
             paginate=False,
+            finish_page_count=sum(s.pages for _, s in visuals),
+            finish_styles=[
+                f
+                for f in snapshot.finishes
+                if f.id in snapshot.variant.finish_ids and f.appearance.mode != "none"
+            ],
+            finish_masks={
+                slot.id.removeprefix("mask-"): source
+                for source, (_, slot) in zip(proof_sources[-len(masks) :], masks, strict=True)
+            }
+            if masks
+            else {},
         )
         with pikepdf.open(work / "bat.pdf") as doc:
             merged.pages.extend(doc.pages)

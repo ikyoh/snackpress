@@ -186,3 +186,52 @@
     border-top: 1px solid #edd8eb;
   }
 }
+.finish-appearance {
+  display: grid;
+  gap: 0.75rem;
+  margin-block: 1rem 1.5rem;
+}
+
+.finish-appearance-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.finish-appearance-fields input[type='color'] {
+  width: 100%;
+  min-height: 48px;
+  padding: 0.25rem;
+  cursor: pointer;
+}
+
+.finish-appearance-preview {
+  position: relative;
+  display: grid;
+  place-items: center;
+  min-height: 100px;
+  background: white;
+  border: 1px solid #ddd5dd;
+  border-radius: 12px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.finish-appearance-sample {
+  position: absolute;
+  inset: 10px;
+  z-index: -1;
+}
+
+.finish-appearance-preview > span:last-child {
+  background: white;
+  color: #30203d;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+}
+
+@media (max-width: 600px) {
+  .finish-appearance-fields {
+    grid-template-columns: 1fr;
+  }
+}

@@ -25,10 +25,20 @@ class Material(Named):
     description: str = Field(default="", max_length=500)
 
 
+class FinishAppearance(Spec):
+    mode: Literal["none", "area", "path"] = "none"
+    color: str = Field(default="#e6007e", pattern=r"^#[0-9a-fA-F]{6}$")
+    alpha: float = Field(default=0.4, ge=0, le=1)
+    gradient: bool = False
+    end_color: str = Field(default="#ffd54f", pattern=r"^#[0-9a-fA-F]{6}$")
+    angle: float = Field(default=0, ge=0, le=360)
+
+
 class Finish(Named):
     mask: bool = False
     material_ids: list[str] = Field(default_factory=list, max_length=100)
     excludes: list[str] = Field(default_factory=list, max_length=30)
+    appearance: FinishAppearance = Field(default_factory=FinishAppearance)
 
 
 class Slot(Named):

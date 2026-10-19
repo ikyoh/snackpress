@@ -30,6 +30,132 @@ export type Finish = {
   mask: boolean
   material_ids: string[]
   excludes: string[]
+  appearance?: FinishAppearance
+}
+type FinishAppearance = {
+  mode: 'none' | 'area' | 'path'
+  color: string
+  alpha: number
+  gradient: boolean
+  end_color: string
+  angle: number
+}
+const defaultFinishAppearance: FinishAppearance = {
+  mode: 'none',
+  color: '#e6007e',
+  alpha: 0.4,
+  gradient: false,
+  end_color: '#ffd54f',
+  angle: 0,
+}
+
+function FinishAppearanceEditor({
+  finish,
+  onChange,
+}: {
+  finish: Finish
+  onChange: (appearance: FinishAppearance) => void
+}) {
+  const style = { ...defaultFinishAppearance, ...finish.appearance }
+  const update = (patch: Partial<FinishAppearance>) => onChange({ ...style, ...patch })
+  return (
+    <div className="finish-appearance">
+      <Select
+        label="Représentation sur le BAT"
+        value={style.mode}
+        onChange={(mode) => update({ mode: mode as FinishAppearance['mode'] })}
+      >
+        <option value="none">Aucune représentation</option>
+        <option value="area">Zone</option>
+        <option value="path">Tracé</option>
+      </Select>
+      {style.mode !== 'none' && (
+        <>
+          <p className="field-help">
+            {finish.mask
+              ? 'Le noir du PDF de masque définit la zone ; le blanc reste transparent.'
+              : 'Sans PDF de masque, la représentation suit le format fini entier.'}
+            {style.mode === 'path' && ' Le tracé suit les contours.'}
+          </p>
+          <div className="finish-appearance-fields">
+            <label className="field">
+              <span>
+                {style.gradient && style.mode === 'area' ? 'Couleur de départ' : 'Couleur'}
+              </span>
+              <input
+                type="color"
+                value={style.color}
+                onChange={(e) => update({ color: e.target.value })}
+              />
+            </label>
+            {style.mode === 'area' && (
+              <Num
+                label="Opacité (alpha, %)"
+                value={Math.round(style.alpha * 100)}
+                min={0}
+                max={100}
+                step="1"
+                onChange={(value) => update({ alpha: value / 100 })}
+              />
+            )}
+          </div>
+          {style.mode === 'area' && (
+            <>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={style.gradient}
+                  onChange={(e) => update({ gradient: e.target.checked })}
+                />
+                <span>Créer un dégradé</span>
+              </label>
+              {style.gradient && (
+                <div className="finish-appearance-fields">
+                  <label className="field">
+                    <span>Couleur d’arrivée</span>
+                    <input
+                      type="color"
+                      value={style.end_color}
+                      onChange={(e) => update({ end_color: e.target.value })}
+                    />
+                  </label>
+                  <Num
+                    label="Angle du dégradé (°)"
+                    value={style.angle}
+                    min={0}
+                    max={360}
+                    step="1"
+                    onChange={(angle) => update({ angle })}
+                  />
+                </div>
+              )}
+            </>
+          )}
+          <div
+            className="finish-appearance-preview"
+            role="img"
+            aria-label={`Aperçu de la finition ${finish.name}`}
+          >
+            <span
+              className="finish-appearance-sample"
+              style={
+                style.mode === 'path'
+                  ? { border: `2px solid ${style.color}` }
+                  : {
+                      opacity: style.alpha,
+                      background: style.gradient
+                        ? `linear-gradient(${90 - style.angle}deg, ${style.color}, ${style.end_color})`
+                        : style.color,
+                    }
+              }
+            />
+            <span>Aperçu de la finition</span>
+          </div>
+          <p className="field-help">Une page de simulation s’ajoute au BAT pour chaque visuel.</p>
+        </>
+      )}
+    </div>
+  )
 }
 export type Slot = { id: string; name: string; pages: number; role: 'visual' | 'mask' }
 export type Guide = {
@@ -1426,6 +1552,17 @@ function CatalogManager({
                             />
                             <span>Demander un PDF de masque séparé</span>
                           </label>
+                          <FinishAppearanceEditor
+                            finish={f}
+                            onChange={(appearance) =>
+                              setDraft({
+                                ...draft,
+                                finishes: draft.finishes.map((row, n) =>
+                                  n === i ? { ...row, appearance } : row,
+                                ),
+                              })
+                            }
+                          />
                           <Checks
                             title="Supports compatibles (aucun = tous)"
                             rows={draft.materials}

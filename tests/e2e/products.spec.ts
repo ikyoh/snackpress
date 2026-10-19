@@ -1,5 +1,33 @@
 import { expect, test } from '@playwright/test'
 
+test('apparence des finitions : zone, alpha, dégradé et tracé', async ({ page }) => {
+  await page.goto('/?view=products')
+  await page.getByRole('button', { name: 'Façonnages et finitions', exact: true }).click()
+  await page.locator('.accordion-trigger').first().click()
+  const mode = page.getByLabel('Représentation sur le BAT')
+  await expect(mode).toHaveValue('none')
+  await mode.selectOption('area')
+  await page.getByLabel('Couleur', { exact: true }).fill('#123456')
+  await page.getByLabel('Opacité (alpha, %)').fill('25')
+  await page.getByLabel('Créer un dégradé').check()
+  await page.getByLabel('Couleur d’arrivée').fill('#abcdef')
+  await page.getByLabel('Angle du dégradé (°)').fill('45')
+  await expect(page.locator('.finish-appearance-sample')).toHaveCSS('opacity', '0.25')
+  await page.screenshot({ path: 'test-results/finish-appearance-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/finish-appearance-mobile.png', fullPage: true })
+  await mode.selectOption('path')
+  await expect(page.getByLabel('Opacité (alpha, %)')).toHaveCount(0)
+  await expect(page.getByLabel('Créer un dégradé')).toHaveCount(0)
+  await expect(page.getByLabel('Couleur', { exact: true })).toHaveValue('#123456')
+  await mode.selectOption('none')
+  await expect(page.locator('.finish-appearance-preview')).toHaveCount(0)
+  await mode.selectOption('area')
+  await expect(page.getByLabel('Couleur d’arrivée')).toHaveValue('#abcdef')
+  await expect(page.getByLabel('Opacité (alpha, %)')).toHaveValue('25')
+})
+
 test('catalogue produit : carte, masque de finition, BAT et spécifications figées', async ({
   page,
 }) => {

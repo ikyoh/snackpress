@@ -1618,6 +1618,9 @@
             "type": "array",
             "maxItems": 30,
             "title": "Excludes"
+          },
+          "appearance": {
+            "$ref": "#/components/schemas/FinishAppearance"
           }
         },
         "additionalProperties": false,
@@ -1627,6 +1630,54 @@
           "name"
         ],
         "title": "Finish"
+      },
+      "FinishAppearance": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "none",
+              "area",
+              "path"
+            ],
+            "title": "Mode",
+            "default": "none"
+          },
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Color",
+            "default": "#e6007e"
+          },
+          "alpha": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Alpha",
+            "default": 0.4
+          },
+          "gradient": {
+            "type": "boolean",
+            "title": "Gradient",
+            "default": false
+          },
+          "end_color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "End Color",
+            "default": "#ffd54f"
+          },
+          "angle": {
+            "type": "number",
+            "maximum": 360.0,
+            "minimum": 0.0,
+            "title": "Angle",
+            "default": 0
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FinishAppearance"
       },
       "Guide": {
         "properties": {

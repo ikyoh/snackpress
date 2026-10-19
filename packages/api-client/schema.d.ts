@@ -653,6 +653,41 @@ export interface components {
             material_ids?: string[];
             /** Excludes */
             excludes?: string[];
+            appearance?: components["schemas"]["FinishAppearance"];
+        };
+        /** FinishAppearance */
+        FinishAppearance: {
+            /**
+             * Mode
+             * @default none
+             * @enum {string}
+             */
+            mode: "none" | "area" | "path";
+            /**
+             * Color
+             * @default #e6007e
+             */
+            color: string;
+            /**
+             * Alpha
+             * @default 0.4
+             */
+            alpha: number;
+            /**
+             * Gradient
+             * @default false
+             */
+            gradient: boolean;
+            /**
+             * End Color
+             * @default #ffd54f
+             */
+            end_color: string;
+            /**
+             * Angle
+             * @default 0
+             */
+            angle: number;
         };
         /** Guide */
         Guide: {
