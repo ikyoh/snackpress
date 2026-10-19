@@ -1963,6 +1963,44 @@ function PersonalProductSelector({
               </Button>
             </>
           )}
+          {snapshot.variant.finish_ids.length > 0 && (
+            <section aria-label="Apparence des finitions sur le BAT">
+              <h3>Apparence des finitions sur le BAT</h3>
+              <p className="field-hint">
+                Ouvrez une finition pour choisir une zone ou un tracé, sa couleur et ses effets. Ces
+                réglages s’appliquent à ce BAT.
+              </p>
+              <Accordion type="multiple">
+                {snapshot.finishes
+                  .filter((finish) => snapshot.variant.finish_ids.includes(finish.id))
+                  .map((finish) => (
+                    <AccordionItem key={finish.id} value={finish.id}>
+                      <AccordionTrigger>
+                        {finish.name} —{' '}
+                        {finish.appearance?.mode === 'area'
+                          ? 'Zone'
+                          : finish.appearance?.mode === 'path'
+                            ? 'Tracé'
+                            : 'Aucun effet'}
+                      </AccordionTrigger>
+                      <AccordionContent>
+                        <FinishAppearanceEditor
+                          finish={finish}
+                          onChange={(appearance) =>
+                            onChange({
+                              ...snapshot,
+                              finishes: snapshot.finishes.map((row) =>
+                                row.id === finish.id ? { ...row, appearance } : row,
+                              ),
+                            })
+                          }
+                        />
+                      </AccordionContent>
+                    </AccordionItem>
+                  ))}
+              </Accordion>
+            </section>
+          )}
           <p className="field-hint">
             PDF uniquement. Les formats finis, les fonds perdus et les pages sont contrôlés. La
             configuration sera figée dans le BAT et ses réglages.

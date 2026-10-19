@@ -36,6 +36,18 @@ test('catalogue produit : carte, masque de finition, BAT et spécifications fig�
   await expect(page.getByLabel('Produit', { exact: true })).toHaveValue('card')
   await expect(page.getByText('Fichier attendu : 91 × 61 mm.', { exact: true })).toBeVisible()
   await page.getByLabel('Vernis sélectif', { exact: true }).check()
+  const appearance = page.getByRole('region', { name: 'Apparence des finitions sur le BAT' })
+  await appearance.getByRole('button', { name: 'Vernis sélectif — Aucun effet' }).click()
+  await appearance.getByLabel('Représentation sur le BAT').selectOption('area')
+  await appearance.getByLabel('Couleur', { exact: true }).fill('#ff0000')
+  await appearance.getByLabel('Opacité (alpha, %)').fill('35')
+  await appearance.getByLabel('Créer un dégradé').check()
+  await appearance.getByLabel('Couleur d’arrivée').fill('#ffff00')
+  await appearance.screenshot({ path: 'test-results/bat-finish-settings-desktop.png' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await appearance.screenshot({ path: 'test-results/bat-finish-settings-mobile.png' })
+  await page.setViewportSize({ width: 1280, height: 720 })
   await expect(page.locator('.print-selector ol li')).toHaveCount(3)
   await page
     .getByLabel('Choisir les fichiers')
@@ -56,7 +68,15 @@ test('catalogue produit : carte, masque de finition, BAT et spécifications fig�
     )
   }
   const settings = await page.request.get(`/api/tool-jobs/${data.id}/files/reglages.json`)
-  expect((await settings.json()).settings.product_snapshot.variant.finish_ids).toEqual(['varnish'])
+  const frozen = (await settings.json()).settings.product_snapshot
+  expect(frozen.variant.finish_ids).toEqual(['varnish'])
+  expect(frozen.finishes.find((f: { id: string }) => f.id === 'varnish').appearance).toMatchObject({
+    mode: 'area',
+    color: '#ff0000',
+    alpha: 0.35,
+    gradient: true,
+    end_color: '#ffff00',
+  })
   await expect(page.locator('.tool-success')).toBeVisible()
 })
 
