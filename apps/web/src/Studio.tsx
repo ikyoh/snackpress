@@ -22,7 +22,7 @@ import {
   X,
 } from 'lucide-react'
 import App from './App'
-import { PrintCatalogPage } from './PrintCatalog'
+import { PrintCatalogPage, ProductSelector, type Snapshot } from './PrintCatalog'
 import { HeaderActions } from './HeaderActions'
 import { Configurations } from './Configurations'
 import { BurgerEditor, burgerDefaults, burgerLabels, type BurgerOptions } from './BurgerEditor'
@@ -438,6 +438,41 @@ function Setting({
   )
 }
 
+function KebabShare({ result }: { result: Result }) {
+  const [status, setStatus] = useState('')
+  const pdf = result.artifacts?.find((a) => a.media_type === 'application/pdf')
+  if (!pdf) return null
+  const url = new URL(assetUrl(result.id, pdf.name), window.location.origin).href
+  return (
+    <section aria-label="Partager le PDF">
+      <h2>Partager le PDF</h2>
+      <label className="field">
+        <span>Lien de partage</span>
+        <input type="url" readOnly value={url} onFocus={(e) => e.target.select()} />
+      </label>
+      <Button
+        type="button"
+        variant="outline"
+        onClick={async () => {
+          try {
+            await navigator.clipboard.writeText(url)
+            setStatus('Lien copié.')
+          } catch {
+            setStatus('Sélectionnez le lien ci-dessus pour le copier manuellement.')
+          }
+        }}
+      >
+        Copier le lien du PDF
+      </Button>
+      <p className="field-hint">
+        Toute personne disposant du lien peut télécharger ce PDF sans compte. Le lien expire 24 h
+        après la génération, ou dès la suppression du travail.
+      </p>
+      <p role="status">{status}</p>
+    </section>
+  )
+}
+
 function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
   const [values, setValues] = useState<Values>(() =>
     Object.fromEntries(tool.fields.map((f) => [f.key, f.default])),
@@ -455,6 +490,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
     return () => query.removeEventListener('change', update)
   }, [])
   const [burger, setBurger] = useState<BurgerOptions>(burgerDefaults)
+  const [kebabProduct, setKebabProduct] = useState<Snapshot | null>(null)
   const [numberings, setNumberings] = useState<Numbering[]>([newNumbering(55)])
   function changeNumberings(next: Numbering[]) {
     setNumberings(next)
@@ -482,13 +518,17 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
         (burger.product_snapshot
           ? maxFiles > 0
           : burger.source_mode === 'classic' && burger.expected_files > 0)
-      : files.length >= tool.min_files && files.length <= tool.max_files
+      : tool.id === 'kebab'
+        ? !!kebabProduct
+        : files.length >= tool.min_files && files.length <= tool.max_files
   const settings =
     tool.id === 'fortune-cookie'
       ? { ...values, numberings }
       : tool.id === 'burger'
         ? { ...values, ...burger }
-        : values
+        : tool.id === 'kebab'
+          ? { ...values, product_snapshot: kebabProduct }
+          : values
   function changeBurger(next: BurgerOptions) {
     // Keep only the populated prefix whose files retain the same production roles.
     if (
@@ -812,6 +852,19 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                     )}
                   />
                 )}
+                {tool.id === 'kebab' && (
+                  <ProductSelector
+                    sourceMode="catalog"
+                    catalogOnly
+                    snapshot={kebabProduct}
+                    tools={tools}
+                    onChange={(snapshot) => {
+                      setKebabProduct(snapshot)
+                      setResult(null)
+                      setError('')
+                    }}
+                  />
+                )}
                 {tool.max_files > 0 && (
                   <section className="tool-upload-section">
                     <h2>
@@ -952,6 +1005,13 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                           tool.fields.map((f) => [f.key, fields[f.key] ?? f.default]),
                         ) as Values,
                       )
+                    } else if (tool.id === 'kebab') {
+                      setKebabProduct((fields.product_snapshot as Snapshot | null) ?? null)
+                      setValues(
+                        Object.fromEntries(
+                          tool.fields.map((f) => [f.key, fields[f.key] ?? f.default]),
+                        ) as Values,
+                      )
                     } else setValues(fields as Values)
                     if (tool.id === 'fortune-cookie')
                       setNumberings(
@@ -1042,13 +1102,15 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   {busy ? 'Traitement en cours…' : 'Générer le fichier final'}
                 </Button>
                 <p>
-                  {tool.min_files > 0 && !ready
-                    ? tool.id === 'burger'
-                      ? `${files.length} / ${maxFiles} fichier(s) importé(s). Complétez les emplacements attendus.`
-                      : `Importez ${tool.min_files === 2 ? 'les deux fichiers' : 'votre fichier'} pour commencer.`
-                    : tool.id === 'club-sandwich'
-                      ? 'Le PDF reprend cette estimation.'
-                      : 'L’aperçu est automatique. Générez ensuite le fichier complet.'}
+                  {tool.id === 'kebab' && !ready
+                    ? 'Choisissez un produit d’impression pour préparer la fiche.'
+                    : tool.min_files > 0 && !ready
+                      ? tool.id === 'burger'
+                        ? `${files.length} / ${maxFiles} fichier(s) importé(s). Complétez les emplacements attendus.`
+                        : `Importez ${tool.min_files === 2 ? 'les deux fichiers' : 'votre fichier'} pour commencer.`
+                      : tool.id === 'club-sandwich'
+                        ? 'Le PDF reprend cette estimation.'
+                        : 'L’aperçu est automatique. Générez ensuite le fichier complet.'}
                 </p>
               </div>
             </div>
@@ -1191,6 +1253,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                 </>
               )}
               <div className="artifact-downloads">
+                {tool.id === 'kebab' && <KebabShare result={result} />}
                 <h2>
                   <ArrowDownToLine size={16} />
                   Vos fichiers

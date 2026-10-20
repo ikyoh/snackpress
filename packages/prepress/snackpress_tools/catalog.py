@@ -214,12 +214,11 @@ class Sushi(Params):
 
 
 class Kebab(Params):
+    product_snapshot: Snapshot
     title: str = Field(default="Fiche de fabrication", max_length=120)
     client: str = Field(default="", max_length=120)
-    paper: str = Field(default="Couché mat 300 g/m²", max_length=200)
     quantity: int = Field(default=250, ge=1, le=10000000)
-    colors: str = Field(default="Quadri recto verso", max_length=200)
-    finishing: str = Field(default="Coupe au format", max_length=500)
+    colors: str = Field(default="Quadri", max_length=200)
     notes: str = Field(default="", max_length=4000)
 
 
@@ -562,15 +561,13 @@ DEFINITIONS = [
         id="kebab",
         name="Kebab",
         category="Présenter",
-        description="Rassembler les consignes de fabrication en une fiche PDF.",
+        description="Créer une fiche de fabrication PDF à partir d’un produit d’impression.",
         limit="Fiche d’instructions, aucune validation automatique des choix ou des consignes.",
         fields=[
             text("title", "Titre", "Fiche de fabrication"),
             text("client", "Client / projet"),
-            text("paper", "Papier", "Couché mat 300 g/m²"),
             number("quantity", "Quantité", 250, "ex.", 1, 10000000, 1),
-            text("colors", "Couleurs / faces", "Quadri recto verso"),
-            text("finishing", "Finitions", "Coupe au format", area=True),
+            text("colors", "Couleurs", "Quadri"),
             text("notes", "Consignes atelier", area=True),
         ],
     ),

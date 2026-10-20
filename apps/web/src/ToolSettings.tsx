@@ -43,8 +43,8 @@ const groups: Record<string, Group[]> = {
   ],
   kebab: [
     { title: 'Projet', keys: ['title', 'client'] },
-    { title: 'Fabrication', keys: ['paper', 'quantity', 'colors'] },
-    { title: 'Finitions et consignes', keys: ['finishing', 'notes'] },
+    { title: 'Fabrication', keys: ['quantity', 'colors'] },
+    { title: 'Consignes', keys: ['notes'] },
   ],
   'layer-cake': [
     { title: 'Feuille', keys: ['sheet_width', 'sheet_height', 'margin'] },

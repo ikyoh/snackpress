@@ -4,7 +4,7 @@ import numpy as np
 import pikepdf
 import pypdfium2 as pdfium
 import pytest
-from conftest import make_pdf
+from conftest import make_pdf, product_snapshot
 from PIL import Image
 from snackpress_tools.catalog import CATALOG, MODELS, Burrito, Pizza, Taco
 from snackpress_tools.common import page_selection
@@ -177,7 +177,8 @@ def test_every_tool_produces_readable_deliverables(tool, tmp_path, source):
     folder = tmp_path / tool
     folder.mkdir()
     count = CATALOG[tool].min_files
-    result = run(folder, tool, [source] * count, {})
+    settings = {"product_snapshot": product_snapshot()} if tool == "kebab" else {}
+    result = run(folder, tool, [source] * count, settings)
     assert result.tool == tool
     assert result.summary and result.warnings
     for item in result.artifacts:

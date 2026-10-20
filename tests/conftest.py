@@ -3,6 +3,19 @@ from pathlib import Path
 import pikepdf
 import pytest
 from snackpress_imposition.pdf import PT
+from snackpress_tools.products import Snapshot, seed_catalog
+
+
+def product_snapshot(product_id="card"):
+    catalog = seed_catalog()
+    product = next(p for p in catalog.products if p.id == product_id)
+    return Snapshot(
+        product_name=product.name,
+        category_name=next(c.name for c in catalog.categories if c.id == product.category_id),
+        variant=product.variants[0],
+        materials=[m for m in catalog.materials if m.id in product.material_ids],
+        finishes=[f for f in catalog.finishes if f.id in product.finish_ids],
+    ).model_dump()
 
 
 def make_pdf(path: Path, pages=2, origin=(0, 0), trim=True, rotation=0):

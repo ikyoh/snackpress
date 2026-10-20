@@ -1653,11 +1653,13 @@ export function ProductSelector({
   snapshot,
   tools,
   onChange,
+  catalogOnly = false,
 }: {
   sourceMode: 'classic' | 'catalog' | 'free'
   snapshot: Snapshot | null
   tools: Tool[]
   onChange: (v: Snapshot | null, mode?: 'legacy' | 'catalog' | 'free') => void
+  catalogOnly?: boolean
 }) {
   const { user } = useAccount()
   return (
@@ -1667,6 +1669,7 @@ export function ProductSelector({
       snapshot={snapshot}
       tools={tools}
       onChange={onChange}
+      catalogOnly={catalogOnly}
     />
   )
 }
@@ -1675,11 +1678,13 @@ function PersonalProductSelector({
   snapshot,
   tools,
   onChange,
+  catalogOnly,
 }: {
   sourceMode: 'classic' | 'catalog' | 'free'
   snapshot: Snapshot | null
   tools: Tool[]
   onChange: (v: Snapshot | null, mode?: 'legacy' | 'catalog' | 'free') => void
+  catalogOnly: boolean
 }) {
   const { user, open } = useAccount()
   const source = usePrintCatalog()
@@ -1774,33 +1779,36 @@ function PersonalProductSelector({
   return (
     <section className="tool-settings-section print-selector">
       <h2>Produit d’impression</h2>
-      <Select
-        label="Mode du BAT"
-        value={snapshot ? (mode === 'legacy' ? 'catalog' : mode) : mode}
-        onChange={(mode) => {
-          setError('')
-          setNotice('')
-          if (mode === 'legacy') onChange(null, 'legacy')
-          else if (mode === 'free' && catalog)
-            onChange(
-              {
-                schema_version: 1,
-                product_name: 'Produit sur mesure',
-                category_name: 'Mode libre',
-                variant: newVariant(),
-                materials: clone(catalog.materials),
-                finishes: clone(catalog.finishes),
-              },
-              'free',
-            )
-          else if (mode === 'catalog' && catalog?.products[0]) selectProduct(catalog.products[0].id)
-          else onChange(null, mode as 'catalog' | 'free')
-        }}
-      >
-        <option value="legacy">Composition classique</option>
-        <option value="catalog">Depuis le catalogue</option>
-        <option value="free">Mode libre configurable</option>
-      </Select>
+      {!catalogOnly && (
+        <Select
+          label="Mode du BAT"
+          value={snapshot ? (mode === 'legacy' ? 'catalog' : mode) : mode}
+          onChange={(mode) => {
+            setError('')
+            setNotice('')
+            if (mode === 'legacy') onChange(null, 'legacy')
+            else if (mode === 'free' && catalog)
+              onChange(
+                {
+                  schema_version: 1,
+                  product_name: 'Produit sur mesure',
+                  category_name: 'Mode libre',
+                  variant: newVariant(),
+                  materials: clone(catalog.materials),
+                  finishes: clone(catalog.finishes),
+                },
+                'free',
+              )
+            else if (mode === 'catalog' && catalog?.products[0])
+              selectProduct(catalog.products[0].id)
+            else onChange(null, mode as 'catalog' | 'free')
+          }}
+        >
+          <option value="legacy">Composition classique</option>
+          <option value="catalog">Depuis le catalogue</option>
+          <option value="free">Mode libre configurable</option>
+        </Select>
+      )}
       {(source.error || error) && (
         <p className="alert error" role="alert">
           {source.error || error}
@@ -1920,7 +1928,7 @@ function PersonalProductSelector({
             )}
           {mode === 'catalog' && (
             <Checks
-              title="Options du BAT"
+              title={catalogOnly ? 'Finitions de fabrication' : 'Options du BAT'}
               rows={snapshot.finishes}
               selected={snapshot.variant.finish_ids}
               onChange={(finish_ids) =>
@@ -1928,7 +1936,7 @@ function PersonalProductSelector({
               }
             />
           )}
-          {mode === 'catalog' && (
+          {mode === 'catalog' && !catalogOnly && (
             <label className="checkbox-label">
               <input
                 type="checkbox"
@@ -1963,7 +1971,7 @@ function PersonalProductSelector({
               </Button>
             </>
           )}
-          {snapshot.variant.finish_ids.length > 0 && (
+          {!catalogOnly && snapshot.variant.finish_ids.length > 0 && (
             <section aria-label="Apparence des finitions sur le BAT">
               <h3>Apparence des finitions sur le BAT</h3>
               <p className="field-hint">
@@ -2002,14 +2010,17 @@ function PersonalProductSelector({
             </section>
           )}
           <p className="field-hint">
-            PDF uniquement. Les formats finis, les fonds perdus et les pages sont contrôlés. La
-            configuration sera figée dans le BAT et ses réglages.
+            {catalogOnly
+              ? 'Le produit, ses composants, ses supports et les finitions choisies seront figés dans la fiche de fabrication et ses réglages.'
+              : 'PDF uniquement. Les formats finis, les fonds perdus et les pages sont contrôlés. La configuration sera figée dans le BAT et ses réglages.'}
           </p>
-          <ol className="field-hint">
-            {snapshotLabels(snapshot).map((label, i) => (
-              <li key={i}>{label}</li>
-            ))}
-          </ol>
+          {!catalogOnly && (
+            <ol className="field-hint">
+              {snapshotLabels(snapshot).map((label, i) => (
+                <li key={i}>{label}</li>
+              ))}
+            </ol>
+          )}
         </>
       )}
       <a href="/?view=products">Gérer les produits, matières et finitions →</a>

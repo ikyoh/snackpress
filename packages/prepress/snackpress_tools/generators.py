@@ -436,21 +436,109 @@ def sushi(folder, files, p):
 
 def kebab(folder, files, p):
     path = folder / "fiche-fabrication.pdf"
+    snapshot = p.product_snapshot
+    materials = {m.id: m for m in snapshot.materials}
+    finishes = {f.id: f.name for f in snapshot.finishes}
+    rows = [
+        ("Client / projet", p.client or "Non renseigné"),
+        ("Produit", snapshot.product_name),
+        ("Catégorie", snapshot.category_name),
+        ("Déclinaison", snapshot.variant.name),
+        ("Quantité", f"{p.quantity} exemplaires"),
+        ("Couleurs", p.colors),
+        ("Finitions", ", ".join(finishes[i] for i in snapshot.variant.finish_ids) or "Aucune"),
+    ]
+    guide_names = {
+        "pizza": "Découpe",
+        "taco": "Pliage",
+        "burrito": "Ourlets et œillets",
+        "sushi": "Découpe et rainage",
+        "perforation": "Perforation",
+    }
+    for component in snapshot.variant.components:
+        material = materials.get(component.material_id)
+        support = "À confirmer"
+        if material:
+            details = [material.name, material.family]
+            if material.gsm is not None:
+                details.append(f"{material.gsm:g} g/m²")
+            if material.thickness is not None:
+                details.append(f"Épaisseur : {material.thickness:g} mm")
+            if material.description:
+                details.append(material.description)
+            support = " · ".join(details)
+        rows.extend(
+            [
+                ("Composant", component.name),
+                ("Format fini", f"{component.width:g} × {component.height:g} mm"),
+                ("Fond perdu", f"{component.bleed:g} mm sur chaque côté"),
+                ("Support matière", support),
+                (
+                    "Faces / pagination",
+                    "\n".join(
+                        f"{s.name} : {s.pages} page(s)" + (" — masque" if s.role == "mask" else "")
+                        for s in component.slots
+                    ),
+                ),
+            ]
+        )
+        if component.pizza_template:
+            template = component.pizza_template
+            rows.append(("Gabarit", f"{template.name} · révision {template.revision}"))
+        for guide in component.guides:
+            s = guide.settings
+            if guide.tool == "pizza":
+                shapes = {"rectangle": "Rectangle", "circle": "Cercle", "ellipse": "Ellipse"}
+                detail = f"{shapes[s['shape']]} · rayon des coins : {s['corner_radius']:g} mm"
+            elif guide.tool == "taco":
+                folds = {"accordion": "Accordéon", "roll": "Roulé", "gate": "Fenêtre"}
+                detail = (
+                    f"{folds[s['fold']]} · {s['panels']} panneaux · retrait : {s['allowance']:g} mm"
+                )
+            elif guide.tool == "burrito":
+                detail = (
+                    f"Ourlet : {s['hem']:g} mm · fourreau : {s['sleeve']:g} mm"
+                    f" · espacement des œillets : {s['spacing']:g} mm"
+                    f" · retrait des œillets : {s['inset']:g} mm"
+                )
+            elif guide.tool == "sushi":
+                detail = (
+                    f"Ton de découpe : {s['cut_name']} · rainage : {s['crease_name']}"
+                    f" · positions : {s['creases'] or 'Aucun'}"
+                )
+            else:
+                axis = "verticales" if s["axis"] == "vertical" else "horizontales"
+                detail = f"Positions {axis} : " + ", ".join(f"{x:g} mm" for x in s["positions"])
+            rows.append((guide_names[guide.tool], detail))
+        if component.tickets:
+            tickets = component.tickets
+            binding = {"loose": "Feuilles libres", "stapled": "Agrafé", "glued": "Collé"}
+            first = tickets.prefix + str(tickets.start).zfill(tickets.digits) + tickets.suffix
+            last = (
+                tickets.prefix
+                + str(tickets.start + tickets.count - 1).zfill(tickets.digits)
+                + tickets.suffix
+            )
+            rows.append(
+                (
+                    "Billets numérotés",
+                    (
+                        f"{first} à {last} · {tickets.count} billets"
+                        f" · {tickets.per_book} par carnet"
+                        f" · {binding[tickets.binding]}"
+                    ),
+                )
+            )
+    rows.append(("Consignes", p.notes or "Aucune"))
     report(
         path,
         p.title,
-        [
-            ("Client / projet", p.client or "Non renseigné"),
-            ("Papier", p.paper),
-            ("Quantité", p.quantity),
-            ("Couleurs / faces", p.colors),
-            ("Finitions", p.finishing),
-            ("Consignes", p.notes or "Aucune"),
-        ],
+        rows,
         (
             "Fiche d’instructions déclaratives : aucune validation automatique"
             " des choix de fabrication."
         ),
+        branded_header=True,
     )
     return ToolResult(
         tool="kebab",

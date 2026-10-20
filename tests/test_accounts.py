@@ -213,12 +213,14 @@ def test_configurations_ownership_defaults_conflicts_and_persistence(account_api
 
 
 def test_validation_all_tools_and_numbering_roundtrip(account_api):
+    from conftest import product_snapshot
     from snackpress_tools.catalog import MODELS
 
     client, _, deliveries = account_api
     activate(client, deliveries)
     for tool in [*MODELS, "imposition"]:
-        response = create(client, tool=tool)
+        settings = {"product_snapshot": product_snapshot()} if tool == "kebab" else {}
+        response = create(client, tool=tool, settings=settings)
         assert response.status_code == 201, (tool, response.text)
     assert create(client, tool="unknown").status_code == 404
     assert create(client, name=" ").status_code == 422

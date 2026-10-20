@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 
 import pikepdf
 import pytest
+from conftest import product_snapshot
 from fastapi.testclient import TestClient
 from snackpress_tools.catalog import CATALOG
 from sqlalchemy import select
@@ -38,7 +39,8 @@ def test_all_tool_previews_are_readable_and_separate_from_final_jobs(api, source
     response = client.post(f"/api/tools/{tool}/previews", files=files)
     assert response.status_code == 201, response.text
     preview_id = response.json()["id"]
-    response = render(client, preview_id)
+    settings = {"product_snapshot": product_snapshot()} if tool == "kebab" else {}
+    response = render(client, preview_id, settings)
     assert response.status_code == 200, (tool, response.text)
     data = response.json()
     assert data["artifacts"] and data["notice"]
