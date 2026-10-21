@@ -115,22 +115,19 @@ def test_brochure_grouped_or_split_cover(tmp_path, cover_files):
 @pytest.mark.parametrize(
     "tool,width,height", [("pizza", 85, 55), ("taco", 297, 210), ("burrito", 2000, 1000)]
 )
-def test_registered_template_marks_on_additional_page(tmp_path, tool, width, height):
+def test_registered_template_marks_on_every_page(tmp_path, tool, width, height):
     if tool == "pizza":
         width, height = width + 6, height + 6
     visual = source(tmp_path, "visual.pdf", width=width, height=height)
     out, result = generate(tmp_path, [visual], {"template_tool": tool})
-    assert result.metrics["Pages du BAT"] == 2
+    assert result.metrics["Pages du BAT"] == 1
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
         first = pdf[0].render(scale=1).to_pil().copy()
-        second = pdf[1].render(scale=1).to_pil().copy()
         # The artwork is present under the template, including the large-format source.
         assert first.getpixel((297, 390)) != (255, 255, 255)
-        assert second.getpixel((297, 390)) != (255, 255, 255)
     with pikepdf.open(out / "bat.pdf") as pdf:
-        assert "/Multiply" in str(pdf.pages[1].Resources.ExtGState)
-        assert not guide_forms(pdf.pages[0])
-        assert_native_guides(pdf.pages[1])
+        assert "/Multiply" in str(pdf.pages[0].Resources.ExtGState)
+        assert_native_guides(pdf.pages[0])
 
 
 @pytest.mark.parametrize(
@@ -149,12 +146,12 @@ def test_import_exported_pdf_template(tmp_path, tool, width, height, settings):
     out, result = generate(
         tmp_path, [visual, template_dir / exported.artifacts[0].name], {"template_tool": "pdf"}
     )
-    assert result.metrics["Pages du BAT"] == 2
+    assert result.metrics["Pages du BAT"] == 1
     with pikepdf.open(out / "bat.pdf") as pdf:
-        assert_native_guides(pdf.pages[1])
+        assert_native_guides(pdf.pages[0])
 
 
-def test_vector_guides_on_each_artwork_page_but_not_finish_pages(tmp_path):
+def test_vector_guides_on_every_artwork_and_finish_page(tmp_path):
     visual = source(tmp_path, "visual.pdf", pages=2)
     finish = source(tmp_path, "finish.pdf")
     out, result = generate(
@@ -166,24 +163,21 @@ def test_vector_guides_on_each_artwork_page_but_not_finish_pages(tmp_path):
             "template_settings": {"unusable_top": 7, "safety_left": 5},
         },
     )
-    assert result.metrics["Pages du BAT"] == 5
+    assert result.metrics["Pages du BAT"] == 3
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
-        for index, page in enumerate(pdf):
+        for page in pdf:
             content = page.get_textpage().get_text_range()
-            assert ("Légende des repères" in content) == (index in (1, 3))
-            if index in (1, 3):
-                for label in ("Coupe / format fini", "Zone de sécurité", "Zone inexploitable"):
-                    assert label in content
+            assert "Légende des repères" in content
+            for label in ("Coupe / format fini", "Zone de sécurité", "Zone inexploitable"):
+                assert label in content
     with pikepdf.open(out / "bat.pdf") as pdf:
-        for index in (1, 3):
-            assert_native_guides(pdf.pages[index])
+        for page in pdf.pages:
+            assert_native_guides(page)
             assert any(
                 str(op) == "W*"
-                for form in guide_forms(pdf.pages[index])
+                for form in guide_forms(page)
                 for _, op in pikepdf.parse_content_stream(form)
             )
-        for index in (0, 2, 4):
-            assert not guide_forms(pdf.pages[index])
 
 
 @pytest.mark.parametrize(

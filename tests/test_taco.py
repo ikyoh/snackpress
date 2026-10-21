@@ -115,7 +115,7 @@ def test_burger_alternates_front_back_across_artwork_files_and_pages(tmp_path, s
     files = [
         artwork(tmp_path, f"visuel-{i}.pdf", 1 if split else 2) for i in range(2 if split else 1)
     ]
-    files.append(artwork(tmp_path, "masque.pdf", 1))
+    files.append(artwork(tmp_path, "masque.pdf", 2))
     out = tmp_path / "bat"
     out.mkdir()
     run(
@@ -130,8 +130,8 @@ def test_burger_alternates_front_back_across_artwork_files_and_pages(tmp_path, s
         },
     )
     with pikepdf.open(out / "bat.pdf") as pdf:
-        assert len(pdf.pages) == 5
-        for index, expected in [(1, [101, 200]), (3, [97, 196])]:
+        assert len(pdf.pages) == 4
+        for index, expected in enumerate([[101, 200], [97, 196]] * 2):
             forms = [
                 obj
                 for obj in dict(pdf.pages[index].Resources.XObject).values()
@@ -139,9 +139,6 @@ def test_burger_alternates_front_back_across_artwork_files_and_pages(tmp_path, s
             ]
             assert len(forms) == 1
             assert stroke_positions(forms[0]) == pytest.approx(expected)
-        assert not any(
-            obj.Subtype == "/Form" for obj in dict(pdf.pages[4].Resources.XObject).values()
-        )
 
 
 def test_imported_duplex_template_keeps_back_guides(tmp_path):
@@ -154,7 +151,7 @@ def test_imported_duplex_template_keeps_back_guides(tmp_path):
     run(out, "burger", [source, guide / "plan-pliage.pdf"], {"template_tool": "pdf"})
     with pikepdf.open(out / "bat.pdf") as pdf:
         form = next(
-            obj for obj in dict(pdf.pages[3].Resources.XObject).values() if obj.Subtype == "/Form"
+            obj for obj in dict(pdf.pages[1].Resources.XObject).values() if obj.Subtype == "/Form"
         )
         assert stroke_positions(form) == pytest.approx([97, 196])
 

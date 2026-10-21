@@ -189,20 +189,22 @@ def generate(
             dpi = min(120, 1100 * 25.4 / max(w, h))
             image, _ = render_page(source, index, dpi=dpi)
             has_finishes = bool(finish_styles) and file_index < p.expected_files
-            marked = guide is not None and file_index < p.expected_files
-            guide_face = artwork_index % guide_faces if marked else 0
+            marked = guide is not None
+            # Each finish file starts with its own recto; simulations share the
+            # artwork's face without advancing the recto/verso sequence.
+            face_index = artwork_index if file_index < p.expected_files else index
+            guide_face = face_index % guide_faces if marked else 0
             full = marked and abs(w - gw) <= 1 and abs(h - gh) <= 1
             if marked and not full and not (abs(w - fw) <= 1 and abs(h - fh) <= 1):
                 raise ValueError(
                     f"{label}, page {index + 1} : format {w:.2f} × {h:.2f} mm incompatible "
                     f"avec le gabarit ({fw:g} × {fh:g} mm finis ou {gw:g} × {gh:g} mm à plat)."
                 )
-            views = [(False, False)]
+            views = [False]
             if has_finishes:
-                views.append((False, True))
-            if marked:
-                views.append((True, False))
-            for with_guides, with_finishes in views:
+                views.append(True)
+            for with_finishes in views:
+                with_guides = marked
                 bw, bh = (gw, gh) if with_guides else (w, h)
                 bottom = 65 + max(0, (len(legend) + 1) // 2 - 2) * 5 if with_guides else 65
                 height = 249 - bottom
@@ -214,13 +216,20 @@ def generate(
                 c.drawString(18 * mm, 267 * mm, p.title)
                 c.setFont("Snack", 9)
                 c.drawString(18 * mm, 260 * mm, f"{label} — page {index + 1} / {count}")
+                view_label = (
+                    "Simulation des finitions"
+                    if with_finishes
+                    else "Contrôle de finition"
+                    if file_index >= p.expected_files
+                    else "Visuel"
+                )
                 c.drawString(
                     18 * mm,
                     254 * mm,
                     (
-                        f"Visuel avec repères — {'Recto' if guide_face == 0 else 'Verso'}"
+                        f"{view_label} avec repères — {'Recto' if guide_face == 0 else 'Verso'}"
                         if guide_faces == 2
-                        else "Visuel avec repères de gabarit"
+                        else f"{view_label} avec repères de gabarit"
                     )
                     if with_guides
                     else "Simulation des finitions"
@@ -242,7 +251,7 @@ def generate(
                     c.setFont("Snack", 8)
                     c.drawString(
                         18 * mm,
-                        49 * mm,
+                        (43 if with_guides else 49) * mm,
                         "Finitions : " + ", ".join(f.name for f in finish_styles)[:110],
                     )
                 c.drawImage(

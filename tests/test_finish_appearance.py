@@ -1,5 +1,6 @@
 import json
 
+import pikepdf
 import pytest
 from PIL import Image
 from pydantic import ValidationError
@@ -8,6 +9,7 @@ from snackpress_tools.common import new_canvas
 from snackpress_tools.finish_appearance import simulate_finishes
 from snackpress_tools.products import Finish, FinishAppearance
 from snackpress_tools.runner import run
+from test_burger import assert_native_guides
 from test_products import artwork, content, specification
 
 
@@ -96,7 +98,10 @@ def test_simulation_in_proof_and_frozen_settings(tmp_path, product_id):
     assert result.artifacts[0].pages > 0
     text = content(output / "bat.pdf")
     assert text.count("Simulation des finitions") == 2
-    assert "Visuel seul" in text
+    assert "Visuel seul" not in text
+    with pikepdf.open(output / "bat.pdf") as pdf:
+        for page in pdf.pages:
+            assert_native_guides(page)
     frozen = json.loads((output / "reglages.json").read_text())["settings"]["product_snapshot"]
     saved = next(f for f in frozen["finishes"] if f["id"] == finish.id)
     assert saved["appearance"] == finish.appearance.model_dump()
