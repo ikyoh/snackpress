@@ -93,6 +93,10 @@ def pizza(folder, files, p):
     c.setStrokeColor(CORAL)
     c.setLineWidth(0.25 * mm)
     c.drawPath(cut)
+    if p.bleed:
+        c.setStrokeColor(colors.HexColor("#3265c9"))
+        c.setDash(2 * mm, mm)
+        c.drawPath(contour(*([-p.bleed] * 4)))
     c.save()
     with pikepdf.open(path, allow_overwriting_input=True) as pdf:
         page = pdf.pages[0]
@@ -115,7 +119,7 @@ def pizza(folder, files, p):
                 "Rayon des coins",
                 "Sans objet" if p.shape != "rectangle" else f"{p.corner_radius} mm",
             ),
-            ("Fond perdu", f"{p.bleed} mm, zone saumon"),
+            ("Fond perdu", f"{p.bleed} mm, zone saumon et contour bleu pointillé"),
             (
                 "Sécurité (haut / bas / gauche / droite)",
                 f"{p.safety_top:g} / {p.safety_bottom:g} / "

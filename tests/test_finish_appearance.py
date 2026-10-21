@@ -157,6 +157,15 @@ def test_simulation_in_proof_and_frozen_settings(tmp_path, product_id, mode):
     with pikepdf.open(output / "bat.pdf") as pdf:
         for page in pdf.pages:
             assert_native_guides(page)
+        images = [
+            next(obj for obj in dict(page.Resources.XObject).values() if obj.Subtype == "/Image")
+            for page in list(pdf.pages)[:2]
+        ]
+        original, simulation = [pikepdf.PdfImage(image).as_pil_image() for image in images]
+        # The displayed bleed remains the original artwork, even for full-area finishes.
+        assert original.getpixel((1, original.height // 2)) == simulation.getpixel(
+            (1, simulation.height // 2)
+        )
     frozen = json.loads((output / "reglages.json").read_text())["settings"]["product_snapshot"]
     saved = next(f for f in frozen["finishes"] if f["id"] == finish.id)
     assert saved["appearance"] == finish.appearance.model_dump()

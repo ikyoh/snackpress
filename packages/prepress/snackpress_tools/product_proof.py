@@ -6,16 +6,55 @@ import pikepdf
 from reportlab.lib.units import mm
 
 from .artwork_geometry import validate_page
-from .common import CORAL, artifact, new_canvas, open_pdf, paginate_pdf, report
+from .common import CORAL, INK, artifact, full_page_form, new_canvas, open_pdf, paginate_pdf, report
 from .products import snapshot_slots
-from .proof_layout import guide_key, proof_date
+from .proof_layout import BLEED_COLOR, guide_key, print_key, proof_date
+
+
+def standard_guide(folder, component):
+    """Basic print guides for rectangular products without a Pizza template."""
+    w, h, bleed = component.width, component.height, component.bleed
+    safety = min(4, w / 4, h / 4)
+    path = folder / "reperes-impression.pdf"
+    c = new_canvas(path, w + 2 * bleed, h + 2 * bleed)
+    c.setLineWidth(0.25 * mm)
+    c.setStrokeColor(CORAL)
+    c.rect(bleed * mm, bleed * mm, w * mm, h * mm, fill=0)
+    c.setDash(2 * mm, mm)
+    c.setStrokeColor(INK)
+    c.rect(
+        (bleed + safety) * mm,
+        (bleed + safety) * mm,
+        (w - 2 * safety) * mm,
+        (h - 2 * safety) * mm,
+        fill=0,
+    )
+    if bleed:
+        c.setStrokeColor(BLEED_COLOR)
+        c.rect(0, 0, (w + 2 * bleed) * mm, (h + 2 * bleed) * mm, fill=0)
+    c.save()
+    return path, (w + 2 * bleed, h + 2 * bleed), (bleed, bleed, w, h)
+
+
+def proof_canvas(page, guide):
+    if guide is None:
+        return
+    _, (gw, gh), (ox, oy, _, _) = guide
+    tx, ty = float(page.trimbox[0]), float(page.trimbox[1])
+    box = pikepdf.Array([tx - ox * mm, ty - oy * mm, tx + (gw - ox) * mm, ty + (gh - oy) * mm])
+    page.MediaBox = box
+    page.CropBox = box
 
 
 def component_guide(folder, component):
     from .burger import template
     from .catalog import Burger
 
-    layers = []
+    layers = (
+        []
+        if any(g.tool in {"pizza", "sushi"} for g in component.guides)
+        else [standard_guide(folder, component)]
+    )
     for index, guide in enumerate(component.guides):
         work = folder / f"trace-{index + 1}"
         work.mkdir()
@@ -47,10 +86,10 @@ def component_guide(folder, component):
             )
     if not layers:
         return None
-    left = max(layer[2][0] for layer in layers)
-    bottom = max(layer[2][1] for layer in layers)
-    right = max(layer[1][0] - layer[2][0] - component.width for layer in layers)
-    top = max(layer[1][1] - layer[2][1] - component.height for layer in layers)
+    left = max(component.bleed, *(layer[2][0] for layer in layers))
+    bottom = max(component.bleed, *(layer[2][1] for layer in layers))
+    right = max(component.bleed, *(layer[1][0] - layer[2][0] - component.width for layer in layers))
+    top = max(component.bleed, *(layer[1][1] - layer[2][1] - component.height for layer in layers))
     width, height = component.width + left + right, component.height + bottom + top
     output = pikepdf.Pdf.new()
     face_count = 1
@@ -70,7 +109,7 @@ def component_guide(folder, component):
         for path, (w, h), (x, y, _, _) in layers:
             with pikepdf.open(path) as source:
                 page.add_overlay(
-                    source.pages[face % len(source.pages)],
+                    full_page_form(source.pages[face % len(source.pages)]),
                     pikepdf.Rectangle(
                         (left - x) * mm,
                         (bottom - y) * mm,
@@ -106,7 +145,7 @@ def generate_product(folder, files, params, preview=False):
                     f"{component.name} — {slot.name} : {slot.pages} page(s) attendue(s)."
                 )
             for page in doc.pages:
-                validate_page(
+                page.CropBox = validate_page(
                     page,
                     component.width,
                     component.height,
@@ -147,14 +186,14 @@ def generate_product(folder, files, params, preview=False):
         visuals = [(file, slot) for file, slot in entries if slot.role == "visual"]
         masks = [(file, slot) for file, slot in entries if slot.role == "mask"]
         guide = component_guide(work, component)
-        # Artwork can carry larger bleed margins than a technical guide. Normalize
-        # each proof copy to the finished format; production originals remain intact.
+        # Match the full guide canvas while retaining the artwork's actual bleed.
+        # Extra technical margins are blank; production originals remain intact.
         proof_sources = []
         labels = []
         for file_index, (file, slot) in enumerate(visuals + masks):
             with open_pdf(file, max_pages=200) as doc:
                 for page in doc.pages:
-                    page.CropBox = page.trimbox
+                    proof_canvas(page, guide)
                 target = work / f"visuel-{file_index}.pdf"
                 doc.save(target)
                 proof_sources.append(target)
@@ -181,7 +220,7 @@ def generate_product(folder, files, params, preview=False):
                     indices += list(range(len(doc.pages) - faces, len(doc.pages)))
                 sample.pages.extend([doc.pages[i] for i in indices])
                 for page in sample.pages:
-                    page.CropBox = page.trimbox
+                    proof_canvas(page, guide)
                 target = work / "bat-premier-dernier.pdf"
                 sample.save(target)
                 sample.close()
@@ -199,6 +238,8 @@ def generate_product(folder, files, params, preview=False):
                 entry for g in component.guides for entry in guide_key(g.tool, g.settings)
             )
         )
+        if not any(g.tool in {"pizza", "sushi"} for g in component.guides):
+            legend = list(dict.fromkeys(print_key(component.bleed) + legend))
         generate(
             work,
             proof_sources,

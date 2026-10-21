@@ -13,6 +13,18 @@ from reportlab.pdfbase.ttfonts import TTFont
 from .catalog import MODELS
 from .common import CORAL, INK, fonts
 
+BLEED_COLOR = colors.HexColor("#3265c9")
+
+
+def print_key(bleed):
+    entries = [
+        ("Coupe / format fini", CORAL, "solid"),
+        ("Zone de sécurité / tranquillité", INK, "dashed"),
+    ]
+    if bleed:
+        entries.append(("Fond perdu", BLEED_COLOR, "dashed"))
+    return entries
+
 
 def proof_date():
     return datetime.now(ZoneInfo("Europe/Paris")).strftime("%d/%m/%Y")
@@ -114,7 +126,7 @@ def guide_key(tool, settings):
         return [("Perforation", CORAL, "dashed")]
     p = MODELS[tool].model_validate(settings)
     if tool == "pizza":
-        entries = [("Coupe / format fini", CORAL, "solid"), ("Zone de sécurité", INK, "dashed")]
+        entries = print_key(p.bleed)
         if any(getattr(p, f"unusable_{side}") for side in ("top", "bottom", "left", "right")):
             entries.append(("Zone inexploitable", colors.HexColor("#e6b800"), "hatched"))
         return entries

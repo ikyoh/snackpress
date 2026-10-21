@@ -126,7 +126,7 @@ def test_registered_template_marks_on_every_page(tmp_path, tool, width, height):
         # The artwork is present under the template, including the large-format source.
         assert first.getpixel((297, 390)) != (255, 255, 255)
     with pikepdf.open(out / "bat.pdf") as pdf:
-        assert "/Multiply" in str(pdf.pages[0].Resources.ExtGState)
+        assert "/Normal" in str(pdf.pages[0].Resources.ExtGState)
         assert_native_guides(pdf.pages[0])
 
 

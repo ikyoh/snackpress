@@ -197,6 +197,13 @@ def dimensions(page):
     return (h, w) if rotation in (90, 270) else (w, h)
 
 
+def full_page_form(page):
+    # pikepdf defaults to TrimBox, which clips bleed and rescales guide geometry.
+    form = page.as_form_xobject()
+    form.BBox = pikepdf.Array(page.cropbox)
+    return form
+
+
 def render_page(path: Path, index: int, dpi=96, max_pixels=20_000_000):
     with pdfium.PdfDocument(str(path)) as doc:
         page = doc[index]

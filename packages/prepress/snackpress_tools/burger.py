@@ -7,7 +7,16 @@ from reportlab.lib.utils import ImageReader
 
 from .artwork_geometry import validate_page
 from .catalog import MODELS, ToolResult
-from .common import artifact, dimensions, new_canvas, open_pdf, paginate_pdf, render_page, report
+from .common import (
+    artifact,
+    dimensions,
+    full_page_form,
+    new_canvas,
+    open_pdf,
+    paginate_pdf,
+    render_page,
+    report,
+)
 from .proof_layout import draw_legend, guide_key, header_footer, proof_date
 
 
@@ -20,6 +29,24 @@ def input_labels(p):
     else:
         labels = [f"Visuel {i + 1}" for i in range(p.expected_files)]
     return labels + [f"Finition : {name}" for name in p.finishes]
+
+
+def proof_strokes(form, scale):
+    """Keep native guides legible when a large format is reduced onto A4."""
+    commands = []
+    for operands, operator in pikepdf.parse_content_stream(form):
+        if str(operator) == "w":
+            operands = [max(float(operands[0]), 0.55 / scale)]
+        elif str(operator) == "d" and operands[0]:
+            operands = [
+                pikepdf.Array(max(float(value), 1.25 / scale) for value in operands[0]),
+                operands[1],
+            ]
+        commands.append((operands, operator))
+    form.write(pikepdf.unparse_content_stream(commands))
+    for child in dict(form.get("/Resources", {}).get("/XObject", {})).values():
+        if child.get("/Subtype") == "/Form":
+            proof_strokes(child, scale)
 
 
 def template(folder, files, p):
@@ -248,6 +275,18 @@ def generate(
                         artwork_index % finish_page_count if finish_page_count else artwork_index,
                         dpi,
                     )
+                    if full:
+                        # Finishes cover the finished product. Keep the real bleed
+                        # and the guide's technical margins unchanged in simulations.
+                        trim_pixels = (
+                            round(ox / gw * image.width),
+                            round((gh - oy - fh) / gh * image.height),
+                            round((ox + fw) / gw * image.width),
+                            round((gh - oy) / gh * image.height),
+                        )
+                        simulation = displayed
+                        displayed = image.copy()
+                        displayed.paste(simulation.crop(trim_pixels), trim_pixels)
                     c.setFont("Snack", 8)
                     c.drawString(
                         18 * mm,
@@ -291,12 +330,23 @@ def generate(
             pikepdf.open(path, allow_overwriting_input=True) as proof,
         ):
             # Import native PDF objects once; reuse the form on all marked pages.
-            forms = [proof.copy_foreign(page.as_form_xobject()) for page in source.pages]
-            multiply = pikepdf.Dictionary(Type=pikepdf.Name.ExtGState, BM=pikepdf.Name.Multiply)
+            forms = [proof.copy_foreign(full_page_form(page)) for page in source.pages]
+            if p.template_tool != "pdf" or combined_guide is not None:
+                guide_scale = float(guide_placements[0][1].width) / (gw * mm)
+                for form in forms:
+                    proof_strokes(form, guide_scale)
+            # Generated guides contain strokes only. Normal blending keeps their
+            # colors visible over dark artwork; imported PDFs may contain white fills.
+            blending = pikepdf.Dictionary(
+                Type=pikepdf.Name.ExtGState,
+                BM=pikepdf.Name.Multiply
+                if p.template_tool == "pdf" and combined_guide is None
+                else pikepdf.Name.Normal,
+            )
             for index, rect, guide_face in guide_placements:
                 form = forms[guide_face]
                 page = proof.pages[index]
-                state_name = page.add_resource(multiply, pikepdf.Name.ExtGState)
+                state_name = page.add_resource(blending, pikepdf.Name.ExtGState)
                 form_name = page.add_resource(form, pikepdf.Name.XObject)
                 placement = page.calc_form_xobject_placement(
                     form, form_name, rect, allow_shrink=True, allow_expand=True
