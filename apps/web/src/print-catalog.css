@@ -223,6 +223,12 @@
   z-index: -1;
 }
 
+.finish-appearance-path {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .finish-appearance-preview > span:last-child {
   background: white;
   color: #30203d;

@@ -2,7 +2,7 @@ import json
 
 import pikepdf
 import pytest
-from PIL import Image
+from PIL import Image, ImageDraw
 from pydantic import ValidationError
 from reportlab.lib.units import mm
 from snackpress_tools.common import new_canvas
@@ -15,7 +15,14 @@ from test_products import artwork, content, specification
 
 def test_old_finishes_and_invalid_appearance():
     assert Finish(id="old", name="Ancienne finition").appearance.mode == "none"
-    for patch in ({"color": "red"}, {"alpha": 1.1}, {"angle": -1}, {"mode": "other"}):
+    assert FinishAppearance(mode="path").dash_color == "#ffffff"
+    for patch in (
+        {"color": "red"},
+        {"dash_color": "blue"},
+        {"alpha": 1.1},
+        {"angle": -1},
+        {"mode": "other"},
+    ):
         with pytest.raises(ValidationError):
             FinishAppearance(**patch)
 
@@ -46,9 +53,11 @@ def test_area_opacity_gradient_and_path():
     assert result.getpixel((50, 40)) == (255, 0, 0)
     assert result.getpixel((50, 0)) == (0, 0, 255)
     finish.appearance.mode = "path"
+    finish.appearance.dash_color = "#0000ff"
     result = simulate_finishes(image, [finish], {}, 0, 72)
     assert result.getpixel((50, 20)) == (255, 255, 255)
-    assert result.getpixel((0, 20)) == (255, 0, 0)
+    assert result.getpixel((2, 0)) == (0, 0, 255)
+    assert result.getpixel((7, 0)) == (255, 0, 0)
 
 
 def test_mask_coverage_and_page_order(tmp_path):
@@ -76,11 +85,55 @@ def test_mask_coverage_and_page_order(tmp_path):
     finish.appearance.mode = "path"
     result = simulate_finishes(image, [finish], {"foil": path}, 0, 72)
     assert result.getpixel((25, 20)) == (255, 255, 255)
-    assert result.getpixel((49, 20)) == (255, 0, 0)
+    assert {result.getpixel((49, y)) for y in range(2, 38)} == {
+        (255, 0, 0),
+        (255, 255, 255),
+    }
+
+
+@pytest.mark.parametrize("dpi", [72, 144])
+def test_path_dashes_follow_contours_at_physical_scale(dpi):
+    image = Image.new("RGB", (round(80 * dpi / 25.4), round(40 * dpi / 25.4)), "white")
+    finish = Finish(
+        id="cut",
+        name="Découpe",
+        appearance={"mode": "path", "color": "#ff0000", "dash_color": "#0000ff"},
+    )
+    result = simulate_finishes(image, [finish], {}, 0, dpi)
+    dash, gap = round(2 * dpi / 25.4), round(dpi / 25.4)
+    assert result.getpixel((dash // 2, 0)) == (0, 0, 255)
+    assert result.getpixel((dash + gap // 2, 0)) == (255, 0, 0)
+    assert result.getpixel((dash + gap + dash // 2, 0)) == (0, 0, 255)
+    assert result.getpixel((image.width // 2, image.height // 2)) == (255, 255, 255)
+
+
+def test_path_dashes_follow_mask_holes_and_separate_shapes(monkeypatch):
+    mask = Image.new("RGB", (101, 61), "white")
+    draw = ImageDraw.Draw(mask)
+    draw.polygon([(4, 4), (50, 4), (50, 50), (35, 50), (35, 40), (4, 40)], fill="black")
+    draw.rectangle((15, 15, 30, 25), fill="white")
+    draw.ellipse((60, 4, 96, 50), fill="black")
+    monkeypatch.setattr(
+        "snackpress_tools.finish_appearance.render_page", lambda *args, **kwargs: (mask, None)
+    )
+    finish = Finish(
+        id="cut",
+        name="Découpe",
+        mask=True,
+        appearance={"mode": "path", "color": "#ff0000", "dash_color": "#0000ff"},
+    )
+    result = simulate_finishes(Image.new("RGB", mask.size, "white"), [finish], {"cut": None}, 0, 72)
+    # Both colors follow the outside contour and the inside of the hole.
+    assert result.getpixel((6, 4)) == result.getpixel((17, 26)) == (0, 0, 255)
+    assert result.getpixel((11, 4)) == result.getpixel((22, 26)) == (255, 0, 0)
+    assert result.getpixel((10, 10)) == result.getpixel((20, 20)) == (255, 255, 255)
+    curved_colors = {result.getpixel((x, y)) for x in range(60, 97) for y in range(4, 51)}
+    assert {(0, 0, 255), (255, 0, 0)} <= curved_colors
 
 
 @pytest.mark.parametrize("product_id", ["card", "ticket"])
-def test_simulation_in_proof_and_frozen_settings(tmp_path, product_id):
+@pytest.mark.parametrize("mode", ["area", "path"])
+def test_simulation_in_proof_and_frozen_settings(tmp_path, product_id, mode):
     snapshot = specification(product_id)
     finish = (
         next(f for f in snapshot.finishes if f.id == snapshot.variant.finish_ids[0])
@@ -89,7 +142,9 @@ def test_simulation_in_proof_and_frozen_settings(tmp_path, product_id):
     )
     snapshot.variant.finish_ids = [finish.id]
     # The ticket stock does not accept the seeded varnish: use its own perforation.
-    finish.appearance = FinishAppearance(mode="area", gradient=True, alpha=0.6)
+    finish.appearance = FinishAppearance(
+        mode=mode, gradient=True, alpha=0.6, color="#ff0000", dash_color="#0000ff"
+    )
     files = artwork(tmp_path, snapshot)
     original_bytes = [path.read_bytes() for path in files]
     output = tmp_path / "out"

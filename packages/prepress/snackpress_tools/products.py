@@ -28,6 +28,7 @@ class Material(Named):
 class FinishAppearance(Spec):
     mode: Literal["none", "area", "path"] = "none"
     color: str = Field(default="#e6007e", pattern=r"^#[0-9a-fA-F]{6}$")
+    dash_color: str = Field(default="#ffffff", pattern=r"^#[0-9a-fA-F]{6}$")
     alpha: float = Field(default=0.4, ge=0, le=1)
     gradient: bool = False
     end_color: str = Field(default="#ffd54f", pattern=r"^#[0-9a-fA-F]{6}$")

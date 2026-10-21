@@ -1649,6 +1649,12 @@
             "title": "Color",
             "default": "#e6007e"
           },
+          "dash_color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Dash Color",
+            "default": "#ffffff"
+          },
           "alpha": {
             "type": "number",
             "maximum": 1.0,

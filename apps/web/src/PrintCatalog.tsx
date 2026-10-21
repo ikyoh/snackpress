@@ -35,6 +35,7 @@ export type Finish = {
 type FinishAppearance = {
   mode: 'none' | 'area' | 'path'
   color: string
+  dash_color: string
   alpha: number
   gradient: boolean
   end_color: string
@@ -43,6 +44,7 @@ type FinishAppearance = {
 const defaultFinishAppearance: FinishAppearance = {
   mode: 'none',
   color: '#e6007e',
+  dash_color: '#ffffff',
   alpha: 0.4,
   gradient: false,
   end_color: '#ffd54f',
@@ -75,12 +77,17 @@ function FinishAppearanceEditor({
             {finish.mask
               ? 'Le noir du PDF de masque définit la zone ; le blanc reste transparent.'
               : 'Sans PDF de masque, la représentation suit le format fini entier.'}
-            {style.mode === 'path' && ' Le tracé suit les contours.'}
+            {style.mode === 'path' &&
+              ' Le pointillé se superpose au tracé continu et suit les mêmes contours.'}
           </p>
           <div className="finish-appearance-fields">
             <label className="field">
               <span>
-                {style.gradient && style.mode === 'area' ? 'Couleur de départ' : 'Couleur'}
+                {style.mode === 'path'
+                  ? 'Couleur du tracé'
+                  : style.gradient
+                    ? 'Couleur de départ'
+                    : 'Couleur'}
               </span>
               <input
                 type="color"
@@ -88,6 +95,16 @@ function FinishAppearanceEditor({
                 onChange={(e) => update({ color: e.target.value })}
               />
             </label>
+            {style.mode === 'path' && (
+              <label className="field">
+                <span>Couleur du pointillé</span>
+                <input
+                  type="color"
+                  value={style.dash_color}
+                  onChange={(e) => update({ dash_color: e.target.value })}
+                />
+              </label>
+            )}
             {style.mode === 'area' && (
               <Num
                 label="Opacité (alpha, %)"
@@ -140,7 +157,7 @@ function FinishAppearanceEditor({
               className="finish-appearance-sample"
               style={
                 style.mode === 'path'
-                  ? { border: `2px solid ${style.color}` }
+                  ? undefined
                   : {
                       opacity: style.alpha,
                       background: style.gradient
@@ -148,7 +165,38 @@ function FinishAppearanceEditor({
                         : style.color,
                     }
               }
-            />
+            >
+              {style.mode === 'path' && (
+                <svg
+                  className="finish-appearance-path"
+                  viewBox="0 0 100 60"
+                  preserveAspectRatio="none"
+                  aria-hidden="true"
+                >
+                  <rect
+                    x="1"
+                    y="1"
+                    width="98"
+                    height="58"
+                    fill="none"
+                    stroke={style.color}
+                    strokeWidth="2"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <rect
+                    x="1"
+                    y="1"
+                    width="98"
+                    height="58"
+                    fill="none"
+                    stroke={style.dash_color}
+                    strokeWidth="2"
+                    strokeDasharray="8 4"
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </svg>
+              )}
+            </span>
             <span>Aperçu de la finition</span>
           </div>
           <p className="field-help">Une page de simulation s’ajoute au BAT pour chaque visuel.</p>

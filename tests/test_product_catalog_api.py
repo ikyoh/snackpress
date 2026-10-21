@@ -19,8 +19,9 @@ def test_catalog_auth_isolation_revision_validation_and_persistence(account_api)
     changed = deepcopy(original)
     changed["catalog"]["products"][0]["name"] = "Carte atelier Alice"
     changed["catalog"]["finishes"][0]["appearance"] = {
-        "mode": "area",
+        "mode": "path",
         "color": "#123456",
+        "dash_color": "#654321",
         "alpha": 0.25,
         "gradient": True,
         "end_color": "#abcdef",

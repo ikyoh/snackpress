@@ -669,6 +669,11 @@ export interface components {
              */
             color: string;
             /**
+             * Dash Color
+             * @default #ffffff
+             */
+            dash_color: string;
+            /**
              * Alpha
              * @default 0.4
              */

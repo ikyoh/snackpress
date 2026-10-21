@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 
-test('apparence des finitions : zone, alpha, dégradé et tracé', async ({ page }) => {
+test('apparence des finitions : zone, alpha, dégradé et tracé bicolore', async ({ page }) => {
   await page.goto('/?view=products')
   await page.getByRole('button', { name: 'Façonnages et finitions', exact: true }).click()
   await page.locator('.accordion-trigger').first().click()
@@ -20,15 +20,27 @@ test('apparence des finitions : zone, alpha, dégradé et tracé', async ({ page
   await mode.selectOption('path')
   await expect(page.getByLabel('Opacité (alpha, %)')).toHaveCount(0)
   await expect(page.getByLabel('Créer un dégradé')).toHaveCount(0)
-  await expect(page.getByLabel('Couleur', { exact: true })).toHaveValue('#123456')
+  await expect(page.getByLabel('Couleur du tracé', { exact: true })).toHaveValue('#123456')
+  await expect(page.getByLabel('Couleur du pointillé', { exact: true })).toHaveValue('#ffffff')
+  await page.getByLabel('Couleur du pointillé', { exact: true }).fill('#fce300')
+  const strokes = page.locator('.finish-appearance-path rect')
+  await expect(strokes.nth(0)).toHaveAttribute('stroke', '#123456')
+  await expect(strokes.nth(1)).toHaveAttribute('stroke', '#fce300')
+  await expect(strokes.nth(1)).toHaveAttribute('stroke-dasharray', '8 4')
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/finish-path-mobile.png', fullPage: true })
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.screenshot({ path: 'test-results/finish-path-desktop.png', fullPage: true })
   await mode.selectOption('none')
   await expect(page.locator('.finish-appearance-preview')).toHaveCount(0)
   await mode.selectOption('area')
   await expect(page.getByLabel('Couleur d’arrivée')).toHaveValue('#abcdef')
   await expect(page.getByLabel('Opacité (alpha, %)')).toHaveValue('25')
+  await mode.selectOption('path')
+  await expect(page.getByLabel('Couleur du pointillé', { exact: true })).toHaveValue('#fce300')
 })
 
-test('catalogue produit : carte, masque de finition, BAT et spécifications figées', async ({
+test('catalogue produit : carte, tracé bicolore, BAT et spécifications figées', async ({
   page,
 }) => {
   await page.goto('/?tool=burger')
@@ -43,6 +55,8 @@ test('catalogue produit : carte, masque de finition, BAT et spécifications fig�
   await appearance.getByLabel('Opacité (alpha, %)').fill('35')
   await appearance.getByLabel('Créer un dégradé').check()
   await appearance.getByLabel('Couleur d’arrivée').fill('#ffff00')
+  await appearance.getByLabel('Représentation sur le BAT').selectOption('path')
+  await appearance.getByLabel('Couleur du pointillé').fill('#0000ff')
   await appearance.screenshot({ path: 'test-results/bat-finish-settings-desktop.png' })
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
@@ -71,8 +85,9 @@ test('catalogue produit : carte, masque de finition, BAT et spécifications fig�
   const frozen = (await settings.json()).settings.product_snapshot
   expect(frozen.variant.finish_ids).toEqual(['varnish'])
   expect(frozen.finishes.find((f: { id: string }) => f.id === 'varnish').appearance).toMatchObject({
-    mode: 'area',
+    mode: 'path',
     color: '#ff0000',
+    dash_color: '#0000ff',
     alpha: 0.35,
     gradient: true,
     end_color: '#ffff00',
