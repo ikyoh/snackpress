@@ -23,7 +23,7 @@ test('Burger : fichiers attendus, finition séparée et repères Pizza', async (
   expect(result.status(), await result.text()).toBe(201)
   const data = await result.json()
   expect(data.metrics.Finitions).toBe(1)
-  expect(data.metrics['Pages du BAT']).toBe(6)
+  expect(data.metrics['Pages du BAT']).toBe(8)
   await expect(page.locator('.tool-success')).toBeVisible()
   await expect(page.locator('canvas[data-ready=true]')).toBeVisible()
 })

@@ -79,7 +79,7 @@ def test_card_and_separate_finishes(tmp_path):
             "finishes": ["Vernis"],
         },
     )
-    assert result.metrics["Pages du BAT"] == 4
+    assert result.metrics["Pages du BAT"] == 6
     content = text(out / "bat.pdf")
     assert "Recto" in content and "Verso" in content and "Finition : Vernis" in content
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
@@ -120,14 +120,15 @@ def test_registered_template_marks_on_every_page(tmp_path, tool, width, height):
         width, height = width + 6, height + 6
     visual = source(tmp_path, "visual.pdf", width=width, height=height)
     out, result = generate(tmp_path, [visual], {"template_tool": tool})
-    assert result.metrics["Pages du BAT"] == 1
+    assert result.metrics["Pages du BAT"] == 3
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
         first = pdf[0].render(scale=1).to_pil().copy()
         # The artwork is present under the template, including the large-format source.
         assert first.getpixel((297, 390)) != (255, 255, 255)
     with pikepdf.open(out / "bat.pdf") as pdf:
-        assert "/Normal" in str(pdf.pages[0].Resources.ExtGState)
-        assert_native_guides(pdf.pages[0])
+        assert not guide_forms(pdf.pages[0])
+        assert "/Normal" in str(pdf.pages[2].Resources.ExtGState)
+        assert_native_guides(pdf.pages[2])
 
 
 @pytest.mark.parametrize(
@@ -146,9 +147,9 @@ def test_import_exported_pdf_template(tmp_path, tool, width, height, settings):
     out, result = generate(
         tmp_path, [visual, template_dir / exported.artifacts[0].name], {"template_tool": "pdf"}
     )
-    assert result.metrics["Pages du BAT"] == 1
+    assert result.metrics["Pages du BAT"] == 3
     with pikepdf.open(out / "bat.pdf") as pdf:
-        assert_native_guides(pdf.pages[0])
+        assert_native_guides(pdf.pages[2])
 
 
 def test_vector_guides_on_every_artwork_and_finish_page(tmp_path):
@@ -163,15 +164,16 @@ def test_vector_guides_on_every_artwork_and_finish_page(tmp_path):
             "template_settings": {"unusable_top": 7, "safety_left": 5},
         },
     )
-    assert result.metrics["Pages du BAT"] == 3
+    assert result.metrics["Pages du BAT"] == 5
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
-        for page in pdf:
+        assert "Légende des repères" not in pdf[0].get_textpage().get_text_range()
+        for page in list(pdf)[1:]:
             content = page.get_textpage().get_text_range()
             assert "Légende des repères" in content
             for label in ("Coupe / format fini", "Zone de sécurité", "Zone inexploitable"):
                 assert label in content
     with pikepdf.open(out / "bat.pdf") as pdf:
-        for page in pdf.pages:
+        for page in list(pdf.pages)[2:]:
             assert_native_guides(page)
             assert any(
                 str(op) == "W*"

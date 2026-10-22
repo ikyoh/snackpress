@@ -1,23 +1,17 @@
 """Presentation proofs with explicit production inputs and registered template guides."""
 
 import pikepdf
-from reportlab.lib import colors
 from reportlab.lib.units import mm
-from reportlab.lib.utils import ImageReader
 
 from .artwork_geometry import validate_page
 from .catalog import MODELS, ToolResult
 from .common import (
     artifact,
     dimensions,
-    full_page_form,
-    new_canvas,
     open_pdf,
-    paginate_pdf,
-    render_page,
     report,
 )
-from .proof_layout import draw_legend, guide_key, header_footer, proof_date
+from .proof_layout import guide_key, proof_date
 
 
 def input_labels(p):
@@ -124,7 +118,7 @@ def template(folder, files, p):
     return path, (w, h), (origin, origin, settings.width, settings.height)
 
 
-def generate(
+def prepare(
     folder,
     files,
     p,
@@ -133,15 +127,13 @@ def generate(
     legend=None,
     date=None,
     *,
-    paginate=True,
-    finish_styles=(),
+    finish_styles=None,
     finish_masks=None,
     finish_page_count=None,
+    finished_shape=None,
 ):
-    if p.product_snapshot is not None:
-        from .product_proof import generate_product
+    from .proof_render import ProofItem
 
-        return generate_product(folder, files, p)
     labels = labels if labels is not None else input_labels(p)
     expected = len(labels) + (p.template_tool == "pdf")
     if len(files) != expected:
@@ -168,13 +160,34 @@ def generate(
                 doc.save(target)
                 validated.append(target)
         files = validated
-    counts, sizes = [], []
+    counts, sizes, trims = [], [], []
     for source in files[: len(labels)]:
         with open_pdf(source, max_pages=200) as doc:
             counts.append(len(doc.pages))
             sizes.append([dimensions(page) for page in doc.pages])
+            trims.append([finished_region(page) for page in doc.pages])
     if sum(counts) > 200:
         raise ValueError("Le BAT accepte au maximum 200 pages source, finitions comprises.")
+    mask_page_counts = {}
+    if finish_styles is None:
+        from .products import Finish
+
+        finish_styles = [
+            Finish(
+                id=f"finish-{index}",
+                name=name,
+                mask=True,
+                appearance={"mode": "area"},
+            )
+            for index, name in enumerate(p.finishes)
+        ]
+        finish_masks = {
+            finish.id: files[p.expected_files + index] for index, finish in enumerate(finish_styles)
+        }
+        mask_page_counts = {
+            finish.id: counts[p.expected_files + index]
+            for index, finish in enumerate(finish_styles)
+        }
     if p.document_type == "card" and counts[:2] != [1, 1]:
         raise ValueError("La carte recto verso attend deux PDF d’une page chacun.")
     if p.document_type == "brochure":
@@ -195,10 +208,7 @@ def generate(
         guide_path, (gw, gh), (ox, oy, fw, fh) = guide
         with open_pdf(guide_path, max_pages=2) as doc:
             guide_faces = len(doc.pages)
-    path = folder / "bat.pdf"
-    c = new_canvas(path, 210, 297)
-    guide_placements = []
-    page_index = 0
+    items = []
     artwork_index = 0
     specs = [
         ("Projet", p.title),
@@ -209,168 +219,93 @@ def generate(
         ("Gabarit", p.template_tool),
         ("Finitions", ", ".join(p.finishes) or "Aucune"),
     ]
+    shape = finished_shape or (p.template_settings if p.template_tool in {"pizza", "sushi"} else {})
     for file_index, (source, label, count) in enumerate(zip(files, labels, counts)):
         specs.append((label, f"Fichier {file_index + 1} — {count} page(s)"))
+        visual = file_index < p.expected_files
         for index in range(count):
             w, h = sizes[file_index][index]
-            dpi = min(120, 1100 * 25.4 / max(w, h))
-            image, _ = render_page(source, index, dpi=dpi)
-            has_finishes = bool(finish_styles) and file_index < p.expected_files
-            marked = guide is not None
-            # Each finish file starts with its own recto; simulations share the
-            # artwork's face without advancing the recto/verso sequence.
-            face_index = artwork_index if file_index < p.expected_files else index
-            guide_face = face_index % guide_faces if marked else 0
-            full = marked and abs(w - gw) <= 1 and abs(h - gh) <= 1
-            if marked and not full and not (abs(w - fw) <= 1 and abs(h - fh) <= 1):
-                raise ValueError(
-                    f"{label}, page {index + 1} : format {w:.2f} × {h:.2f} mm incompatible "
-                    f"avec le gabarit ({fw:g} × {fh:g} mm finis ou {gw:g} × {gh:g} mm à plat)."
-                )
-            views = [False]
-            if has_finishes:
-                views.append(True)
-            for with_finishes in views:
-                with_guides = marked
-                bw, bh = (gw, gh) if with_guides else (w, h)
-                bottom = 65 + max(0, (len(legend) + 1) // 2 - 2) * 5 if with_guides else 65
-                height = 249 - bottom
-                scale = min(174 / bw, height / bh)
-                x, y = (210 - bw * scale) / 2, bottom + (height - bh * scale) / 2
-                header_footer(c, date)
-                c.setFillColor(colors.black)
-                c.setFont("SnackDisplay", 18)
-                c.drawString(18 * mm, 267 * mm, p.title)
-                c.setFont("Snack", 9)
-                c.drawString(18 * mm, 260 * mm, f"{label} — page {index + 1} / {count}")
-                view_label = (
-                    "Simulation des finitions"
-                    if with_finishes
-                    else "Contrôle de finition"
-                    if file_index >= p.expected_files
-                    else "Visuel"
-                )
-                c.drawString(
-                    18 * mm,
-                    254 * mm,
-                    (
-                        f"{view_label} avec repères — {'Recto' if guide_face == 0 else 'Verso'}"
-                        if guide_faces == 2
-                        else f"{view_label} avec repères de gabarit"
+            trim = trims[file_index][index]
+            face = (artwork_index if visual else index) % guide_faces if guide else 0
+            if guide:
+                full = abs(w - gw) <= 1 and abs(h - gh) <= 1
+                if not full and not (abs(w - fw) <= 1 and abs(h - fh) <= 1):
+                    raise ValueError(
+                        f"{label}, page {index + 1} : format {w:.2f} × {h:.2f} mm incompatible "
+                        f"avec le gabarit ({fw:g} × {fh:g} mm finis ou {gw:g} × {gh:g} mm à plat)."
                     )
-                    if with_guides
-                    else "Simulation des finitions"
-                    if with_finishes
-                    else "Visuel seul",
+                trim = (ox, oy, fw, fh) if full else (0, 0, w, h)
+            items.append(
+                ProofItem(
+                    source=source,
+                    source_page=index,
+                    source_count=count,
+                    label=label,
+                    width=w,
+                    height=h,
+                    trim=trim,
+                    visual=visual,
+                    guide=guide,
+                    guide_face=face,
+                    legend=legend,
+                    shape=shape,
+                    native_guide=p.template_tool != "pdf" or combined_guide is not None,
+                    finish_styles=finish_styles,
+                    finish_masks=finish_masks or {},
+                    mask_page_counts=mask_page_counts,
+                    finish_page=artwork_index % finish_page_count
+                    if finish_page_count
+                    else artwork_index,
                 )
-                ix, iy = (ox, oy) if with_guides and not full else (0, 0)
-                displayed = image
-                if with_finishes:
-                    from .finish_appearance import simulate_finishes
-
-                    displayed = simulate_finishes(
-                        image,
-                        finish_styles,
-                        finish_masks or {},
-                        artwork_index % finish_page_count if finish_page_count else artwork_index,
-                        dpi,
-                    )
-                    if full:
-                        # Finishes cover the finished product. Keep the real bleed
-                        # and the guide's technical margins unchanged in simulations.
-                        trim_pixels = (
-                            round(ox / gw * image.width),
-                            round((gh - oy - fh) / gh * image.height),
-                            round((ox + fw) / gw * image.width),
-                            round((gh - oy) / gh * image.height),
-                        )
-                        simulation = displayed
-                        displayed = image.copy()
-                        displayed.paste(simulation.crop(trim_pixels), trim_pixels)
-                    c.setFont("Snack", 8)
-                    c.drawString(
-                        18 * mm,
-                        (43 if with_guides else 49) * mm,
-                        "Finitions : " + ", ".join(f.name for f in finish_styles)[:110],
-                    )
-                c.drawImage(
-                    ImageReader(displayed),
-                    (x + ix * scale) * mm,
-                    (y + iy * scale) * mm,
-                    width=w * scale * mm,
-                    height=h * scale * mm,
-                )
-                if with_guides:
-                    draw_legend(c, legend, bottom)
-                    guide_placements.append(
-                        (
-                            page_index,
-                            pikepdf.Rectangle(
-                                x * mm, y * mm, (x + gw * scale) * mm, (y + gh * scale) * mm
-                            ),
-                            guide_face,
-                        )
-                    )
-                c.setFont("Snack", 8)
-                c.drawString(18 * mm, 38 * mm, "BAT DE PRÉSENTATION — COULEURS NON CONTRACTUELLES")
-                c.drawString(
-                    18 * mm,
-                    31 * mm,
-                    f"Source : {w:.2f} × {h:.2f} mm ; aperçu à {scale * 100:.1f} %",
-                )
-                c.drawString(18 * mm, 22 * mm, f"Client : {p.client[:75] or 'Non renseigné'}")
-                c.showPage()
-                page_index += 1
-            if file_index < p.expected_files:
-                artwork_index += 1
-    c.save()
-    if guide_placements:
-        with (
-            open_pdf(guide_path, max_pages=2) as source,
-            pikepdf.open(path, allow_overwriting_input=True) as proof,
-        ):
-            # Import native PDF objects once; reuse the form on all marked pages.
-            forms = [proof.copy_foreign(full_page_form(page)) for page in source.pages]
-            if p.template_tool != "pdf" or combined_guide is not None:
-                guide_scale = float(guide_placements[0][1].width) / (gw * mm)
-                for form in forms:
-                    proof_strokes(form, guide_scale)
-            # Generated guides contain strokes only. Normal blending keeps their
-            # colors visible over dark artwork; imported PDFs may contain white fills.
-            blending = pikepdf.Dictionary(
-                Type=pikepdf.Name.ExtGState,
-                BM=pikepdf.Name.Multiply
-                if p.template_tool == "pdf" and combined_guide is None
-                else pikepdf.Name.Normal,
             )
-            for index, rect, guide_face in guide_placements:
-                form = forms[guide_face]
-                page = proof.pages[index]
-                state_name = page.add_resource(blending, pikepdf.Name.ExtGState)
-                form_name = page.add_resource(form, pikepdf.Name.XObject)
-                placement = page.calc_form_xobject_placement(
-                    form, form_name, rect, allow_shrink=True, allow_expand=True
-                )
-                page.contents_add(
-                    b"q\n" + str(state_name).encode("ascii") + b" gs\n" + placement + b"\nQ\n"
-                )
-            proof.save(path)
-    if paginate:
-        paginate_pdf(path)
+            if visual:
+                artwork_index += 1
+    return items, specs
+
+
+def finished_region(page):
+    """Finished rectangle in the rendered page's coordinate system, in millimetres."""
+    crop, trim = page.cropbox, page.trimbox
+    unit = float(page.obj.get("/UserUnit", 1)) / mm
+    x, y = float(trim[0] - crop[0]) * unit, float(trim[1] - crop[1]) * unit
+    w, h = float(trim[2] - trim[0]) * unit, float(trim[3] - trim[1]) * unit
+    cw, ch = float(crop[2] - crop[0]) * unit, float(crop[3] - crop[1]) * unit
+    if x < 0 or y < 0 or x + w > cw + 0.01 or y + h > ch + 0.01:
+        return (0, 0, *dimensions(page))
+    rotation = int(page.obj.get("/Rotate", 0)) % 360
+    return {
+        0: (x, y, w, h),
+        90: (y, cw - x - w, h, w),
+        180: (cw - x - w, ch - y - h, w, h),
+        270: (ch - y - h, x, h, w),
+    }[rotation]
+
+
+def generate(folder, files, p, **options):
+    if p.product_snapshot is not None:
+        from .product_proof import generate_product
+
+        return generate_product(folder, files, p)
+    from .proof_render import render_proof
+
+    paginate = options.pop("paginate", True)
+    date = options.get("date") or proof_date()
+    items, specs = prepare(folder, files, p, **options)
+    path = folder / "bat.pdf"
+    render_proof(path, items, p, date, paginate=paginate)
     sheet = folder / "fiche-technique.pdf"
     report(
         sheet,
         "Fiche technique du BAT",
         specs + [("Commentaires", p.notes or "Aucun")],
-        "Visuels rasterisés pour la présentation. Repères PDF conservés en vectoriel "
-        "et superposés à l’échelle du document. "
-        "Chaque finition dispose de son propre fichier et de ses pages de contrôle.",
+        "Visuels rasterisés pour la présentation. Présentation avec finitions au format fini, "
+        "puis contrôle avec repères, puis éléments séparés avec repères vectoriels.",
     )
     return ToolResult(
         tool="burger",
         summary="BAT A4 et fiche technique prêts.",
         metrics={
-            "Faces": sum(counts[: p.expected_files]),
+            "Faces": sum(item.visual for item in items),
             "Fichiers visuels": p.expected_files,
             "Finitions": len(p.finishes),
             "Pages du BAT": artifact(path, "BAT").pages,

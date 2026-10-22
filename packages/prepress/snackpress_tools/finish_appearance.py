@@ -46,7 +46,12 @@ def dashed_contours(coverage, dpi):
     return Image.fromarray(dashed)
 
 
-def simulate_finishes(image, finishes, masks, page_index, dpi):
+def simulate_finishes(
+    image, finishes, masks, page_index, dpi, *, region=None, mask_page_counts=None
+):
+    full_image = image
+    if region is not None:
+        image = image.crop(region)
     result = image.convert("RGBA")
     width, height = image.size
     for finish in finishes:
@@ -54,8 +59,12 @@ def simulate_finishes(image, finishes, masks, page_index, dpi):
         if style.mode == "none":
             continue
         if finish.mask:
-            mask_image, _ = render_page(masks[finish.id], page_index, dpi=dpi)
-            coverage = ImageOps.invert(mask_image.convert("L")).resize(image.size)
+            count = (mask_page_counts or {}).get(finish.id)
+            mask_page = page_index % count if count else page_index
+            mask_image, _ = render_page(masks[finish.id], mask_page, dpi=dpi)
+            coverage = ImageOps.invert(mask_image.convert("L")).resize(full_image.size)
+            if region is not None:
+                coverage = coverage.crop(region)
         else:
             coverage = Image.new("L", image.size, 255)
         if style.mode == "path":
@@ -84,4 +93,9 @@ def simulate_finishes(image, finishes, masks, page_index, dpi):
             dashed_layer = Image.new("RGBA", image.size, style.dash_color)
             dashed_layer.putalpha(ImageChops.multiply(coverage, dashes))
             result = Image.alpha_composite(result, dashed_layer)
-    return result.convert("RGB")
+    result = result.convert("RGB")
+    if region is not None:
+        displayed = full_image.copy()
+        displayed.paste(result, region)
+        return displayed
+    return result

@@ -116,7 +116,7 @@ test('billet numéroté : perforation, série, BAT premier et dernier, mode libr
   const result = await response
   expect(result.status(), await result.text()).toBe(201)
   const data = await result.json()
-  expect(data.metrics['Pages du BAT']).toBe(2)
+  expect(data.metrics['Pages du BAT']).toBe(4)
   const series = data.artifacts.find((a: { name: string }) => a.name.includes('serie-billets'))
   expect(series.pages).toBe(3)
   expect((await page.request.get(`/api/tool-jobs/${data.id}/files/${series.name}`)).status()).toBe(

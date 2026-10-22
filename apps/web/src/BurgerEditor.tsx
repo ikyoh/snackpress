@@ -281,11 +281,11 @@ export function BurgerEditor({
                       Fichier attendu : {format(width + 2 * bleed)} × {format(height + 2 * bleed)}{' '}
                       mm.
                     </strong>{' '}
-                    Le gabarit sera visible sur toutes les pages du BAT, y compris les finitions,
-                    sans déformation.
+                    Le BAT présente les visuels avec finitions au format fini, puis avec les repères
+                    de gabarit, puis les éléments séparés avec repères.
                   </>
                 ) : (
-                  'Le gabarit sera visible sur toutes les pages du BAT, y compris les finitions. Le format doit correspondre au format fini ou au gabarit complet, sans déformation.'
+                  'Le BAT présente les visuels avec finitions au format fini, puis avec les repères de gabarit, puis les éléments séparés avec repères. Le format doit correspondre au format fini ou au gabarit complet, sans déformation.'
                 )}
                 {options.template_tool === 'pdf' &&
                   ' Ajoutez le gabarit PDF en dernier : une page commune ou deux pages recto / verso de même format. Ses zones blanches laisseront voir le visuel.'}

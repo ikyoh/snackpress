@@ -43,7 +43,7 @@ def test_classic_bat_expects_finished_size_plus_bleed(tmp_path, bleed, crop_to_t
             "template_settings": {"width": 800, "height": 2000, "bleed": bleed},
         },
     )
-    assert result.metrics["Pages du BAT"] == 1
+    assert result.metrics["Pages du BAT"] == 3
     with pikepdf.open(out / "sources-validees/source-0.pdf") as pdf:
         page = pdf.pages[0]
         assert [float(n) / mm for n in page.trimbox] == pytest.approx(trim)

@@ -199,7 +199,9 @@ function FinishAppearanceEditor({
             </span>
             <span>Aperçu de la finition</span>
           </div>
-          <p className="field-help">Une page de simulation s’ajoute au BAT pour chaque visuel.</p>
+          <p className="field-help">
+            Les finitions sont visibles dans les pages de présentation et de contrôle du BAT.
+          </p>
         </>
       )}
     </div>

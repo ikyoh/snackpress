@@ -152,14 +152,15 @@ def test_simulation_in_proof_and_frozen_settings(tmp_path, product_id, mode):
     result = run(output, "burger", files, {"product_snapshot": snapshot.model_dump()})
     assert result.artifacts[0].pages > 0
     text = content(output / "bat.pdf")
-    assert text.count("Simulation des finitions") == 2
+    assert text.count("Présentation — visuels avec finitions") == 1
+    assert text.count("Contrôle — visuels avec finitions") == 1
     assert "Visuel seul" not in text
     with pikepdf.open(output / "bat.pdf") as pdf:
-        for page in pdf.pages:
+        for page in list(pdf.pages)[2:]:
             assert_native_guides(page)
         images = [
             next(obj for obj in dict(page.Resources.XObject).values() if obj.Subtype == "/Image")
-            for page in list(pdf.pages)[:2]
+            for page in [pdf.pages[2], pdf.pages[1]]
         ]
         original, simulation = [pikepdf.PdfImage(image).as_pil_image() for image in images]
         # The displayed bleed remains the original artwork, even for full-area finishes.

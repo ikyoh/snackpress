@@ -87,7 +87,7 @@ def test_seed_products_generate_proofs_and_public_artifacts(tmp_path, product_id
         assert series.pages == 50
         text = content(output / series.name)
         assert text.count("0001") == 2 and text.count("0050") == 2
-        assert result.metrics["Pages du BAT"] == 2
+        assert result.metrics["Pages du BAT"] == 4
 
 
 def test_multiple_guides_share_trim_origin(tmp_path):
@@ -100,7 +100,7 @@ def test_multiple_guides_share_trim_origin(tmp_path):
     output.mkdir()
     result = run(output, "burger", files, {"product_snapshot": snapshot.model_dump()})
     with pdfium.PdfDocument(str(output / "bat.pdf")) as pdf:
-        marked_text = pdf[0].get_textpage().get_text_range()
+        marked_text = pdf[1].get_textpage().get_text_range()
         assert "Légende des repères" in marked_text
         assert "Zone de sécurité" in marked_text and "Pliage" in marked_text
     guide = next(a for a in result.artifacts if "traces" in a.name)
@@ -111,7 +111,7 @@ def test_multiple_guides_share_trim_origin(tmp_path):
         assert float(trim[2] - trim[0]) / mm == pytest.approx(297)
         assert len(doc.pages[0].Resources.XObject) == 2
     with pikepdf.open(output / "bat.pdf") as doc:
-        marked = doc.pages[0]
+        marked = doc.pages[2]
         images = [obj for obj in dict(marked.Resources.XObject).values() if obj.Subtype == "/Image"]
         forms = [obj for obj in dict(marked.Resources.XObject).values() if obj.Subtype == "/Form"]
         assert len(images) == 1
@@ -121,7 +121,7 @@ def test_multiple_guides_share_trim_origin(tmp_path):
         assert len(layers) == 2
         assert all(layer.Subtype == "/Form" for layer in layers)
         # The combined guide must also carry the mirrored Taco layer on the verso.
-        verso = doc.pages[1]
+        verso = doc.pages[3]
         combined = next(
             obj for obj in dict(verso.Resources.XObject).values() if obj.Subtype == "/Form"
         )

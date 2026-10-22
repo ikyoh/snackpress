@@ -6,7 +6,7 @@ import pikepdf
 from reportlab.lib.units import mm
 
 from .artwork_geometry import validate_page
-from .common import CORAL, INK, artifact, full_page_form, new_canvas, open_pdf, paginate_pdf, report
+from .common import CORAL, INK, artifact, full_page_form, new_canvas, open_pdf, report
 from .products import snapshot_slots
 from .proof_layout import BLEED_COLOR, guide_key, print_key, proof_date
 
@@ -124,8 +124,9 @@ def component_guide(folder, component):
 
 
 def generate_product(folder, files, params, preview=False):
-    from .burger import generate
+    from .burger import prepare
     from .catalog import Burger, ToolResult
+    from .proof_render import render_proof
     from .tickets import generate_series
 
     snapshot = params.product_snapshot
@@ -156,7 +157,7 @@ def generate_product(folder, files, params, preview=False):
             doc.save(target)
             validated.append(target)
     files = validated
-    merged = pikepdf.Pdf.new()
+    proof_items = []
     extras = []
 
     def publish(path, label, prefix):
@@ -240,7 +241,7 @@ def generate_product(folder, files, params, preview=False):
         )
         if not any(g.tool in {"pizza", "sushi"} for g in component.guides):
             legend = list(dict.fromkeys(print_key(component.bleed) + legend))
-        generate(
+        items, _ = prepare(
             work,
             proof_sources,
             legacy,
@@ -248,7 +249,9 @@ def generate_product(folder, files, params, preview=False):
             combined_guide=guide,
             legend=legend,
             date=date,
-            paginate=False,
+            finished_shape=next(
+                (g.settings for g in component.guides if g.tool in {"pizza", "sushi"}), {}
+            ),
             finish_page_count=sum(s.pages for _, s in visuals),
             finish_styles=[
                 f
@@ -262,8 +265,7 @@ def generate_product(folder, files, params, preview=False):
             if masks
             else {},
         )
-        with pikepdf.open(work / "bat.pdf") as doc:
-            merged.pages.extend(doc.pages)
+        proof_items.extend(items)
         if guide:
             extras.append(publish(guide[0], f"{component.name} — tracés 1:1", component.id))
         specs += [
@@ -279,9 +281,7 @@ def generate_product(folder, files, params, preview=False):
         ]
         specs += [(f"{component.name} — tracé {g.tool}", str(g.settings)) for g in component.guides]
     path = folder / "bat.pdf"
-    merged.save(path)
-    merged.close()
-    paginate_pdf(path)
+    render_proof(path, proof_items, params, date)
     sheet = folder / "fiche-technique.pdf"
     report(
         sheet,
