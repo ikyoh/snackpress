@@ -63,8 +63,8 @@ def test_bat_title_and_page_totals_preserve_pdf_links(tmp_path, source):
     run(tmp_path, "burger", [source], {})
     path = tmp_path / "bat.pdf"
     assert_display_title_is_black(path, 18)
-    # Two faces: one presentation, one guided composite and two separated pages.
-    assert assert_page_totals(path) == 4
+    # Two faces, guided controls, separated elements and the integrated technical sheet.
+    assert assert_page_totals(path) == 5
     with pikepdf.open(path) as pdf:
         assert all(
             any(a.get("/A", {}).get("/URI") == "https://snackpress.app" for a in page.Annots)

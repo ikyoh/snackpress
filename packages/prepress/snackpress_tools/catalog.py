@@ -305,7 +305,7 @@ DEFINITIONS = [
         category="Présenter",
         min_files=1,
         max_files=93,
-        description="Un BAT A4 avec visuels, gabarits et fichiers de finition séparés.",
+        description="Un BAT A4 avec visuels, finitions, gabarits et fiche technique intégrée.",
         limit=(
             "BAT de présentation, couleurs non contractuelles. Jusqu’à 200 pages source au total."
         ),

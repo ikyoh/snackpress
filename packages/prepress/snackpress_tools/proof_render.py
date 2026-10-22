@@ -4,6 +4,7 @@ from contextlib import ExitStack
 from dataclasses import dataclass, field, replace
 from math import ceil
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 import pikepdf
 from PIL import Image
@@ -11,7 +12,7 @@ from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 
-from .common import full_page_form, new_canvas, open_pdf, paginate_pdf
+from .common import full_page_form, new_canvas, open_pdf, paginate_pdf, report
 from .finish_appearance import simulate_finishes
 from .proof_layout import draw_legend, header_footer
 
@@ -103,7 +104,7 @@ def clip_finished(c, item, x, y, width, height):
     c.clipPath(clip, stroke=0, fill=0)
 
 
-def render_proof(path, items, params, date, *, paginate=True):
+def render_proof(path, items, params, date, *, paginate=True, technical_sheet=None):
     c = new_canvas(path, 210, 297)
     placements = []
     artwork = []
@@ -232,8 +233,31 @@ def render_proof(path, items, params, date, *, paginate=True):
     embed_artwork(path, artwork)
     if placements:
         overlay_guides(path, placements)
+    if technical_sheet is not None:
+        append_technical_sheet(path, *technical_sheet, date)
     if paginate:
         paginate_pdf(path)
+
+
+def append_technical_sheet(path, rows, note, date):
+    """Append the technical report before numbering the entire BAT once."""
+    with TemporaryDirectory(prefix="snackpress-bat-") as temporary:
+        sheet = Path(temporary) / "fiche-technique.pdf"
+        report(
+            sheet,
+            "Fiche technique du BAT",
+            rows,
+            note,
+            branded_header=True,
+            paginate=False,
+            date=date,
+            date_label="Date du BAT",
+        )
+        with pikepdf.open(path, allow_overwriting_input=True) as proof, pikepdf.open(sheet) as pdf:
+            for page in pdf.pages:
+                page.SnackpressSection = pikepdf.Name.TechnicalSheet
+                proof.pages.append(page)
+            proof.save(path)
 
 
 def embed_artwork(path, placements):

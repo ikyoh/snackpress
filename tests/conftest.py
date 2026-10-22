@@ -52,3 +52,13 @@ def source(tmp_path):
     path = tmp_path / "source.pdf"
     make_pdf(path)
     return path
+
+
+def proof_body_pages(pdf):
+    """Presentation, controls and separated elements before the technical appendix."""
+    return [page for page in pdf.pages if page.obj.get("/SnackpressSection") != "/TechnicalSheet"]
+
+
+def proof_body_count(path):
+    with pikepdf.open(path) as pdf:
+        return len(proof_body_pages(pdf))

@@ -6,7 +6,7 @@ import pikepdf
 from reportlab.lib.units import mm
 
 from .artwork_geometry import validate_page
-from .common import CORAL, INK, artifact, full_page_form, new_canvas, open_pdf, report
+from .common import CORAL, INK, artifact, full_page_form, new_canvas, open_pdf
 from .products import snapshot_slots
 from .proof_layout import BLEED_COLOR, guide_key, print_key, proof_date
 
@@ -281,24 +281,26 @@ def generate_product(folder, files, params, preview=False):
         ]
         specs += [(f"{component.name} — tracé {g.tool}", str(g.settings)) for g in component.guides]
     path = folder / "bat.pdf"
-    render_proof(path, proof_items, params, date)
-    sheet = folder / "fiche-technique.pdf"
-    report(
-        sheet,
-        params.title,
-        specs + [("Commentaires", params.notes or "Aucun")],
-        "BAT de présentation, couleurs non contractuelles. "
-        "Éléments PDF natifs conservés ; simulations de finitions à 300 dpi. "
-        "Spécifications figées dans les réglages JSON. "
-        "Les tracés sont séparés des fichiers de production.",
+    render_proof(
+        path,
+        proof_items,
+        params,
+        date,
+        technical_sheet=(
+            specs + [("Commentaires", params.notes or "Aucun")],
+            "BAT de présentation, couleurs non contractuelles. "
+            "Éléments PDF natifs conservés ; simulations de finitions à 300 dpi. "
+            "Spécifications figées dans les réglages JSON. "
+            "Les tracés sont séparés des fichiers de production.",
+        ),
     )
     return ToolResult(
         tool="burger",
-        summary="BAT du produit, fiche technique et fichiers de fabrication prêts.",
+        summary="BAT du produit avec fiche technique intégrée et fichiers de fabrication prêts.",
         metrics={
             "Fichiers attendus": len(contract),
             "Composants": len(snapshot.variant.components),
             "Pages du BAT": artifact(path, "BAT").pages,
         },
-        artifacts=[artifact(path, "BAT A4"), artifact(sheet, "Fiche technique")] + extras,
+        artifacts=[artifact(path, "BAT A4")] + extras,
     )

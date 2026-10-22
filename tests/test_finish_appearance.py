@@ -2,6 +2,7 @@ import json
 
 import pikepdf
 import pytest
+from conftest import proof_body_pages
 from PIL import Image, ImageDraw
 from pydantic import ValidationError
 from reportlab.lib.units import mm
@@ -269,7 +270,7 @@ def test_simulation_in_proof_and_frozen_settings(tmp_path, product_id, mode):
     assert text.count("Contrôle — visuels avec finitions") == 1
     assert "Visuel seul" not in text
     with pikepdf.open(output / "bat.pdf") as pdf:
-        for page in list(pdf.pages)[2:]:
+        for page in proof_body_pages(pdf)[2:]:
             assert_native_guides(page)
         # Finishes are transparent overlays. Their alpha is zero in the bleed;
         # the unmodified native PDF underneath supplies the original artwork.

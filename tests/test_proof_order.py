@@ -2,6 +2,7 @@ import numpy as np
 import pikepdf
 import pypdfium2 as pdfium
 import pytest
+from conftest import proof_body_count, proof_body_pages
 from PIL import Image
 from reportlab.lib.units import mm
 from snackpress_tools.common import new_canvas
@@ -59,9 +60,11 @@ def test_card_composites_then_separated_elements_with_real_bleed_hidden(tmp_path
     result = (render if preview else run)(
         out, "burger", files, {"product_snapshot": snapshot.model_dump()}
     )
-    assert result.metrics["Pages du BAT"] == 6
+    assert result.metrics["Pages du BAT"] == 7
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
-        texts = [page.get_textpage().get_text_range() for page in pdf]
+        texts = [page.get_textpage().get_text_range() for page in pdf][
+            : proof_body_count(out / "bat.pdf")
+        ]
     assert "Présentation" in texts[0] and "Recto" in texts[0] and "Verso" in texts[0]
     assert "Légende des repères" not in texts[0]
     assert "Contrôle" in texts[1] and "Recto" in texts[1] and "Verso" in texts[1]
@@ -70,7 +73,7 @@ def test_card_composites_then_separated_elements_with_real_bleed_hidden(tmp_path
     assert "Vernis sélectif" in texts[4] and "Vernis sélectif" in texts[5]
     with pikepdf.open(out / "bat.pdf") as pdf:
         assert not guide_forms(pdf.pages[0])
-        assert all(guide_forms(page) for page in list(pdf.pages)[1:])
+        assert all(guide_forms(page) for page in proof_body_pages(pdf)[1:])
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
         clean, guided, raw = [np.array(pdf[i].render(scale=2).to_pil()) for i in (0, 1, 2)]
         assert not np.any(np.all(clean[:, :, :3] == (0, 0, 255), axis=2))
@@ -88,9 +91,12 @@ def test_sections_span_all_components_and_paginate_long_documents(tmp_path):
     out = tmp_path / "out"
     out.mkdir()
     result = run(out, "burger", files, {"product_snapshot": snapshot.model_dump()})
-    assert result.metrics["Pages du BAT"] == 16
+    assert proof_body_count(out / "bat.pdf") == 16
+    assert result.metrics["Pages du BAT"] > 16
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
-        texts = [page.get_textpage().get_text_range() for page in pdf]
+        texts = [page.get_textpage().get_text_range() for page in pdf][
+            : proof_body_count(out / "bat.pdf")
+        ]
     assert all("Présentation" in text and "Légende des repères" not in text for text in texts[:2])
     assert "Couverture" in texts[0] and "Intérieur" in texts[0]
     assert all("Contrôle" in text for text in texts[2:4])
@@ -108,8 +114,8 @@ def test_finish_without_mask_has_a_separated_control(tmp_path):
     out.mkdir()
     run(out, "burger", files, {"product_snapshot": snapshot.model_dump()})
     with pikepdf.open(out / "bat.pdf") as pdf:
-        assert len(pdf.pages) == 6
-        for page in list(pdf.pages)[-2:]:
+        assert len(proof_body_pages(pdf)) == 6
+        for page in proof_body_pages(pdf)[-2:]:
             image = images(page)[0]
             assert image.getpixel((image.width // 2, image.height // 2)) == (255, 255, 255)
             pixels = np.array(image)

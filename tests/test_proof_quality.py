@@ -6,6 +6,7 @@ import numpy as np
 import pikepdf
 import pypdfium2 as pdfium
 import pytest
+from conftest import proof_body_count, proof_body_pages
 from PIL import Image
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
@@ -51,9 +52,9 @@ def test_original_text_paths_colors_and_image_resolution_survive(tmp_path, with_
     output.mkdir()
     run(output, "burger", [source], {})
     with pikepdf.open(output / "bat.pdf") as pdf:
-        assert len(pdf.pages) == (4 if with_image else 3)
+        assert len(pdf.pages) == (5 if with_image else 4)
         assert sum(obj.get("/Subtype") == "/Image" for obj in pdf.objects) == len(expected)
-        for page in pdf.pages:
+        for page in proof_body_pages(pdf):
             objects = list(xobjects(page.Resources))
             images = {obj.objgen: obj for obj in objects if obj.Subtype == "/Image"}.values()
             assert [(obj.Width, obj.Height, obj.read_raw_bytes()) for obj in images] == expected
@@ -65,7 +66,10 @@ def test_original_text_paths_colors_and_image_resolution_survive(tmp_path, with_
             ]
             assert {"Tj", "c", "S", "K"} <= set(operators)
     with pdfium.PdfDocument(str(output / "bat.pdf")) as pdf:
-        assert all("TEXTE SOURCE VECTORIEL" in p.get_textpage().get_text_range() for p in pdf)
+        assert all(
+            "TEXTE SOURCE VECTORIEL" in pdf[i].get_textpage().get_text_range()
+            for i in range(proof_body_count(output / "bat.pdf"))
+        )
     assert source.read_bytes() == original
 
 

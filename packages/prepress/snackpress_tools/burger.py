@@ -9,7 +9,6 @@ from .common import (
     artifact,
     dimensions,
     open_pdf,
-    report,
 )
 from .proof_layout import guide_key, proof_date
 
@@ -292,24 +291,27 @@ def generate(folder, files, p, **options):
     date = options.get("date") or proof_date()
     items, specs = prepare(folder, files, p, **options)
     path = folder / "bat.pdf"
-    render_proof(path, items, p, date, paginate=paginate)
-    sheet = folder / "fiche-technique.pdf"
-    report(
-        sheet,
-        "Fiche technique du BAT",
-        specs + [("Commentaires", p.notes or "Aucun")],
-        "PDF source conservés en vectoriel et images à leur résolution d’origine. "
-        "Simulations de finitions à 300 dpi. Présentation au format fini, "
-        "puis contrôle avec repères, puis éléments séparés avec repères vectoriels.",
+    render_proof(
+        path,
+        items,
+        p,
+        date,
+        paginate=paginate,
+        technical_sheet=(
+            specs + [("Commentaires", p.notes or "Aucun")],
+            "PDF source conservés en vectoriel et images à leur résolution d’origine. "
+            "Simulations de finitions à 300 dpi. Présentation au format fini, "
+            "puis contrôle avec repères, puis éléments séparés avec repères vectoriels.",
+        ),
     )
     return ToolResult(
         tool="burger",
-        summary="BAT A4 et fiche technique prêts.",
+        summary="BAT A4 avec fiche technique intégrée prêt.",
         metrics={
             "Faces": sum(item.visual for item in items),
             "Fichiers visuels": p.expected_files,
             "Finitions": len(p.finishes),
             "Pages du BAT": artifact(path, "BAT").pages,
         },
-        artifacts=[artifact(path, "BAT A4"), artifact(sheet, "Fiche technique")],
+        artifacts=[artifact(path, "BAT A4")],
     )

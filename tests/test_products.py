@@ -87,7 +87,7 @@ def test_seed_products_generate_proofs_and_public_artifacts(tmp_path, product_id
         assert series.pages == 50
         text = content(output / series.name)
         assert text.count("0001") == 2 and text.count("0050") == 2
-        assert result.metrics["Pages du BAT"] == 4
+        assert result.metrics["Pages du BAT"] == 5
 
 
 def test_multiple_guides_share_trim_origin(tmp_path):

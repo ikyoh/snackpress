@@ -130,7 +130,7 @@ def test_burger_alternates_front_back_across_artwork_files_and_pages(tmp_path, s
         },
     )
     with pikepdf.open(out / "bat.pdf") as pdf:
-        assert len(pdf.pages) == 6
+        assert len(pdf.pages) == 7
         for index, expected in enumerate([[101, 200], [97, 196]] * 2, 2):
             forms = [
                 obj

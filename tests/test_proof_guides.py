@@ -2,6 +2,7 @@ import numpy as np
 import pikepdf
 import pypdfium2 as pdfium
 import pytest
+from conftest import proof_body_count
 from reportlab.lib.units import mm
 from snackpress_tools.common import new_canvas
 from snackpress_tools.preview import render
@@ -41,7 +42,7 @@ def test_print_guides_visible_and_registered_over_artwork(tmp_path, mode, backgr
     scale = 174 / 91
     bottom = 65 + (174 - 61 * scale) / 2
     with pdfium.PdfDocument(str(path)) as pdf:
-        for page in list(pdf)[2:]:
+        for page in list(pdf)[2 : proof_body_count(path)]:
             pixels = np.asarray(page.render(scale=2).to_pil().convert("RGB"))
             for source_x, color in [(0, (50, 101, 201)), (3, (201, 109, 77)), (8, (24, 61, 54))]:
                 x = round((18 + source_x * scale) * mm * 2)
@@ -69,7 +70,7 @@ def test_print_guides_exist_without_a_pizza_template(tmp_path, product_id):
     out.mkdir()
     run(out, "burger", files, {"product_snapshot": snapshot.model_dump()})
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
-        for page in pdf:
+        for page in list(pdf)[: proof_body_count(out / "bat.pdf")]:
             text = page.get_textpage().get_text_range()
             if "Présentation" in text:
                 assert "Légende des repères" not in text

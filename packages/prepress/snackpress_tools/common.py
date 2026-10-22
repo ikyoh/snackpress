@@ -74,7 +74,17 @@ def paginate_pdf(path: Path):
         pdf.save(path)
 
 
-def report(path: Path, title: str, rows, note="", *, branded_header=False):
+def report(
+    path: Path,
+    title: str,
+    rows,
+    note="",
+    *,
+    branded_header=False,
+    paginate=True,
+    date=None,
+    date_label="Date du rapport",
+):
     fonts()
     style = ParagraphStyle(
         "body",
@@ -136,11 +146,11 @@ def report(path: Path, title: str, rows, note="", *, branded_header=False):
     if branded_header:
         from .proof_layout import header_footer, proof_date
 
-        date = proof_date()
+        date = date or proof_date()
 
     def footer(c, doc):
         if branded_header:
-            header_footer(c, date, date_label="Date du rapport")
+            header_footer(c, date, date_label=date_label)
             return
         c.setFont("Snack", 8)
         c.setFillColor(INK)
@@ -149,7 +159,8 @@ def report(path: Path, title: str, rows, note="", *, branded_header=False):
         )
 
     doc.build(story, onFirstPage=footer, onLaterPages=footer)
-    paginate_pdf(path)
+    if paginate:
+        paginate_pdf(path)
 
 
 def artifact(path: Path, label: str) -> Artifact:
