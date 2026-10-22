@@ -60,6 +60,110 @@ def test_area_opacity_gradient_and_path():
     assert result.getpixel((7, 0)) == (255, 0, 0)
 
 
+@pytest.mark.parametrize("angle", [0, 90, 180, 270])
+def test_five_gradient_steps_and_segment_interpolation(angle):
+    finish = Finish(
+        id="foil",
+        name="Dorure",
+        appearance={
+            "mode": "area",
+            "gradient": True,
+            "alpha": 1,
+            "angle": angle,
+            "color": "#ff0000",
+            "end_color": "#ffffff",
+            "gradient_stops": [
+                {"color": "#00ff00", "position": 10},
+                {"color": "#0000ff", "position": 40},
+                {"color": "#000000", "position": 90},
+            ],
+        },
+    )
+    result = simulate_finishes(Image.new("RGB", (101, 101), "white"), [finish], {}, 0, 72)
+
+    def pixel(position):
+        x, y = {
+            0: (position, 50),
+            90: (50, 100 - position),
+            180: (100 - position, 50),
+            270: (50, position),
+        }[angle]
+        return result.getpixel((x, y))
+
+    assert pixel(0) == (255, 0, 0)
+    assert pixel(10) == (0, 255, 0)
+    assert pixel(40) == (0, 0, 255)
+    assert pixel(90) == (0, 0, 0)
+    assert pixel(100) == (255, 255, 255)
+    # Floating-point projection and 8-bit rounding can differ by one channel level.
+    assert pixel(5) == pytest.approx((128, 128, 0), abs=1)
+    assert pixel(25) == pytest.approx((0, 128, 128), abs=1)
+    assert pixel(65) == pytest.approx((0, 0, 128), abs=1)
+
+
+def test_five_step_gradient_is_clipped_to_mask_and_finished_region(monkeypatch):
+    image = Image.new("RGB", (107, 107), "blue")
+    ImageDraw.Draw(image).rectangle((3, 3, 103, 103), fill="white")
+    mask = Image.new("RGB", image.size, "white")
+    ImageDraw.Draw(mask).rectangle((3, 3, 52, 103), fill="black")
+    monkeypatch.setattr(
+        "snackpress_tools.finish_appearance.render_page", lambda *args, **kwargs: (mask, None)
+    )
+    finish = Finish(
+        id="foil",
+        name="Dorure",
+        mask=True,
+        appearance={
+            "mode": "area",
+            "gradient": True,
+            "alpha": 0.5,
+            "color": "#ff0000",
+            "end_color": "#ffffff",
+            "gradient_stops": [
+                {"color": "#00ff00", "position": 20},
+                {"color": "#0000ff", "position": 50},
+                {"color": "#000000", "position": 80},
+            ],
+        },
+    )
+    result = simulate_finishes(image, [finish], {"foil": None}, 0, 72, region=(3, 3, 104, 104))
+    assert result.getpixel((23, 50)) == (127, 255, 127)
+    assert result.getpixel((83, 50)) == (255, 255, 255)
+    assert result.getpixel((1, 50)) == (0, 0, 255)
+
+
+@pytest.mark.parametrize("positions", [[0, 40, 100], [40, 40, 75]])
+def test_gradient_steps_can_meet_for_hard_transitions(positions):
+    finish = Finish(
+        id="foil",
+        name="Dorure",
+        appearance={
+            "mode": "area",
+            "gradient": True,
+            "alpha": 1,
+            "color": "#ff0000",
+            "end_color": "#ffffff",
+            "gradient_stops": [
+                {"color": color, "position": position}
+                for color, position in zip(["#00ff00", "#0000ff", "#000000"], positions)
+            ],
+        },
+    )
+    result = simulate_finishes(Image.new("RGB", (101, 11), "white"), [finish], {}, 0, 72)
+    assert result.getpixel((40, 5)) == (0, 0, 255)
+    assert result.getpixel((100, 5)) == (255, 255, 255)
+
+
+@pytest.mark.parametrize(
+    "positions", [[25, 50], [10, 25, 50, 75], [-1, 50, 75], [25, 50, 101], [50, 25, 75]]
+)
+def test_gradient_stop_validation(positions):
+    with pytest.raises(ValidationError):
+        FinishAppearance(gradient_stops=[{"color": "#ffffff", "position": p} for p in positions])
+    with pytest.raises(ValidationError):
+        FinishAppearance(gradient_stops=[{"color": "red", "position": p} for p in [25, 50, 75]])
+
+
 def test_mask_coverage_and_page_order(tmp_path):
     path = tmp_path / "mask.pdf"
     c = new_canvas(path, 100 / mm, 40 / mm)
@@ -143,7 +247,16 @@ def test_simulation_in_proof_and_frozen_settings(tmp_path, product_id, mode):
     snapshot.variant.finish_ids = [finish.id]
     # The ticket stock does not accept the seeded varnish: use its own perforation.
     finish.appearance = FinishAppearance(
-        mode=mode, gradient=True, alpha=0.6, color="#ff0000", dash_color="#0000ff"
+        mode=mode,
+        gradient=True,
+        alpha=0.6,
+        color="#ff0000",
+        dash_color="#0000ff",
+        gradient_stops=[
+            {"color": "#00ff00", "position": 12},
+            {"color": "#0000ff", "position": 47},
+            {"color": "#ffff00", "position": 83},
+        ],
     )
     files = artwork(tmp_path, snapshot)
     original_bytes = [path.read_bytes() for path in files]
@@ -158,14 +271,18 @@ def test_simulation_in_proof_and_frozen_settings(tmp_path, product_id, mode):
     with pikepdf.open(output / "bat.pdf") as pdf:
         for page in list(pdf.pages)[2:]:
             assert_native_guides(page)
-        images = [
-            next(obj for obj in dict(page.Resources.XObject).values() if obj.Subtype == "/Image")
-            for page in [pdf.pages[2], pdf.pages[1]]
+        # Finishes are transparent overlays. Their alpha is zero in the bleed;
+        # the unmodified native PDF underneath supplies the original artwork.
+        overlays = [
+            obj for obj in dict(pdf.pages[1].Resources.XObject).values() if obj.Subtype == "/Image"
         ]
-        original, simulation = [pikepdf.PdfImage(image).as_pil_image() for image in images]
-        # The displayed bleed remains the original artwork, even for full-area finishes.
-        assert original.getpixel((1, original.height // 2)) == simulation.getpixel(
-            (1, simulation.height // 2)
+        assert overlays
+        for overlay in overlays:
+            alpha = pikepdf.PdfImage(overlay.SMask).as_pil_image()
+            assert alpha.getpixel((1, alpha.height // 2)) == 0
+        assert any(
+            obj.get("/SnackpressRole") == "/Artwork"
+            for obj in dict(pdf.pages[2].Resources.XObject).values()
         )
     frozen = json.loads((output / "reglages.json").read_text())["settings"]["product_snapshot"]
     saved = next(f for f in frozen["finishes"] if f["id"] == finish.id)

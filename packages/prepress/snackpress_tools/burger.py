@@ -298,7 +298,8 @@ def generate(folder, files, p, **options):
         sheet,
         "Fiche technique du BAT",
         specs + [("Commentaires", p.notes or "Aucun")],
-        "Visuels rasterisés pour la présentation. Présentation avec finitions au format fini, "
+        "PDF source conservés en vectoriel et images à leur résolution d’origine. "
+        "Simulations de finitions à 300 dpi. Présentation au format fini, "
         "puis contrôle avec repères, puis éléments séparés avec repères vectoriels.",
     )
     return ToolResult(

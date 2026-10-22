@@ -288,6 +288,7 @@ def generate_product(folder, files, params, preview=False):
         params.title,
         specs + [("Commentaires", params.notes or "Aucun")],
         "BAT de présentation, couleurs non contractuelles. "
+        "Éléments PDF natifs conservés ; simulations de finitions à 300 dpi. "
         "Spécifications figées dans les réglages JSON. "
         "Les tracés sont séparés des fichiers de production.",
     )

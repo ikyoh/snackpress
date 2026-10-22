@@ -2,6 +2,7 @@ import numpy as np
 import pikepdf
 import pypdfium2 as pdfium
 import pytest
+from PIL import Image
 from reportlab.lib.units import mm
 from snackpress_tools.common import new_canvas
 from snackpress_tools.preview import render
@@ -28,11 +29,15 @@ def source(path, color=None, *, mask=False):
 
 
 def images(page):
-    return [
-        pikepdf.PdfImage(obj).as_pil_image().convert("RGB")
-        for obj in dict(page.Resources.XObject).values()
-        if obj.Subtype == "/Image"
-    ]
+    result = []
+    for obj in dict(page.Resources.XObject).values():
+        if obj.Subtype != "/Image":
+            continue
+        image = pikepdf.PdfImage(obj).as_pil_image().convert("RGBA")
+        if "/SMask" in obj:
+            image.putalpha(pikepdf.PdfImage(obj.SMask).as_pil_image())
+        result.append(Image.alpha_composite(Image.new("RGBA", image.size, "white"), image))
+    return [image.convert("RGB") for image in result]
 
 
 @pytest.mark.parametrize("preview", [False, True])
@@ -66,19 +71,14 @@ def test_card_composites_then_separated_elements_with_real_bleed_hidden(tmp_path
     with pikepdf.open(out / "bat.pdf") as pdf:
         assert not guide_forms(pdf.pages[0])
         assert all(guide_forms(page) for page in list(pdf.pages)[1:])
-        clean = images(pdf.pages[0])
-        guided = images(pdf.pages[1])
-        assert len(clean) == len(guided) == 2
-        for image in clean:
-            pixels = np.array(image)
-            assert not np.any(np.all(pixels == (0, 0, 255), axis=2))
-            assert image.getpixel((image.width // 4, image.height // 2)) == (255, 0, 0)
-        for image in guided:
-            assert image.getpixel((1, image.height // 2)) == (0, 0, 255)
-            assert image.getpixel((image.width // 4, image.height // 2)) == (255, 0, 0)
+    with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
+        clean, guided, raw = [np.array(pdf[i].render(scale=2).to_pil()) for i in (0, 1, 2)]
+        assert not np.any(np.all(clean[:, :, :3] == (0, 0, 255), axis=2))
+        assert np.any(np.all(guided[:, :, :3] == (0, 0, 255), axis=2))
+        for pixels in (clean, guided):
+            assert np.count_nonzero(np.all(pixels[:, :, :3] == (255, 0, 0), axis=2)) > 10_000
         # The separated artwork must not contain the red finishing simulation.
-        raw = images(pdf.pages[2])[0]
-        assert raw.getpixel((raw.width // 4, raw.height // 2)) == (255, 255, 255)
+        assert not np.any(np.all(raw[:, :, :3] == (255, 0, 0), axis=2))
     assert [file.read_bytes() for file in files] == originals
 
 
@@ -126,11 +126,10 @@ def test_presentation_uses_trimbox_without_a_template(tmp_path, rotation):
     out = tmp_path / "out"
     out.mkdir()
     run(out, "burger", [visual], {})
-    with pikepdf.open(out / "bat.pdf") as pdf:
-        clean = images(pdf.pages[0])[0]
-        assert np.all(np.array(clean) == 255)
-        control = np.array(images(pdf.pages[1])[0])
-        assert np.any(np.all(control == (0, 0, 255), axis=2))
+    with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
+        clean, control = [np.array(pdf[i].render(scale=2).to_pil()) for i in (0, 1)]
+        assert not np.any(np.all(clean[:, :, :3] == (0, 0, 255), axis=2))
+        assert np.any(np.all(control[:, :, :3] == (0, 0, 255), axis=2))
 
 
 @pytest.mark.parametrize("tool", ["pizza", "sushi"])

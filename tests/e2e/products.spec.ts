@@ -11,6 +11,24 @@ test('apparence des finitions : zone, alpha, dégradé et tracé bicolore', asyn
   await page.getByLabel('Opacité (alpha, %)').fill('25')
   await page.getByLabel('Créer un dégradé').check()
   await page.getByLabel('Couleur d’arrivée').fill('#abcdef')
+  for (const [index, position] of [25, 50, 75].entries()) {
+    await expect(page.getByLabel(`Position de l’étape ${index + 2} (%)`)).toHaveValue(`${position}`)
+  }
+  for (const [index, [color, position]] of [
+    ['#ff0000', '12'],
+    ['#00ff00', '47'],
+    ['#0000ff', '83'],
+  ].entries()) {
+    await page.getByLabel(`Couleur de l’étape ${index + 2}`).fill(color)
+    await page.getByLabel(`Position de l’étape ${index + 2} (%)`).fill(position)
+  }
+  await expect(page.locator('.finish-appearance-sample')).toHaveCSS(
+    'background-image',
+    /rgb\(0, 255, 0\) 47%/,
+  )
+  await page.getByLabel('Position de l’étape 3 (%)').fill('95')
+  await expect(page.getByLabel('Position de l’étape 3 (%)')).toHaveValue('83')
+  await page.getByLabel('Position de l’étape 3 (%)').fill('47')
   await page.getByLabel('Angle du dégradé (°)').fill('45')
   await expect(page.locator('.finish-appearance-sample')).toHaveCSS('opacity', '0.25')
   await page.screenshot({ path: 'test-results/finish-appearance-desktop.png', fullPage: true })
@@ -35,14 +53,17 @@ test('apparence des finitions : zone, alpha, dégradé et tracé bicolore', asyn
   await expect(page.locator('.finish-appearance-preview')).toHaveCount(0)
   await mode.selectOption('area')
   await expect(page.getByLabel('Couleur d’arrivée')).toHaveValue('#abcdef')
+  await expect(page.getByLabel('Couleur de l’étape 3')).toHaveValue('#00ff00')
+  await expect(page.getByLabel('Position de l’étape 3 (%)')).toHaveValue('47')
   await expect(page.getByLabel('Opacité (alpha, %)')).toHaveValue('25')
   await mode.selectOption('path')
   await expect(page.getByLabel('Couleur du pointillé', { exact: true })).toHaveValue('#fce300')
 })
 
-test('catalogue produit : carte, tracé bicolore, BAT et spécifications figées', async ({
+test('catalogue produit : dégradé à cinq étapes, BAT et spécifications figées', async ({
   page,
 }) => {
+  test.setTimeout(60_000)
   await page.goto('/?tool=burger')
   await page.getByLabel('Mode du BAT').selectOption('catalog')
   await expect(page.getByLabel('Produit', { exact: true })).toHaveValue('card')
@@ -55,8 +76,15 @@ test('catalogue produit : carte, tracé bicolore, BAT et spécifications figées
   await appearance.getByLabel('Opacité (alpha, %)').fill('35')
   await appearance.getByLabel('Créer un dégradé').check()
   await appearance.getByLabel('Couleur d’arrivée').fill('#ffff00')
+  await appearance.getByLabel('Couleur de l’étape 2').fill('#ff0000')
+  await appearance.getByLabel('Position de l’étape 2 (%)').fill('12')
+  await appearance.getByLabel('Couleur de l’étape 3').fill('#00ff00')
+  await appearance.getByLabel('Position de l’étape 3 (%)').fill('47')
+  await appearance.getByLabel('Couleur de l’étape 4').fill('#0000ff')
+  await appearance.getByLabel('Position de l’étape 4 (%)').fill('83')
   await appearance.getByLabel('Représentation sur le BAT').selectOption('path')
   await appearance.getByLabel('Couleur du pointillé').fill('#0000ff')
+  await appearance.getByLabel('Représentation sur le BAT').selectOption('area')
   await appearance.screenshot({ path: 'test-results/bat-finish-settings-desktop.png' })
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
@@ -85,12 +113,17 @@ test('catalogue produit : carte, tracé bicolore, BAT et spécifications figées
   const frozen = (await settings.json()).settings.product_snapshot
   expect(frozen.variant.finish_ids).toEqual(['varnish'])
   expect(frozen.finishes.find((f: { id: string }) => f.id === 'varnish').appearance).toMatchObject({
-    mode: 'path',
+    mode: 'area',
     color: '#ff0000',
     dash_color: '#0000ff',
     alpha: 0.35,
     gradient: true,
     end_color: '#ffff00',
+    gradient_stops: [
+      { color: '#ff0000', position: 12 },
+      { color: '#00ff00', position: 47 },
+      { color: '#0000ff', position: 83 },
+    ],
   })
   await expect(page.locator('.tool-success')).toBeVisible()
 })

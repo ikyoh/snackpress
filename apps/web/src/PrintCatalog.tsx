@@ -39,8 +39,10 @@ type FinishAppearance = {
   alpha: number
   gradient: boolean
   end_color: string
+  gradient_stops: GradientStop[] | null
   angle: number
 }
+type GradientStop = { color: string; position: number }
 const defaultFinishAppearance: FinishAppearance = {
   mode: 'none',
   color: '#e6007e',
@@ -48,7 +50,25 @@ const defaultFinishAppearance: FinishAppearance = {
   alpha: 0.4,
   gradient: false,
   end_color: '#ffd54f',
+  gradient_stops: null,
   angle: 0,
+}
+
+function defaultGradientStops(start: string, end: string): GradientStop[] {
+  return [25, 50, 75].map((position) => ({
+    position,
+    color:
+      '#' +
+      [1, 3, 5]
+        .map((index) => {
+          const from = parseInt(start.slice(index, index + 2), 16)
+          const to = parseInt(end.slice(index, index + 2), 16)
+          return Math.round(from + ((to - from) * position) / 100)
+            .toString(16)
+            .padStart(2, '0')
+        })
+        .join(''),
+  }))
 }
 
 function FinishAppearanceEditor({
@@ -60,6 +80,14 @@ function FinishAppearanceEditor({
 }) {
   const style = { ...defaultFinishAppearance, ...finish.appearance }
   const update = (patch: Partial<FinishAppearance>) => onChange({ ...style, ...patch })
+  const stops = style.gradient_stops ?? defaultGradientStops(style.color, style.end_color)
+  const updateStop = (index: number, patch: Partial<GradientStop>) =>
+    update({ gradient_stops: stops.map((stop, i) => (i === index ? { ...stop, ...patch } : stop)) })
+  const gradientColors = [
+    `${style.color} 0%`,
+    ...stops.map((stop) => `${stop.color} ${stop.position}%`),
+    `${style.end_color} 100%`,
+  ].join(', ')
   return (
     <div className="finish-appearance">
       <Select
@@ -86,7 +114,7 @@ function FinishAppearanceEditor({
                 {style.mode === 'path'
                   ? 'Couleur du tracé'
                   : style.gradient
-                    ? 'Couleur de départ'
+                    ? 'Couleur de départ · 0 %'
                     : 'Couleur'}
               </span>
               <input
@@ -127,24 +155,57 @@ function FinishAppearanceEditor({
                 <span>Créer un dégradé</span>
               </label>
               {style.gradient && (
-                <div className="finish-appearance-fields">
-                  <label className="field">
-                    <span>Couleur d’arrivée</span>
-                    <input
-                      type="color"
-                      value={style.end_color}
-                      onChange={(e) => update({ end_color: e.target.value })}
+                <>
+                  <p className="field-help">
+                    5 étapes : début à 0 %, fin à 100 %. Réglez les couleurs et les positions des
+                    étapes 2, 3 et 4.
+                  </p>
+                  {stops.map((stop, index) => (
+                    <div className="finish-appearance-fields" key={index}>
+                      <label className="field">
+                        <span>Couleur de l’étape {index + 2}</span>
+                        <input
+                          type="color"
+                          value={stop.color}
+                          onChange={(e) => updateStop(index, { color: e.target.value })}
+                        />
+                      </label>
+                      <Num
+                        label={`Position de l’étape ${index + 2} (%)`}
+                        value={stop.position}
+                        min={index === 0 ? 0 : stops[index - 1].position}
+                        max={index === 2 ? 100 : stops[index + 1].position}
+                        step="any"
+                        onChange={(position) =>
+                          updateStop(index, {
+                            position: Math.max(
+                              index === 0 ? 0 : stops[index - 1].position,
+                              Math.min(index === 2 ? 100 : stops[index + 1].position, position),
+                            ),
+                          })
+                        }
+                      />
+                    </div>
+                  ))}
+                  <div className="finish-appearance-fields">
+                    <label className="field">
+                      <span>Couleur d’arrivée · 100 %</span>
+                      <input
+                        type="color"
+                        value={style.end_color}
+                        onChange={(e) => update({ end_color: e.target.value })}
+                      />
+                    </label>
+                    <Num
+                      label="Angle du dégradé (°)"
+                      value={style.angle}
+                      min={0}
+                      max={360}
+                      step="1"
+                      onChange={(angle) => update({ angle })}
                     />
-                  </label>
-                  <Num
-                    label="Angle du dégradé (°)"
-                    value={style.angle}
-                    min={0}
-                    max={360}
-                    step="1"
-                    onChange={(angle) => update({ angle })}
-                  />
-                </div>
+                  </div>
+                </>
               )}
             </>
           )}
@@ -161,7 +222,7 @@ function FinishAppearanceEditor({
                   : {
                       opacity: style.alpha,
                       background: style.gradient
-                        ? `linear-gradient(${90 - style.angle}deg, ${style.color}, ${style.end_color})`
+                        ? `linear-gradient(${90 - style.angle}deg, ${gradientColors})`
                         : style.color,
                     }
               }

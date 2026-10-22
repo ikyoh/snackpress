@@ -25,6 +25,11 @@ class Material(Named):
     description: str = Field(default="", max_length=500)
 
 
+class GradientStop(Spec):
+    color: str = Field(pattern=r"^#[0-9a-fA-F]{6}$")
+    position: float = Field(ge=0, le=100)
+
+
 class FinishAppearance(Spec):
     mode: Literal["none", "area", "path"] = "none"
     color: str = Field(default="#e6007e", pattern=r"^#[0-9a-fA-F]{6}$")
@@ -32,7 +37,19 @@ class FinishAppearance(Spec):
     alpha: float = Field(default=0.4, ge=0, le=1)
     gradient: bool = False
     end_color: str = Field(default="#ffd54f", pattern=r"^#[0-9a-fA-F]{6}$")
+    gradient_stops: list[GradientStop] | None = Field(default=None, min_length=3, max_length=3)
     angle: float = Field(default=0, ge=0, le=360)
+
+    @model_validator(mode="after")
+    def ordered_gradient(self):
+        if self.gradient_stops and any(
+            right.position < left.position
+            for left, right in zip(self.gradient_stops, self.gradient_stops[1:])
+        ):
+            raise ValueError(
+                "Les étapes du dégradé doivent rester dans l’ordre de leurs positions."
+            )
+        return self
 
 
 class Finish(Named):

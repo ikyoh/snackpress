@@ -36,11 +36,13 @@ def text(path):
 def guide_forms(page):
     forms = []
 
-    def collect(resources):
+    def collect(resources, guided=False):
         for obj in dict(resources.get("/XObject", {})).values():
             if obj.get("/Subtype") == "/Form":
-                forms.append(obj)
-                collect(obj.get("/Resources", {}))
+                is_guide = guided or obj.get("/SnackpressRole") == "/Guide"
+                if is_guide:
+                    forms.append(obj)
+                collect(obj.get("/Resources", {}), is_guide)
             else:
                 assert obj.get("/Subtype") == "/Image"
 
@@ -49,9 +51,6 @@ def guide_forms(page):
 
 
 def assert_native_guides(page):
-    # One image is the artwork. The guides must add PDF paths, not another image.
-    images = [obj for obj in dict(page.Resources.XObject).values() if obj.Subtype == "/Image"]
-    assert len(images) == 1
     forms = guide_forms(page)
     assert forms
     assert any(

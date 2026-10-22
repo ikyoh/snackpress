@@ -1,5 +1,6 @@
 """One ordered proof: finished presentation, guided composite, separated elements."""
 
+from contextlib import ExitStack
 from dataclasses import dataclass, field, replace
 from math import ceil
 from pathlib import Path
@@ -10,7 +11,7 @@ from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 
-from .common import full_page_form, new_canvas, open_pdf, paginate_pdf, render_page
+from .common import full_page_form, new_canvas, open_pdf, paginate_pdf
 from .finish_appearance import simulate_finishes
 from .proof_layout import draw_legend, header_footer
 
@@ -47,23 +48,20 @@ def trim_pixels(item, image):
     )
 
 
-def display_image(item, composite, clean):
-    dpi = min(120, 1100 * 25.4 / max(item.width, item.height))
-    image, _ = render_page(item.source, item.source_page, dpi=dpi)
-    region = trim_pixels(item, image)
-    if item.only_finish:
-        image = Image.new("RGB", image.size, "white")
-    if (composite or item.only_finish) and item.finish_styles:
-        image = simulate_finishes(
-            image,
-            item.finish_styles,
-            item.finish_masks,
-            item.finish_page,
-            dpi,
-            region=region,
-            mask_page_counts=item.mask_page_counts,
-        )
-    return image.crop(region) if clean else image
+def finish_overlay(item, scale):
+    """Only finishing simulations are rasterized, at 300 dpi on the BAT page."""
+    dpi = 300 * scale
+    size = (max(1, round(item.width * dpi / 25.4)), max(1, round(item.height * dpi / 25.4)))
+    image = Image.new("RGBA", size)
+    return simulate_finishes(
+        image,
+        item.finish_styles,
+        item.finish_masks,
+        item.finish_page,
+        dpi,
+        region=trim_pixels(item, image),
+        mask_page_counts=item.mask_page_counts,
+    )
 
 
 def canvas_size(item, clean):
@@ -108,6 +106,7 @@ def clip_finished(c, item, x, y, width, height):
 def render_proof(path, items, params, date, *, paginate=True):
     c = new_canvas(path, 210, 297)
     placements = []
+    artwork = []
     page_index = 0
     visuals = [item for item in items if item.visual]
     separated = visuals + [item for item in items if not item.visual]
@@ -164,9 +163,10 @@ def render_proof(path, items, params, date, *, paginate=True):
                 scale = min(cw / bw, (ch - 10) / bh)
                 x = left + (cw - bw * scale) / 2
                 y = top - ch + (ch - 10 - bh * scale) / 2
-                image = display_image(item, composite, clean)
                 ix = iy = 0
-                iw, ih = item.trim[2:] if clean else (item.width, item.height)
+                iw, ih = item.width, item.height
+                if clean:
+                    ix, iy = -item.trim[0], -item.trim[1]
                 if item.guide and not clean:
                     _, (gw, gh), (ox, oy, _, _) = item.guide
                     if abs(item.width - gw) > 1 or abs(item.height - gh) > 1:
@@ -174,13 +174,29 @@ def render_proof(path, items, params, date, *, paginate=True):
                 c.saveState()
                 if clean:
                     clip_finished(c, item, x, y, bw * scale, bh * scale)
-                c.drawImage(
-                    ImageReader(image),
-                    (x + ix * scale) * mm,
-                    (y + iy * scale) * mm,
-                    width=iw * scale * mm,
-                    height=ih * scale * mm,
-                )
+                if not item.only_finish:
+                    # A public ReportLab form reserves the resource name. Its empty
+                    # contents are replaced with the native PDF after layout.
+                    name = f"Artwork{len(artwork)}"
+                    c.beginForm(name, 0, 0, iw * mm, ih * mm)
+                    c.endForm()
+                    c.saveState()
+                    c.translate((x + ix * scale) * mm, (y + iy * scale) * mm)
+                    c.scale(scale, scale)
+                    c.doForm(name)
+                    c.restoreState()
+                    artwork.append((page_index, name, item))
+                if (composite or item.only_finish) and any(
+                    finish.appearance.mode != "none" for finish in item.finish_styles
+                ):
+                    c.drawImage(
+                        ImageReader(finish_overlay(item, scale)),
+                        (x + ix * scale) * mm,
+                        (y + iy * scale) * mm,
+                        width=iw * scale * mm,
+                        height=ih * scale * mm,
+                        mask="auto",
+                    )
                 c.restoreState()
                 if item.guide and not clean:
                     placements.append(
@@ -213,10 +229,44 @@ def render_proof(path, items, params, date, *, paginate=True):
             c.showPage()
             page_index += 1
     c.save()
+    embed_artwork(path, artwork)
     if placements:
         overlay_guides(path, placements)
     if paginate:
         paginate_pdf(path)
+
+
+def embed_artwork(path, placements):
+    """Copy native PDF resources without resampling images or flattening paths/text."""
+    with ExitStack() as stack, pikepdf.open(path, allow_overwriting_input=True) as proof:
+        forms, sources = {}, {}
+        version = max(proof.pdf_version, "1.4")
+        for index, name, item in placements:
+            page = proof.pages[index]
+            key = (item.source, item.source_page)
+            if key not in forms:
+                # Keep each source open for the import pass so pikepdf can share
+                # common fonts/images between faces instead of duplicating them.
+                if item.source not in sources:
+                    sources[item.source] = stack.enter_context(open_pdf(item.source, max_pages=200))
+                source = sources[item.source]
+                version = max(version, source.pdf_version)
+                native = proof.copy_foreign(full_page_form(source.pages[item.source_page]))
+                bounds = pikepdf.Rectangle(0, 0, item.width * mm, item.height * mm)
+                # calc_form_xobject_placement accounts for CropBox origins and the
+                # source form's rotation/UserUnit matrix before fitting the bounds.
+                commands = page.calc_form_xobject_placement(
+                    native, pikepdf.Name.Source, bounds, allow_shrink=True, allow_expand=True
+                )
+                form = proof.make_stream(b"q\n" + commands + b"\nQ\n")
+                form.Type = pikepdf.Name.XObject
+                form.Subtype = pikepdf.Name.Form
+                form.BBox = pikepdf.Array(bounds)
+                form.Resources = pikepdf.Dictionary(XObject=pikepdf.Dictionary(Source=native))
+                form.SnackpressRole = pikepdf.Name.Artwork
+                forms[key] = form
+            page.Resources.XObject[pikepdf.Name(f"/FormXob.{name}")] = forms[key]
+        proof.save(path, min_version=version)
 
 
 def overlay_guides(path, placements):
@@ -231,6 +281,7 @@ def overlay_guides(path, placements):
             if key not in forms:
                 with open_pdf(item.guide[0], max_pages=2) as source:
                     form = proof.copy_foreign(full_page_form(source.pages[item.guide_face]))
+                form.SnackpressRole = pikepdf.Name.Guide
                 if item.native_guide:
                     proof_strokes(form, scale)
                 forms[key] = form

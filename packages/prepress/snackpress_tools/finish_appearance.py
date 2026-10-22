@@ -49,6 +49,7 @@ def dashed_contours(coverage, dpi):
 def simulate_finishes(
     image, finishes, masks, page_index, dpi, *, region=None, mask_page_counts=None
 ):
+    """Preserve RGBA for transparent proof overlays; RGB callers stay flattened."""
     full_image = image
     if region is not None:
         image = image.crop(region)
@@ -82,7 +83,22 @@ def simulate_finishes(
             position = np.arange(width)[None, :] * dx + np.arange(height)[:, None] * dy
             extent = position.max() - position.min()
             fraction = (position - position.min()) / max(extent, 1)
-            pixels = start + fraction[..., None] * (end - start)
+            if style.gradient_stops is None:
+                pixels = start + fraction[..., None] * (end - start)
+            else:
+                stops = style.gradient_stops
+                positions = [0, *(stop.position / 100 for stop in stops), 1]
+                channels = np.array(
+                    [
+                        start,
+                        *([int(stop.color[i : i + 2], 16) for i in (1, 3, 5)] for stop in stops),
+                        end,
+                    ]
+                )
+                pixels = np.stack(
+                    [np.interp(fraction, positions, channels[:, channel]) for channel in range(3)],
+                    axis=-1,
+                )
             layer = Image.fromarray(np.uint8(np.clip(np.round(pixels), 0, 255))).convert("RGBA")
         else:
             layer = Image.new("RGBA", image.size, style.color)
@@ -93,7 +109,8 @@ def simulate_finishes(
             dashed_layer = Image.new("RGBA", image.size, style.dash_color)
             dashed_layer.putalpha(ImageChops.multiply(coverage, dashes))
             result = Image.alpha_composite(result, dashed_layer)
-    result = result.convert("RGB")
+    if full_image.mode != "RGBA":
+        result = result.convert("RGB")
     if region is not None:
         displayed = full_image.copy()
         displayed.paste(result, region)

@@ -688,11 +688,20 @@ export interface components {
              * @default #ffd54f
              */
             end_color: string;
+            /** Gradient Stops */
+            gradient_stops?: components["schemas"]["GradientStop"][] | null;
             /**
              * Angle
              * @default 0
              */
             angle: number;
+        };
+        /** GradientStop */
+        GradientStop: {
+            /** Color */
+            color: string;
+            /** Position */
+            position: number;
         };
         /** Guide */
         Guide: {

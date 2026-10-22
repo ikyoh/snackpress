@@ -1,12 +1,24 @@
 from copy import deepcopy
 
+import pytest
 from test_accounts import account_api, activate  # noqa: F401
 
 # Pytest discovers the imported fixture.
 # ruff: noqa: F811
 
 
-def test_catalog_auth_isolation_revision_validation_and_persistence(account_api):
+@pytest.mark.parametrize(
+    "gradient_stops",
+    [
+        None,
+        [
+            {"color": "#ff0000", "position": 12},
+            {"color": "#00ff00", "position": 47},
+            {"color": "#0000ff", "position": 83},
+        ],
+    ],
+)
+def test_catalog_auth_isolation_revision_validation_and_persistence(account_api, gradient_stops):
     client, module, deliveries = account_api
     starter = client.get("/api/print-catalog/starter")
     assert starter.status_code == 200
@@ -25,6 +37,7 @@ def test_catalog_auth_isolation_revision_validation_and_persistence(account_api)
         "alpha": 0.25,
         "gradient": True,
         "end_color": "#abcdef",
+        "gradient_stops": gradient_stops,
         "angle": 45,
     }
     response = client.put(

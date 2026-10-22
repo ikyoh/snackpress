@@ -114,7 +114,8 @@ def test_multiple_guides_share_trim_origin(tmp_path):
         marked = doc.pages[2]
         images = [obj for obj in dict(marked.Resources.XObject).values() if obj.Subtype == "/Image"]
         forms = [obj for obj in dict(marked.Resources.XObject).values() if obj.Subtype == "/Form"]
-        assert len(images) == 1
+        assert not images
+        forms = [form for form in forms if form.get("/SnackpressRole") == "/Guide"]
         assert len(forms) == 1
         # The combined Pizza/Taco template keeps both of its native PDF layers.
         layers = list(dict(forms[0].Resources.XObject).values())
@@ -123,7 +124,9 @@ def test_multiple_guides_share_trim_origin(tmp_path):
         # The combined guide must also carry the mirrored Taco layer on the verso.
         verso = doc.pages[3]
         combined = next(
-            obj for obj in dict(verso.Resources.XObject).values() if obj.Subtype == "/Form"
+            obj
+            for obj in dict(verso.Resources.XObject).values()
+            if obj.get("/SnackpressRole") == "/Guide"
         )
         positions = [
             [

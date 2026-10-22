@@ -1673,6 +1673,22 @@
             "title": "End Color",
             "default": "#ffd54f"
           },
+          "gradient_stops": {
+            "anyOf": [
+              {
+                "items": {
+                  "$ref": "#/components/schemas/GradientStop"
+                },
+                "type": "array",
+                "maxItems": 3,
+                "minItems": 3
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gradient Stops"
+          },
           "angle": {
             "type": "number",
             "maximum": 360.0,
@@ -1684,6 +1700,28 @@
         "additionalProperties": false,
         "type": "object",
         "title": "FinishAppearance"
+      },
+      "GradientStop": {
+        "properties": {
+          "color": {
+            "type": "string",
+            "pattern": "^#[0-9a-fA-F]{6}$",
+            "title": "Color"
+          },
+          "position": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Position"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "color",
+          "position"
+        ],
+        "title": "GradientStop"
       },
       "Guide": {
         "properties": {
