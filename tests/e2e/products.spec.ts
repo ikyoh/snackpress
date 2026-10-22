@@ -91,13 +91,14 @@ test('catalogue produit : dégradé à cinq étapes, BAT et spécifications fig�
   await appearance.screenshot({ path: 'test-results/bat-finish-settings-mobile.png' })
   await page.setViewportSize({ width: 1280, height: 720 })
   await expect(page.locator('.print-selector ol li')).toHaveCount(3)
-  await page
-    .getByLabel('Choisir les fichiers')
-    .setInputFiles([
-      'apps/web/public/exemple-fond.pdf',
-      'apps/web/public/exemple-fond.pdf',
-      'apps/web/public/exemple-carte.pdf',
-    ])
+  const uploader = page.locator('.tool-uploader')
+  await expect(uploader).toContainText('Déposer : Carte — Recto')
+  await page.getByLabel('Choisir les fichiers').setInputFiles('apps/web/public/exemple-fond.pdf')
+  await expect(uploader).toContainText('Déposer : Carte — Verso')
+  await page.getByLabel('Choisir les fichiers').setInputFiles('apps/web/public/exemple-fond.pdf')
+  await expect(uploader).toContainText('Déposer : Carte — Masque de finition : Vernis sélectif')
+  await expect(uploader).toContainText('Pour : Recto, Verso. 2 pages, dans l’ordre des visuels.')
+  await page.getByLabel('Choisir les fichiers').setInputFiles('apps/web/public/exemple-carte.pdf')
   const response = page.waitForResponse((r) => r.url().includes('/api/tools/burger/run'))
   await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
   const result = await response

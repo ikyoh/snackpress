@@ -9,14 +9,25 @@ test('Burger : fichiers attendus, finition séparée et repères Pizza', async (
   await page.getByLabel('Finition 1', { exact: true }).fill('Dorure')
   await openSettings(page, 'Gabarit')
   await page.getByLabel('Gabarit à superposer').selectOption('pizza')
-  await page
-    .getByLabel('Choisir les fichiers')
-    .setInputFiles(['apps/web/public/exemple-carte.pdf', 'apps/web/public/exemple-carte.pdf'])
+  const uploader = page.locator('.tool-uploader')
+  await expect(uploader).toContainText('Déposer : Visuel 1')
+  await page.getByLabel('Choisir les fichiers').setInputFiles('apps/web/public/exemple-carte.pdf')
+  await expect(uploader).toContainText('Déposer : Visuel 2')
+  await page.getByLabel('Choisir les fichiers').setInputFiles('apps/web/public/exemple-carte.pdf')
+  await expect(uploader).toContainText('Déposer : Masque de finition : Dorure')
+  await expect(uploader).toContainText('Pour : Visuel 1, Visuel 2.')
+  await uploader.screenshot({ path: 'test-results/bat-upload-desktop.png' })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await uploader.screenshot({ path: 'test-results/bat-upload-mobile.png' })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.setViewportSize({ width: 1280, height: 720 })
   const generate = page.getByRole('button', { name: 'Générer le fichier final', exact: true })
   await expect(generate).toBeDisabled()
   await expect(page.getByText('2 / 3 fichier(s) importé(s).', { exact: false })).toBeVisible()
   await page.getByLabel('Choisir les fichiers').setInputFiles('apps/web/public/exemple-carte.pdf')
-  await expect(page.locator('.tool-file').filter({ hasText: 'Finition : Dorure' })).toBeVisible()
+  await expect(
+    page.locator('.tool-file').filter({ hasText: 'Masque de finition : Dorure' }),
+  ).toBeVisible()
   const response = page.waitForResponse((r) => r.url().includes('/api/tools/burger/run'))
   await generate.click()
   const result = await response
@@ -61,7 +72,9 @@ test('Burger : charger un exemple reprend le gabarit et les fichiers attendus', 
   await expect(page.locator('.tool-upload-section .tool-file')).toHaveCount(3)
   await expect(page.locator('.tool-file').filter({ hasText: 'Recto' })).toBeVisible()
   await expect(page.locator('.tool-file').filter({ hasText: 'Verso' })).toBeVisible()
-  await expect(page.locator('.tool-file').filter({ hasText: 'Finition : Vernis' })).toBeVisible()
+  await expect(
+    page.locator('.tool-file').filter({ hasText: 'Masque de finition : Vernis' }),
+  ).toBeVisible()
   const generate = page.getByRole('button', { name: 'Générer le fichier final', exact: true })
   await expect(generate).toBeEnabled()
   const resultResponse = page.waitForResponse((r) => r.url().endsWith('/api/tools/burger/run'))

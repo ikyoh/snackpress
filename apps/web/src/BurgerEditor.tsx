@@ -2,7 +2,7 @@ import { pizzaField, pizzaValue, visiblePizzaField } from './pizza'
 import { visibleTacoField } from './taco'
 import { SettingsSection } from './SettingsSection'
 import { Configurations } from './Configurations'
-import { ProductSelector, snapshotLabels, type Snapshot } from './PrintCatalog'
+import { ProductSelector, snapshotFiles, type FileRequirement, type Snapshot } from './PrintCatalog'
 import type { components } from '../../../packages/api-client/schema'
 
 type Tool = components['schemas']['ToolDefinition']
@@ -29,8 +29,8 @@ export const burgerDefaults: BurgerOptions = {
   template_tool: 'none',
   template_settings: {},
 }
-export function burgerLabels(options: BurgerOptions): string[] {
-  if (options.product_snapshot) return snapshotLabels(options.product_snapshot)
+export function burgerFiles(options: BurgerOptions): FileRequirement[] {
+  if (options.product_snapshot) return snapshotFiles(options.product_snapshot)
   const count = Math.max(0, Math.min(80, options.expected_files))
   const labels = Array.from({ length: count }, (_, i) =>
     options.document_type === 'card'
@@ -43,11 +43,23 @@ export function burgerLabels(options: BurgerOptions): string[] {
           : `Intérieur — fichier ${i - options.cover_files + 1}`
         : `Visuel ${i + 1}`,
   )
+  const scope =
+    labels.length <= 4
+      ? labels.join(', ')
+      : options.document_type === 'brochure'
+        ? 'Couverture et intérieur'
+        : `Visuels 1 à ${count}`
   return [
-    ...labels,
-    ...options.finishes.map((name) => `Finition : ${name || 'à nommer'}`),
-    ...(options.template_tool === 'pdf' ? ['Gabarit PDF'] : []),
+    ...labels.map((label) => ({ label })),
+    ...options.finishes.map((name) => ({
+      label: `Masque de finition : ${name || 'à nommer'}`,
+      hint: `Pour : ${scope}. Une page commune ou plusieurs pages dans l’ordre des visuels.`,
+    })),
+    ...(options.template_tool === 'pdf' ? [{ label: 'Gabarit PDF' }] : []),
   ]
+}
+export function burgerLabels(options: BurgerOptions): string[] {
+  return burgerFiles(options).map((file) => file.label)
 }
 export function BurgerEditor({
   options,

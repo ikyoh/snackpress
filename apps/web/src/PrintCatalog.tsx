@@ -1072,13 +1072,38 @@ export function VariantEditor({
   )
 }
 
+export type FileRequirement = { label: string; hint?: string }
+
+export function snapshotFiles(snapshot: Snapshot): FileRequirement[] {
+  return snapshot.variant.components.flatMap((c) => {
+    const visuals = c.slots.filter((s) => s.role === 'visual')
+    const pages = visuals.reduce((sum, s) => sum + s.pages, 0)
+    const scope =
+      visuals.length <= 4
+        ? visuals.map((s) => s.name).join(', ')
+        : `${visuals.length} fichiers visuels du composant « ${c.name} »`
+    const mask = (name: string): FileRequirement => ({
+      label: `${c.name} — Masque de finition : ${name}`,
+      hint: `Pour : ${scope}. ${pages} page${pages > 1 ? 's' : ''}, dans l’ordre des visuels.`,
+    })
+    return [
+      ...c.slots.map((s) =>
+        s.role === 'mask'
+          ? {
+              ...mask(s.name),
+              hint: `Pour les visuels du composant « ${c.name} ». ${s.pages} page${s.pages > 1 ? 's' : ''} attendue${s.pages > 1 ? 's' : ''}.`,
+            }
+          : { label: `${c.name} — ${s.name}` },
+      ),
+      ...snapshot.finishes
+        .filter((f) => f.mask && snapshot.variant.finish_ids.includes(f.id))
+        .map((f) => mask(f.name)),
+    ]
+  })
+}
+
 export function snapshotLabels(snapshot: Snapshot): string[] {
-  return snapshot.variant.components.flatMap((c) => [
-    ...c.slots.map((s) => `${c.name} — ${s.name}`),
-    ...snapshot.finishes
-      .filter((f) => f.mask && snapshot.variant.finish_ids.includes(f.id))
-      .map((f) => `${c.name} — ${f.name}`),
-  ])
+  return snapshotFiles(snapshot).map((file) => file.label)
 }
 export function makeSnapshot(product: Product, variant: Variant, catalog: PrintCatalog): Snapshot {
   return clone({

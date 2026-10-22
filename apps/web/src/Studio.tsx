@@ -25,7 +25,13 @@ import App from './App'
 import { PrintCatalogPage, ProductSelector, type Snapshot } from './PrintCatalog'
 import { HeaderActions } from './HeaderActions'
 import { Configurations } from './Configurations'
-import { BurgerEditor, burgerDefaults, burgerLabels, type BurgerOptions } from './BurgerEditor'
+import {
+  BurgerEditor,
+  burgerDefaults,
+  burgerFiles,
+  burgerLabels,
+  type BurgerOptions,
+} from './BurgerEditor'
 import { request } from './api'
 import { Button } from './components/ui/button'
 import { PdfFaceSwitch, PdfPreview } from './PdfPreview'
@@ -510,8 +516,10 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
   const previewable =
     result?.artifacts?.filter((a) => ['application/pdf', 'image/png'].includes(a.media_type)) || []
   const totalPages = selected?.pages || 1
-  const burgerRoles = burgerLabels(burger)
+  const burgerInputs = burgerFiles(burger)
+  const burgerRoles = burgerInputs.map((file) => file.label)
   const maxFiles = tool.id === 'burger' ? burgerRoles.length : tool.max_files
+  const nextBurgerFile = burgerInputs[Math.min(files.length, maxFiles - 1)]
   const ready =
     tool.id === 'burger'
       ? files.length === maxFiles &&
@@ -959,12 +967,17 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                       >
                         <Upload size={20} />
                         <strong>
-                          {files.length
-                            ? maxFiles === 1
-                              ? 'Remplacer le fichier'
-                              : 'Ajouter un fichier'
-                            : 'Déposer votre fichier ici'}
+                          {tool.id === 'burger' && nextBurgerFile
+                            ? `${files.length && maxFiles === 1 ? 'Remplacer' : 'Déposer'} : ${nextBurgerFile.label}`
+                            : files.length
+                              ? maxFiles === 1
+                                ? 'Remplacer le fichier'
+                                : 'Ajouter un fichier'
+                              : 'Déposer votre fichier ici'}
                         </strong>
+                        {tool.id === 'burger' && nextBurgerFile?.hint && (
+                          <span>{nextBurgerFile.hint}</span>
+                        )}
                         <span>
                           {tool.accept === '.pdf' ? 'PDF' : 'PDF, PNG ou JPEG'} · 25 Mo par fichier
                         </span>

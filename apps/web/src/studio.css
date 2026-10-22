@@ -363,6 +363,11 @@
   gap: 8px;
   color: #6c8760;
 }
+.tool-uploader strong,
+.tool-uploader span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
 .tool-uploader strong {
   font-size: var(--text-body);
   font-weight: 550;
