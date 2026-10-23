@@ -44,6 +44,8 @@ def run(folder: Path, tool: str, files: list[Path], values: dict, *, preview=Fal
         from .product_proof import generate_product
 
         result = generate_product(folder, files, params, preview=preview)
+    elif tool == "fortune-cookie":
+        result = g.fortune(folder, files, params, preview=preview)
     else:
         result = HANDLERS[tool](folder, files, params)
     result.warnings.insert(0, definition.limit)

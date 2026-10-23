@@ -37,7 +37,14 @@ import { Button } from './components/ui/button'
 import { PdfFaceSwitch, PdfPreview } from './PdfPreview'
 import { visibleTacoField } from './taco'
 import { LivePreview, useLivePreview } from './LivePreview'
-import { FortunePreview, FortuneSettings, newNumbering, type Numbering } from './FortuneEditor'
+import {
+  FortunePreview,
+  FortuneSettings,
+  FortuneTemplate,
+  FortuneImposition,
+  newNumbering,
+  type Numbering,
+} from './FortuneEditor'
 import type { components } from '../../../packages/api-client/schema'
 import { pizzaErrors, pizzaValue, visiblePizzaField } from './pizza'
 import { PizzaSettings } from './PizzaSettings'
@@ -498,6 +505,33 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
   const [burger, setBurger] = useState<BurgerOptions>(burgerDefaults)
   const [kebabProduct, setKebabProduct] = useState<Snapshot | null>(null)
   const [numberings, setNumberings] = useState<Numbering[]>([newNumbering(55)])
+  const [fortuneTemplate, setFortuneTemplate] = useState<Values | null>(null)
+  const [fortuneLayer, setFortuneLayer] = useState<Values | null>(null)
+  const [ticketsPerBook, setTicketsPerBook] = useState<string | number>(25)
+  function changeFortuneLayer(next: Values | null) {
+    if (next && next.mode !== 'repeat') {
+      setError('Choisissez une configuration Layer Cake en poses répétées pour les souches.')
+      return
+    }
+    setFortuneLayer(next)
+    setResult(null)
+    setError('')
+  }
+  function changeFortuneTemplate(next: Values | null) {
+    if (next) {
+      const width = Number(next.width)
+      const height = next.shape === 'circle' ? width : Number(next.height)
+      if (![width, height].every((size) => Number.isFinite(size) && size >= 40 && size <= 500)) {
+        setError('Fortune Cookie accepte un gabarit Pizza de 40 à 500 mm par côté.')
+        return
+      }
+      next = { ...next, width, height }
+      setValues((old) => ({ ...old, width, height }))
+    }
+    setFortuneTemplate(next)
+    setResult(null)
+    setError('')
+  }
   function changeNumberings(next: Numbering[]) {
     setNumberings(next)
     setResult(null)
@@ -531,7 +565,13 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
         : files.length >= tool.min_files && files.length <= tool.max_files
   const settings =
     tool.id === 'fortune-cookie'
-      ? { ...values, numberings }
+      ? {
+          ...values,
+          numberings,
+          pizza_template: fortuneTemplate,
+          layer_template: fortuneLayer,
+          tickets_per_book: fortuneLayer ? ticketsPerBook : 25,
+        }
       : tool.id === 'burger'
         ? { ...values, ...burger }
         : tool.id === 'kebab'
@@ -1026,6 +1066,9 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                         ) as Values,
                       )
                     } else if (tool.id === 'fortune-cookie') {
+                      setFortuneTemplate((fields.pizza_template as Values | null) ?? null)
+                      setFortuneLayer((fields.layer_template as Values | null) ?? null)
+                      setTicketsPerBook((fields.tickets_per_book as number) ?? 25)
                       setValues(
                         Object.fromEntries(
                           tool.fields.map((f) => [
@@ -1087,10 +1130,30 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                         value={values[field.key] ?? field.default}
                         update={(value) => change(field.key, value)}
                         disabled={
-                          tool.id === 'sushi' && values.shape === 'circle' && field.key === 'height'
+                          (tool.id === 'sushi' &&
+                            values.shape === 'circle' &&
+                            field.key === 'height') ||
+                          (tool.id === 'fortune-cookie' &&
+                            !!fortuneTemplate &&
+                            ['width', 'height'].includes(field.key))
                         }
                       />
                     )}
+                  />
+                )}
+                {tool.id === 'fortune-cookie' && (
+                  <FortuneTemplate
+                    template={fortuneTemplate}
+                    defaults={{
+                      ...Object.fromEntries(
+                        tools
+                          .find((t) => t.id === 'pizza')
+                          ?.fields.map((f) => [f.key, f.default]) ?? [],
+                      ),
+                      width: values.width,
+                      height: values.height,
+                    }}
+                    onChange={changeFortuneTemplate}
                   />
                 )}
                 {tool.id === 'fortune-cookie' && (
@@ -1105,6 +1168,23 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                       onChange={changeNumberings}
                     />
                   </SettingsSection>
+                )}
+                {tool.id === 'fortune-cookie' && (
+                  <FortuneImposition
+                    template={fortuneLayer}
+                    defaults={Object.fromEntries(
+                      tools
+                        .find((t) => t.id === 'layer-cake')
+                        ?.fields.map((f) => [f.key, f.default]) ?? [],
+                    )}
+                    perBook={ticketsPerBook}
+                    onChange={changeFortuneLayer}
+                    onPerBookChange={(value) => {
+                      setTicketsPerBook(value)
+                      setResult(null)
+                      setError('')
+                    }}
+                  />
                 )}
                 {tool.id === 'layer-cake' && (
                   <a className="advanced-workshop" href={toolUrl('imposition')}>

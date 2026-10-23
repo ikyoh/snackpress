@@ -101,6 +101,150 @@ test('Fortune Cookie : PDF automatique limité, placement interactif et série c
   await expect(page.locator('.artifact-downloads')).toContainText('12 pages')
 })
 
+test('Fortune Cookie : configuration Pizza dans l’aperçu et export sans gabarit', async ({
+  page,
+}) => {
+  test.setTimeout(60000)
+  await page.route('**/api/auth/me', (route) =>
+    route.fulfill({ json: { id: 'fortune-template-test', email: 'atelier@example.com' } }),
+  )
+  await page.route('**/api/configurations?tool_id=*', (route) => {
+    const pizza = new URL(route.request().url()).searchParams.get('tool_id') === 'pizza'
+    return route.fulfill({
+      json: pizza
+        ? [
+            {
+              id: 'pizza-oval',
+              tool_id: 'pizza',
+              name: 'Cartes ovales',
+              settings: {
+                shape: 'ellipse',
+                width: 100,
+                height: 60,
+                bleed: 4,
+                safety: 5,
+                unusable_left: 2,
+              },
+              schema_version: 1,
+              is_default: true,
+              revision: 1,
+              created_at: '2026-10-23T12:00:00',
+              updated_at: '2026-10-23T12:00:00',
+            },
+          ]
+        : [],
+    })
+  })
+  await page.goto('/?tool=fortune-cookie')
+  await openSettings(page, 'Numérotation')
+  await page.getByLabel('Nombre d’exemplaires').fill('3')
+  await openSettings(page, 'Gabarit Pizza')
+  const enabled = page.getByLabel('Afficher un gabarit Pizza dans l’aperçu PDF')
+  await enabled.check()
+  await expect(page.getByLabel('Charger une configuration')).toHaveValue('')
+  await expect(page.getByLabel('Largeur du support')).toHaveValue('85')
+  await page.getByLabel('Charger une configuration').selectOption('pizza-oval')
+  await expect(page.getByLabel('Largeur du support')).toHaveValue('100')
+  await expect(page.getByLabel('Hauteur du support')).toHaveValue('60')
+  await expect(page.getByLabel('Largeur du support')).not.toBeEditable()
+  const live = page.getByLabel('Aperçu automatique', { exact: true })
+  await expect(live.locator('.pdf-viewer-footer')).toContainText('108 × 68 mm', { timeout: 15000 })
+  await expect(live).toContainText('gabarit Pizza est visible uniquement ici')
+  await expect(live.locator('canvas[data-ready=true]')).toBeVisible()
+  await page.screenshot({ path: 'test-results/fortune-pizza-preview.png', fullPage: true })
+  await enabled.uncheck()
+  await expect(page.getByLabel('Largeur du support')).toBeEditable()
+  await expect(live.locator('.pdf-viewer-footer')).toContainText('100 × 60 mm', { timeout: 15000 })
+  await enabled.check()
+  await page.getByLabel('Charger une configuration').selectOption('pizza-oval')
+  await expect(live.locator('.pdf-viewer-footer')).toContainText('108 × 68 mm', { timeout: 15000 })
+  const final = page.waitForResponse((r) => r.url().includes('/api/tools/fortune-cookie/run'))
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
+  const response = await final
+  expect(response.status(), await response.text()).toBe(201)
+  await expect(page.locator('.tool-result .pdf-viewer-footer')).toContainText('100 × 60 mm', {
+    timeout: 15000,
+  })
+  await expect(page.locator('.artifact-downloads')).toContainText('3 pages')
+  await page.screenshot({ path: 'test-results/fortune-pizza-final.png', fullPage: true })
+})
+
+test('Fortune Cookie : Layer Cake et coupe en souches', async ({ page }) => {
+  test.setTimeout(60000)
+  await page.route('**/api/auth/me', (route) =>
+    route.fulfill({ json: { id: 'fortune-layer-test', email: 'atelier@example.com' } }),
+  )
+  await page.route('**/api/configurations?tool_id=*', (route) => {
+    const layer = new URL(route.request().url()).searchParams.get('tool_id') === 'layer-cake'
+    return route.fulfill({
+      json: layer
+        ? [
+            {
+              id: 'four-up',
+              name: 'Quatre poses',
+              tool_id: 'layer-cake',
+              settings: {
+                mode: 'repeat',
+                sheet_width: 210,
+                sheet_height: 150,
+                margin: 10,
+                gap: 6,
+                quantity: 999,
+              },
+              schema_version: 1,
+              is_default: false,
+              revision: 1,
+              created_at: '2026-10-23T12:00:00',
+              updated_at: '2026-10-23T12:00:00',
+            },
+            {
+              id: 'booklet',
+              name: 'Livret piqué',
+              tool_id: 'layer-cake',
+              settings: { mode: 'booklet' },
+              schema_version: 1,
+              is_default: false,
+              revision: 1,
+              created_at: '2026-10-23T12:00:00',
+              updated_at: '2026-10-23T12:00:00',
+            },
+          ]
+        : [],
+    })
+  })
+  await page.goto('/?tool=fortune-cookie')
+  await openSettings(page, 'Numérotation')
+  await page.getByLabel('Nombre d’exemplaires').fill('100')
+  await openSettings(page, 'Imposition en souches')
+  const enabled = page.getByLabel('Imposer avec un gabarit Layer Cake')
+  await enabled.check()
+  await page.getByLabel('Charger une configuration').selectOption('four-up')
+  await page.getByLabel('Billets par souche', { exact: true }).fill('25')
+  const live = page.getByLabel('Aperçu automatique', { exact: true })
+  await expect(live.locator('.pdf-viewer-footer')).toContainText('210 × 150 mm', { timeout: 15000 })
+  await expect(live).toContainText('deux premières feuilles imposées')
+  await expect(live.locator('canvas[data-ready=true]')).toBeVisible()
+  await page.screenshot({ path: 'test-results/fortune-souches-preview.png', fullPage: true })
+  await page.getByLabel('Charger une configuration').selectOption('booklet')
+  await expect(page.getByRole('alert')).toContainText('poses répétées')
+  await page.getByLabel('Charger une configuration').selectOption('four-up')
+  const final = page.waitForResponse((r) => r.url().includes('/api/tools/fortune-cookie/run'))
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
+  const response = await final
+  expect(response.status(), await response.text()).toBe(201)
+  const data = await response.json()
+  expect(data.metrics['Feuilles à tirer']).toBe(25)
+  expect(data.metrics['Souches']).toBe(4)
+  expect(data.metrics['Billets']).toBe(100)
+  await expect(page.locator('.tool-result .pdf-viewer-footer')).toContainText('Page 1 sur 25', {
+    timeout: 15000,
+  })
+  await expect(page.locator('.artifact-downloads')).toContainText('Plan de coupe en souches')
+  await page.screenshot({ path: 'test-results/fortune-souches-final.png', fullPage: true })
+  await enabled.uncheck()
+  await expect(live).toContainText('deux premiers exemplaires', { timeout: 15000 })
+})
+
 test('imposition : aperçu PDF automatique avant export et mise à jour des réglages', async ({
   page,
 }) => {

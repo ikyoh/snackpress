@@ -179,6 +179,14 @@ async def render_preview(preview_id: str, data: PreviewSettings, request: Reques
         notice = notices.get(
             info["tool"], "Aperçu de contrôle. Générez le fichier final pour le télécharger."
         )
+        if info["tool"] == "fortune-cookie":
+            if params.layer_template:
+                notice = (
+                    "Aperçu limité aux deux premières feuilles imposées. "
+                    "L’export contient toutes les feuilles, dans l’ordre de coupe en souches."
+                )
+            if params.pizza_template:
+                notice += " Le gabarit Pizza est visible uniquement ici et absent du PDF final."
         if info["tool"] in {"donut", "tiramisu", "poke"}:
             notice = (
                 "Aperçu réduit : deux premières pages, 96 dpi maximum. "

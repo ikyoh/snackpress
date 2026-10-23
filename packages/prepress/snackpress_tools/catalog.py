@@ -161,6 +161,16 @@ class Club(Params):
     glue: float = Field(default=0.5, ge=0, le=5)
 
 
+class Layer(Params):
+    mode: Literal["repeat", "booklet"] = "repeat"
+    sheet_width: float = Field(default=320, gt=0, le=1200)
+    sheet_height: float = Field(default=450, gt=0, le=1200)
+    margin: float = Field(default=10, ge=0, le=100)
+    gap: float = Field(default=6, ge=0, le=100)
+    quantity: int = Field(default=250, ge=1, le=1000000)
+    flip: Literal["long", "short"] = "long"
+
+
 class Numbering(Params):
     x: float = Field(default=6, ge=0, le=500)
     y: float = Field(default=49, ge=0, le=500)
@@ -180,6 +190,9 @@ class Fortune(Params):
     code: Literal["code128", "none"] = "none"
     payload: str = Field(default="https://example.com/{n}", max_length=500)
     numberings: list[Numbering] | None = None
+    pizza_template: Pizza | None = None
+    layer_template: Layer | None = None
+    tickets_per_book: int = Field(default=25, ge=1, le=100)
 
     @model_validator(mode="before")
     @classmethod
@@ -193,6 +206,17 @@ class Fortune(Params):
 
     @model_validator(mode="after")
     def positions(self):
+        if self.layer_template and self.layer_template.mode != "repeat":
+            raise ValueError(
+                "Choisissez une configuration Layer Cake en poses répétées pour les souches."
+            )
+        if self.pizza_template and (
+            abs(self.pizza_template.width - self.width) > 0.001
+            or abs(self.pizza_template.height - self.height) > 0.001
+        ):
+            raise ValueError(
+                "Le format du support doit correspondre au format fini du gabarit Pizza."
+            )
         for numbering in self.numberings or []:
             if numbering.x > self.width or numbering.y > self.height:
                 raise ValueError(
@@ -230,15 +254,6 @@ class Kebab(Params):
     colors: str = Field(default="Quadri", max_length=200)
     notes: str = Field(default="", max_length=4000)
 
-
-class Layer(Params):
-    mode: Literal["repeat", "booklet"] = "repeat"
-    sheet_width: float = Field(default=320, gt=0, le=1200)
-    sheet_height: float = Field(default=450, gt=0, le=1200)
-    margin: float = Field(default=10, ge=0, le=100)
-    gap: float = Field(default=6, ge=0, le=100)
-    quantity: int = Field(default=250, ge=1, le=1000000)
-    flip: Literal["long", "short"] = "long"
 
 
 class Bento(Params):
@@ -514,7 +529,8 @@ DEFINITIONS = [
         max_files=1,
         description="Générer une série numérotée avec un Code 128 facultatif.",
         limit=(
-            "Une page par exemplaire, jusqu’à 100 exemplaires. Fond PDF "
+            "Jusqu’à 100 billets, en pages individuelles ou imposés pour une coupe en souches. "
+            "Fond PDF "
             "facultatif d’une page ; contrôler la numérotation et les éventuels Code 128."
         ),
         fields=[

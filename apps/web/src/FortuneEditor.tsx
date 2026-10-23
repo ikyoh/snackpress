@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { getDocument } from 'pdfjs-dist'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from './components/ui/button'
+import { Configurations } from './Configurations'
+import { SettingsSection } from './SettingsSection'
+import type { PizzaValues } from './pizza'
 
 export type Numbering = {
   x: number
@@ -26,6 +29,114 @@ const fonts = [
   ['Times-Roman', 'Times', 'Times New Roman, serif'],
   ['Courier', 'Courier', 'Courier New, monospace'],
 ]
+
+export function FortuneTemplate({
+  template,
+  defaults,
+  onChange,
+}: {
+  template: PizzaValues | null
+  defaults: PizzaValues
+  onChange: (template: PizzaValues | null) => void
+}) {
+  return (
+    <SettingsSection
+      title="Gabarit Pizza"
+      summary={
+        template ? `${template.width} × ${template.height} mm · Aperçu uniquement` : 'Sans gabarit'
+      }
+    >
+      <label className="checkbox-label">
+        <input
+          type="checkbox"
+          checked={!!template}
+          onChange={(e) => onChange(e.target.checked ? defaults : null)}
+        />
+        <span>Afficher un gabarit Pizza dans l’aperçu PDF</span>
+      </label>
+      <p className="field-hint">
+        Chargez une configuration Pizza enregistrée. Le support reprend son format fini. Les repères
+        sont absents du PDF final téléchargé.
+      </p>
+      {template && (
+        <Configurations
+          compact
+          autoLoadDefault={false}
+          toolId="pizza"
+          settings={template}
+          onLoad={(settings) => onChange(settings as PizzaValues)}
+        />
+      )}
+    </SettingsSection>
+  )
+}
+
+export function FortuneImposition({
+  template,
+  defaults,
+  perBook,
+  onChange,
+  onPerBookChange,
+}: {
+  template: PizzaValues | null
+  defaults: PizzaValues
+  perBook: string | number
+  onChange: (template: PizzaValues | null) => void
+  onPerBookChange: (value: string | number) => void
+}) {
+  return (
+    <SettingsSection
+      title="Imposition en souches"
+      summary={
+        template
+          ? `${perBook} billets par souche · ${template.sheet_width} × ${template.sheet_height} mm`
+          : 'Sans imposition'
+      }
+    >
+      <label className="checkbox-label">
+        <input
+          type="checkbox"
+          checked={!!template}
+          onChange={(e) => onChange(e.target.checked ? defaults : null)}
+        />
+        <span>Imposer avec un gabarit Layer Cake</span>
+      </label>
+      <p className="field-hint">
+        Chargez une configuration Layer Cake en poses répétées. Les numéros sont répartis pour
+        obtenir des souches consécutives après coupe de chaque pile de feuilles. Le nombre total de
+        billets vient des réglages Fortune Cookie.
+      </p>
+      {template && (
+        <>
+          <label className="field">
+            <span>Billets par souche</span>
+            <input
+              type="number"
+              min={1}
+              max={100}
+              step={1}
+              required
+              value={perBook}
+              onChange={(e) => onPerBookChange(e.target.value === '' ? '' : Number(e.target.value))}
+            />
+          </label>
+          <Configurations
+            compact
+            autoLoadDefault={false}
+            toolId="layer-cake"
+            settings={template}
+            onLoad={(settings) => onChange(settings as PizzaValues)}
+          />
+          <p className="field-hint">
+            Exemple : 25 billets par souche et 4 poses donnent 1, 26, 51 et 76 sur la première
+            feuille. La dernière souche peut être incomplète ; les poses inutilisées restent
+            blanches.
+          </p>
+        </>
+      )}
+    </SettingsSection>
+  )
+}
 
 export function FortuneSettings({
   items,

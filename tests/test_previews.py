@@ -3,10 +3,13 @@ import json
 from datetime import datetime, timedelta
 
 import pikepdf
+import pypdfium2 as pdfium
 import pytest
 from conftest import product_snapshot
 from fastapi.testclient import TestClient
 from snackpress_tools.catalog import CATALOG
+from snackpress_tools.preview import render as render_tool_preview
+from snackpress_tools.runner import run
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -121,6 +124,66 @@ def test_light_preview_does_not_change_full_resolution_or_count(api, source):
             ).status_code
             == 404
         )
+
+
+@pytest.mark.parametrize("shape", ["rectangle", "circle", "ellipse"])
+@pytest.mark.parametrize("with_background", [False, True])
+def test_fortune_pizza_guides_are_only_in_preview(tmp_path, source, shape, with_background):
+    settings = {
+        "width": 85,
+        "height": 85 if shape == "circle" else 55,
+        "count": 3,
+        "numberings": [{"x": 15, "y": 25}],
+        "pizza_template": {"shape": shape, "bleed": 3, "safety_top": 6, "unusable_left": 2},
+    }
+    settings["pizza_template"].update(width=settings["width"], height=settings["height"])
+    if with_background and shape == "circle":
+        # The optional background follows the template's finished dimensions.
+        with pikepdf.open(source, allow_overwriting_input=True) as pdf:
+            pdf.pages[0].MediaBox = [0, 0, 85 * 72 / 25.4, 85 * 72 / 25.4]
+            pdf.pages[0].TrimBox = pdf.pages[0].MediaBox
+            del pdf.pages[1]
+            pdf.save(source)
+    elif with_background:
+        with pikepdf.open(source, allow_overwriting_input=True) as pdf:
+            del pdf.pages[1]
+            pdf.save(source)
+    files = [source] if with_background else []
+    preview, final = tmp_path / "preview", tmp_path / "final"
+    preview.mkdir()
+    final.mkdir()
+    result = render_tool_preview(preview, "fortune-cookie", files, settings)
+    run(final, "fortune-cookie", files, settings)
+    assert result.artifacts[0].pages == 2
+    with pikepdf.open(preview / "serie.pdf") as pdf:
+        assert len(pdf.pages) == 2
+        page = pdf.pages[0]
+        assert float(page.MediaBox[2]) == pytest.approx(91 * 72 / 25.4)
+        assert list(map(float, page.TrimBox)) == pytest.approx(
+            [3 * 72 / 25.4, 3 * 72 / 25.4, 88 * 72 / 25.4, (settings["height"] + 3) * 72 / 25.4]
+        )
+    with pikepdf.open(final / "serie.pdf") as pdf:
+        assert len(pdf.pages) == 3
+        assert float(pdf.pages[0].MediaBox[2]) == pytest.approx(85 * 72 / 25.4)
+        assert "/XObject" not in pdf.pages[0].Resources or with_background
+    with pdfium.PdfDocument(str(preview / "serie.pdf")) as pdf:
+        assert "SP-0001" in pdf[0].get_textpage().get_text_range()
+        image = pdf[0].render(scale=2, rev_byteorder=True).to_pil().convert("RGB")
+        pixels = image.get_flattened_data()
+        assert any(r > 140 and g > 90 and b < 60 for r, g, b in pixels)  # Yellow guides.
+        if with_background:
+            assert "STUDIO PAPIER" in pdf[0].get_textpage().get_text_range()
+    with pdfium.PdfDocument(str(final / "serie.pdf")) as pdf:
+        image = pdf[0].render(scale=2, rev_byteorder=True).to_pil().convert("RGB")
+        assert not any(r > 140 and g > 90 and b < 60 for r, g, b in image.get_flattened_data())
+
+
+def test_fortune_pizza_template_must_match_support(api):
+    client, _ = api
+    preview_id = session(client, "fortune-cookie")
+    response = render(client, preview_id, {"pizza_template": {"width": 100}})
+    assert response.status_code == 422
+    assert "format fini du gabarit Pizza" in response.text
 
 
 def test_imposition_preview_reuses_source_and_never_exports_final_implicitly(api, source):

@@ -236,10 +236,16 @@ def test_validation_all_tools_and_numbering_roundtrip(account_api):
         client,
         tool="fortune-cookie",
         name="Billets",
-        settings={"numberings": numberings, "prefix": "B-"},
+        settings={
+            "numberings": numberings, "prefix": "B-", "pizza_template": {"shape": "ellipse"},
+            "layer_template": {"sheet_width": 210, "sheet_height": 150}, "tickets_per_book": 20,
+        },
     )
     assert response.status_code == 201, response.text
     assert response.json()["settings"]["numberings"] == numberings
+    assert response.json()["settings"]["pizza_template"]["shape"] == "ellipse"
+    assert response.json()["settings"]["layer_template"]["sheet_width"] == 210
+    assert response.json()["settings"]["tickets_per_book"] == 20
 
 
 def test_rate_limit_and_expired_session(account_api):

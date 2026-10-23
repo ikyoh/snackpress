@@ -21,6 +21,7 @@ function fingerprint(value: unknown): string {
 export function Configurations(props: {
   toolId: string
   compact?: boolean
+  autoLoadDefault?: boolean
   settings: Settings
   onLoad: (settings: Settings) => void
 }) {
@@ -49,6 +50,7 @@ function PersonalConfigurations({
   loadingAccount,
   openAccount,
   compact = false,
+  autoLoadDefault = true,
 }: {
   toolId: string
   initialFingerprint: string
@@ -59,6 +61,7 @@ function PersonalConfigurations({
   loadingAccount: boolean
   openAccount: () => void
   compact?: boolean
+  autoLoadDefault?: boolean
 }) {
   const [items, setItems] = useState<Configuration[]>([])
   const [selectedId, setSelectedId] = useState('')
@@ -92,7 +95,11 @@ function PersonalConfigurations({
         setItems(list)
         const preset = list.find((item) => item.is_default)
         // Never replace changes made while the personal list was loading.
-        if (preset && initialFingerprint === fingerprint(latest.current.settings)) {
+        if (
+          autoLoadDefault &&
+          preset &&
+          initialFingerprint === fingerprint(latest.current.settings)
+        ) {
           latest.current.onLoad(preset.settings)
           setSelectedId(preset.id)
           setName(preset.name)
@@ -105,7 +112,7 @@ function PersonalConfigurations({
         if (!controller.signal.aborted) setLoading(false)
       })
     return () => controller.abort()
-  }, [signedIn, url, initialFingerprint])
+  }, [signedIn, url, initialFingerprint, autoLoadDefault])
   async function action(work: () => Promise<void>) {
     if (busy) return
     setBusy(true)

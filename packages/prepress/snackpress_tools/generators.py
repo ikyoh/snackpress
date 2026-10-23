@@ -17,7 +17,7 @@ def burger(folder, files, p):
     return generate(folder, files, p)
 
 
-def pizza(folder, files, p):
+def pizza(folder, files, p, *, guides_only=False):
     path = folder / "gabarit.pdf"
     w, h = p.width + 2 * p.bleed, p.height + 2 * p.bleed
     c = new_canvas(path, w, h)
@@ -37,11 +37,12 @@ def pizza(folder, files, p):
             path.rect(x, y, width, height)
         return path
 
-    c.setFillColor(colors.HexColor("#f7e5dc"))
-    c.drawPath(contour(*([-p.bleed] * 4)), fill=1, stroke=0)
-    c.setFillColor(colors.white)
     cut = contour()
-    c.drawPath(cut, fill=1, stroke=0)
+    if not guides_only:
+        c.setFillColor(colors.HexColor("#f7e5dc"))
+        c.drawPath(contour(*([-p.bleed] * 4)), fill=1, stroke=0)
+        c.setFillColor(colors.white)
+        c.drawPath(cut, fill=1, stroke=0)
 
     left, right, top, bottom = (
         getattr(p, f"unusable_{side}") for side in ("left", "right", "top", "bottom")
@@ -549,7 +550,7 @@ def kebab(folder, files, p):
     )
 
 
-def fortune(folder, files, p):
+def fortune(folder, files, p, *, preview=False):
     path = folder / "serie.pdf"
     overlay = folder / "variable.pdf"
     c = new_canvas(overlay, p.width, p.height)
@@ -614,6 +615,37 @@ def fortune(folder, files, p):
             out.save(path)
     else:
         overlay.replace(path)
+    if preview and p.pizza_template:
+        work = folder / "gabarit-pizza"
+        work.mkdir()
+        pizza(work, [], p.pizza_template, guides_only=True)
+        with pikepdf.open(work / "gabarit.pdf") as guide, pikepdf.open(path) as series:
+            out = pikepdf.Pdf.new()
+            template = guide.pages[0]
+            size = (float(template.mediabox[2]), float(template.mediabox[3]))
+            guide_form = template.as_form_xobject()
+            guide_form.BBox = pikepdf.Array(template.mediabox)
+            for page in series.pages:
+                target = out.add_blank_page(page_size=size)
+                # Numbering coordinates remain relative to the finished support.
+                target.add_overlay(page, pikepdf.Rectangle(*map(float, template.trimbox)))
+                target.add_overlay(guide_form, pikepdf.Rectangle(*map(float, template.mediabox)))
+                target.TrimBox = pikepdf.Array(template.trimbox)
+                target.BleedBox = target.MediaBox
+            target_path = folder / "apercu-gabarit.pdf"
+            out.save(target_path)
+        target_path.replace(path)
+    if p.layer_template:
+        from .fortune_imposition import impose
+
+        artifacts, metrics, warnings = impose(folder, path, p, preview=preview)
+        return ToolResult(
+            tool="fortune-cookie",
+            summary=f"{p.count} billets imposés pour {metrics['Souches']} souche(s).",
+            metrics=metrics,
+            warnings=warnings,
+            artifacts=artifacts,
+        )
     return ToolResult(
         tool="fortune-cookie",
         summary=f"{p.count} exemplaires numérotés générés.",
