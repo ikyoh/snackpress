@@ -341,10 +341,15 @@ test('aperçu PDF indisponible : téléchargement toujours accessible', async ({
 
 test('Fortune Cookie : plusieurs numérotations personnalisées et déplacement', async ({ page }) => {
   await page.goto('/?tool=fortune-cookie')
+  await expect(page.getByLabel('Texte', { exact: true })).toHaveCount(0)
+  await expect(page.locator('.fortune-sheet')).not.toContainText('Votre invitation')
   await openSettings(page, 'Numérotation')
   await page.getByLabel('Nombre d’exemplaires').fill('2')
   await openSettings(page, 'Code')
-  await page.getByLabel('Code', { exact: true }).selectOption('none')
+  await expect(page.getByLabel('Code', { exact: true })).toHaveValue('none')
+  await expect(page.getByLabel('Code', { exact: true }).locator('option[value="qr"]')).toHaveCount(
+    0,
+  )
   await openSettings(page, 'Positions des numéros')
   await page.getByRole('button', { name: 'Ajouter une numérotation' }).click()
   const second = page.getByRole('group', { name: 'Numérotation 2', exact: true })

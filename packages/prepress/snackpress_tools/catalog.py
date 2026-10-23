@@ -177,10 +177,19 @@ class Fortune(Params):
     start: int = Field(default=1, ge=0, le=999999999)
     digits: int = Field(default=4, ge=1, le=12)
     prefix: str = Field(default="SP-", max_length=30)
-    text: str = Field(default="Votre invitation", max_length=200)
-    code: Literal["qr", "code128", "none"] = "qr"
+    code: Literal["code128", "none"] = "none"
     payload: str = Field(default="https://example.com/{n}", max_length=500)
     numberings: list[Numbering] | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def remove_legacy_fields(cls, values):
+        if isinstance(values, dict):
+            values = dict(values)
+            values.pop("text", None)
+            if values.get("code") == "qr":
+                values["code"] = "none"
+        return values
 
     @model_validator(mode="after")
     def positions(self):
@@ -503,10 +512,10 @@ DEFINITIONS = [
         category="Personnaliser",
         min_files=0,
         max_files=1,
-        description="Générer une série numérotée avec textes, QR codes ou Code 128.",
+        description="Générer une série numérotée avec un Code 128 facultatif.",
         limit=(
             "Une page par exemplaire, jusqu’à 100 exemplaires. Fond PDF "
-            "facultatif d’une page ; contrôler la lecture des codes."
+            "facultatif d’une page ; contrôler la numérotation et les éventuels Code 128."
         ),
         fields=[
             number("width", "Largeur du support", 85, low=40, high=500),
@@ -515,9 +524,8 @@ DEFINITIONS = [
             number("start", "Premier numéro", 1, "", 0, 999999999, 1),
             number("digits", "Nombre minimal de chiffres", 4, "", 1, 12, 1),
             text("prefix", "Préfixe", "SP-"),
-            text("text", "Texte", "Votre invitation"),
             choice(
-                "code", "Code", [("qr", "QR code"), ("code128", "Code 128"), ("none", "Sans code")]
+                "code", "Code", [("none", "Sans code"), ("code128", "Code 128")]
             ),
             text(
                 "payload", "Contenu du code ({n} = numéro avec préfixe)", "https://example.com/{n}"

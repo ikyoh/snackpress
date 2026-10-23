@@ -261,19 +261,33 @@ def test_sushi_spot_names_and_vectors(tmp_path):
         assert "/XObject" not in doc.pages[0].Resources
 
 
-def test_fortune_sequence_and_count_limit(tmp_path):
+@pytest.mark.parametrize("code", ["none", "code128"])
+def test_fortune_sequence_and_count_limit(tmp_path, code):
     run(
         tmp_path,
         "fortune-cookie",
         [],
-        {"count": 3, "start": 8, "code": "code128", "payload": "{n}"},
+        {"count": 3, "start": 8, "code": code, "payload": "{n}"},
     )
     with pdfium.PdfDocument(str(tmp_path / "serie.pdf")) as doc:
         assert len(doc) == 3
         text = doc[2].get_textpage().get_text_range()
-        assert "SP-0010" in text
+        assert text.strip() == "SP-0010"
     with pytest.raises(ValueError):
         MODELS["fortune-cookie"](count=101)
+
+
+@pytest.mark.parametrize("settings", [{}, {"text": "Votre invitation", "code": "qr"}])
+def test_fortune_only_adds_numbering_by_default_and_with_legacy_settings(tmp_path, settings):
+    run(tmp_path, "fortune-cookie", [], {"count": 1, **settings})
+    with pdfium.PdfDocument(str(tmp_path / "serie.pdf")) as doc:
+        assert doc[0].get_textpage().get_text_range().strip() == "SP-0001"
+    with pikepdf.open(tmp_path / "serie.pdf") as doc:
+        operations = pikepdf.parse_content_stream(doc.pages[0])
+        # No QR graphics or white masks covering the imported artwork.
+        assert not any(str(op) in {"re", "f", "f*", "Do"} for _, op in operations)
+    saved = json.loads((tmp_path / "reglages.json").read_text())["settings"]
+    assert saved["code"] == "none" and "text" not in saved
 
 
 def test_bento_order_rotation_and_signatures_removed(tmp_path, source):
@@ -348,7 +362,6 @@ def test_fortune_multiple_numberings_styles_and_sequence(tmp_path):
             "count": 2,
             "start": 9,
             "code": "none",
-            "text": "",
             "numberings": placements,
         },
     )

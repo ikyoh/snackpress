@@ -1025,6 +1025,17 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                           tool.fields.map((f) => [f.key, fields[f.key] ?? f.default]),
                         ) as Values,
                       )
+                    } else if (tool.id === 'fortune-cookie') {
+                      setValues(
+                        Object.fromEntries(
+                          tool.fields.map((f) => [
+                            f.key,
+                            f.key === 'code' && fields.code === 'qr'
+                              ? 'none'
+                              : (fields[f.key] ?? f.default),
+                          ]),
+                        ) as Values,
+                      )
                     } else setValues(fields as Values)
                     if (tool.id === 'fortune-cookie')
                       setNumberings(
@@ -1160,7 +1171,6 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                       String(values.prefix) +
                       String(values.start).padStart(Number(values.digits), '0')
                     }
-                    text={String(values.text)}
                     file={files[0]}
                     disabled={busy}
                     onChange={changeNumberings}

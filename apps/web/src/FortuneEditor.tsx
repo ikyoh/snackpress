@@ -115,7 +115,6 @@ export function FortunePreview({
   width,
   height,
   serial,
-  text,
   file,
   disabled,
   onChange,
@@ -124,7 +123,6 @@ export function FortunePreview({
   width: number
   height: number
   serial: string
-  text: string
   file?: File
   disabled: boolean
   onChange: (items: Numbering[]) => void
@@ -209,9 +207,6 @@ export function FortunePreview({
         {background && (
           <image href={background} width={width} height={height} preserveAspectRatio="none" />
         )}
-        <text x="6" y="10" fontSize={(8 * 25.4) / 72} fontFamily="FortuneVera" fill="#183d36">
-          {text}
-        </text>
         {items.map((item, i) => (
           <text
             key={i}

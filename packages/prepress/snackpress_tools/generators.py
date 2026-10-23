@@ -1,9 +1,7 @@
 from math import ceil
 
 import pikepdf
-from reportlab.graphics import renderPDF
-from reportlab.graphics.barcode import code128, qr
-from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.barcode import code128
 from reportlab.lib import colors
 from reportlab.lib.colors import CMYKColorSep
 from reportlab.lib.units import mm
@@ -558,43 +556,7 @@ def fortune(folder, files, p):
     for index in range(p.count):
         serial = p.prefix + str(p.start + index).zfill(p.digits)
         payload = p.payload.replace("{n}", serial)
-        c.setFillColor(INK)
-        # Reserve only the variable fields, preserving the rest of optional artwork.
-        c.setFillColor(colors.white)
-        c.rect(
-            5 * mm,
-            (p.height - 11) * mm,
-            min((p.width - 10) * mm, pdf_text_width(p.text, 8) + 2 * mm),
-            5 * mm,
-            fill=1,
-            stroke=0,
-        )
-        c.setFillColor(INK)
-        c.setFont("Snack", 8)
-        if pdf_text_width(p.text, 8) > (p.width - 12) * mm:
-            raise ValueError(
-                "Le texte est trop long pour ce format. Raccourcissez-le ou agrandissez la page."
-            )
-        c.drawString(6 * mm, (p.height - 10) * mm, p.text)
-        size = min(22, p.width - 16, p.height - 27)
-        if p.code == "qr":
-            c.setFillColor(colors.white)
-            c.rect(5 * mm, 10 * mm, (size + 2) * mm, (size + 2) * mm, fill=1, stroke=0)
-            c.setFillColor(INK)
-            widget = qr.QrCodeWidget(payload, barLevel="M", barBorder=4)
-            bounds = widget.getBounds()
-            width = bounds[2] - bounds[0]
-            widget.qr.make()
-            if size / (widget.qr.getModuleCount() + 8) < 0.25:
-                raise ValueError(
-                    "QR trop dense pour ce format. Réduisez le contenu ou agrandissez le support."
-                )
-            drawing = Drawing(
-                size * mm, size * mm, transform=[size * mm / width, 0, 0, size * mm / width, 0, 0]
-            )
-            drawing.add(widget)
-            renderPDF.draw(drawing, c, 6 * mm, 11 * mm)
-        elif p.code == "code128":
+        if p.code == "code128":
             if not payload.isascii() or any(ord(ch) < 32 for ch in payload):
                 raise ValueError("Code 128 : utilisez uniquement des caractères ASCII imprimables.")
             bar = code128.Code128(
@@ -661,9 +623,3 @@ def fortune(folder, files, p):
         ],
         artifacts=[artifact(path, "Série PDF personnalisée")],
     )
-
-
-def pdf_text_width(text, size, font="Snack"):
-    from reportlab.pdfbase.pdfmetrics import stringWidth
-
-    return stringWidth(text, font, size)

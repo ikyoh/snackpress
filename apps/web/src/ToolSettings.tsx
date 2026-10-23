@@ -32,7 +32,7 @@ const groups: Record<string, Group[]> = {
     { title: 'Papier', keys: ['mode', 'gsm', 'bulk', 'caliper'] },
   ],
   'fortune-cookie': [
-    { title: 'Support', keys: ['width', 'height', 'text'] },
+    { title: 'Support', keys: ['width', 'height'] },
     { title: 'Numérotation', keys: ['count', 'start', 'digits', 'prefix'] },
     { title: 'Code', keys: ['code', 'payload'] },
   ],
