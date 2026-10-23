@@ -219,10 +219,10 @@ test('Fortune Cookie : Layer Cake et coupe en souches', async ({ page }) => {
   const enabled = page.getByLabel('Imposer avec un gabarit Layer Cake')
   await enabled.check()
   await page.getByLabel('Charger une configuration').selectOption('four-up')
-  await page.getByLabel('Billets par souche', { exact: true }).fill('25')
+  await page.getByLabel('Billets par souche', { exact: true }).fill('10')
   const live = page.getByLabel('Aperçu automatique', { exact: true })
-  await expect(live.locator('.pdf-viewer-footer')).toContainText('210 × 150 mm', { timeout: 15000 })
-  await expect(live).toContainText('deux premières feuilles imposées')
+  await expect(live.locator('.pdf-viewer-footer')).toContainText('85 × 55 mm', { timeout: 15000 })
+  await expect(live).toContainText('uniquement pour le téléchargement')
   await expect(live.locator('canvas[data-ready=true]')).toBeVisible()
   await page.screenshot({ path: 'test-results/fortune-souches-preview.png', fullPage: true })
   await page.getByLabel('Charger une configuration').selectOption('booklet')
@@ -233,13 +233,29 @@ test('Fortune Cookie : Layer Cake et coupe en souches', async ({ page }) => {
   const response = await final
   expect(response.status(), await response.text()).toBe(201)
   const data = await response.json()
-  expect(data.metrics['Feuilles à tirer']).toBe(25)
-  expect(data.metrics['Souches']).toBe(4)
+  expect(data.metrics['Feuilles à tirer']).toBe(30)
+  expect(data.metrics['Souches']).toBe(10)
   expect(data.metrics['Billets']).toBe(100)
-  await expect(page.locator('.tool-result .pdf-viewer-footer')).toContainText('Page 1 sur 25', {
+  const manifestResponse = await page.request.get(
+    `/api/tool-jobs/${data.id}/files/plan-souches.json`,
+  )
+  expect(manifestResponse.ok()).toBe(true)
+  const manifest = await manifestResponse.json()
+  expect(manifest.sheets[0]).toEqual(['SP-0001', 'SP-0031', 'SP-0061', 'SP-0081'])
+  const gathered = [0, 1, 2, 3].flatMap((pose) =>
+    manifest.sheets.map((sheet: Array<string | null>) => sheet[pose]).filter(Boolean),
+  )
+  expect(gathered).toEqual(
+    Array.from({ length: 100 }, (_, i) => `SP-${String(i + 1).padStart(4, '0')}`),
+  )
+  await expect(page.locator('.tool-result .pdf-viewer-footer')).toContainText('Page 1 sur 100', {
     timeout: 15000,
   })
+  await expect(page.getByLabel('Document à prévisualiser')).toHaveCount(0)
   await expect(page.locator('.artifact-downloads')).toContainText('Plan de coupe en souches')
+  await expect(
+    page.locator('.artifact-downloads a').filter({ hasText: 'Billets imposés' }),
+  ).toContainText('30 pages')
   await page.screenshot({ path: 'test-results/fortune-souches-final.png', fullPage: true })
   await enabled.uncheck()
   await expect(live).toContainText('deux premiers exemplaires', { timeout: 15000 })

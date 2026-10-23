@@ -181,10 +181,7 @@ async def render_preview(preview_id: str, data: PreviewSettings, request: Reques
         )
         if info["tool"] == "fortune-cookie":
             if params.layer_template:
-                notice = (
-                    "Aperçu limité aux deux premières feuilles imposées. "
-                    "L’export contient toutes les feuilles, dans l’ordre de coupe en souches."
-                )
+                notice += " L’imposition en souches est générée uniquement pour le téléchargement."
             if params.pizza_template:
                 notice += " Le gabarit Pizza est visible uniquement ici et absent du PDF final."
         if info["tool"] in {"donut", "tiramisu", "poke"}:

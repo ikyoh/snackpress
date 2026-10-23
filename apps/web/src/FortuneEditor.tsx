@@ -103,8 +103,8 @@ export function FortuneImposition({
       </label>
       <p className="field-hint">
         Chargez une configuration Layer Cake en poses répétées. Les numéros sont répartis pour
-        obtenir des souches consécutives après coupe de chaque pile de feuilles. Le nombre total de
-        billets vient des réglages Fortune Cookie.
+        obtenir des souches consécutives après empilage et coupe de toutes les feuilles ensemble. Le
+        nombre total de billets vient des réglages Fortune Cookie.
       </p>
       {template && (
         <>
@@ -129,7 +129,8 @@ export function FortuneImposition({
           />
           <p className="field-hint">
             Exemple : 25 billets par souche et 4 poses donnent 1, 26, 51 et 76 sur la première
-            feuille. La dernière souche peut être incomplète ; les poses inutilisées restent
+            feuille, pour 100 billets. Ramassez les piles découpées de gauche à droite puis de haut
+            en bas. La dernière souche peut être incomplète ; les poses inutilisées restent
             blanches.
           </p>
         </>

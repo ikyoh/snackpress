@@ -38,6 +38,7 @@ def render(folder: Path, tool: str, files: list[Path], values: dict):
                     target = folder / f"sample-{index}.pdf"
                     sample.save(target)
                     sources[index] = target
-    if tool == "fortune-cookie" and not settings.get("layer_template"):
+    if tool == "fortune-cookie":
         settings["count"] = min(int(settings.get("count", 10)), 2)
+        settings["layer_template"] = None
     return run(folder, tool, sources, settings, preview=True)

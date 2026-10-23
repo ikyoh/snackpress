@@ -1,4 +1,4 @@
-"""Impose numbered tickets in batches whose cut piles form consecutive books."""
+"""Impose complete books across cut piles gathered from one full stack of sheets."""
 
 from math import ceil
 
@@ -10,35 +10,35 @@ from .common import artifact, report, write_json
 
 
 def cut_stack(count, per_book, poses):
-    sheets, batches = [], []
-    for first_book in range(0, ceil(count / per_book), poses):
-        first = first_book * per_book
-        depth = min(per_book, count - first)
-        start_sheet = len(sheets)
-        for level in range(depth):
-            sheets.append(
-                [
-                    index if index < count else None
-                    for pose in range(poses)
-                    for index in [first + pose * per_book + level]
-                ]
-            )
-        batches.append(
+    # Allocate complete books to each cut pile across the whole PDF. Restarting
+    # this distribution in batches would interleave the books after one full cut.
+    books_per_pose, extra = divmod(ceil(count / per_book), poses)
+    starts, lengths, books = [], [], []
+    first_book = 0
+    for pose in range(poses):
+        book_count = books_per_pose + (pose < extra)
+        start = first_book * per_book
+        stop = min(count, (first_book + book_count) * per_book)
+        starts.append(start)
+        lengths.append(max(0, stop - start))
+        books.extend(
             {
-                "first_sheet": start_sheet + 1,
-                "last_sheet": len(sheets),
-                "books": [
-                    {
-                        "pose": pose + 1,
-                        "first_index": first + pose * per_book,
-                        "last_index": min(first + (pose + 1) * per_book, count) - 1,
-                    }
-                    for pose in range(poses)
-                    if first + pose * per_book < count
-                ],
+                "pose": pose + 1,
+                "first_index": book * per_book,
+                "last_index": min((book + 1) * per_book, count) - 1,
             }
+            for book in range(first_book, first_book + book_count)
         )
-    return sheets, batches
+        first_book += book_count
+    depth = max(lengths)
+    sheets = [
+        [
+            start + level if level < length else None
+            for start, length in zip(starts, lengths, strict=True)
+        ]
+        for level in range(depth)
+    ]
+    return sheets, [{"first_sheet": 1, "last_sheet": depth, "books": books}]
 
 
 def impose(folder, source, params, *, preview=False):
@@ -120,6 +120,9 @@ def impose(folder, source, params, *, preview=False):
                 "sheets": [[serial(i) if i is not None else None for i in row] for row in sheets],
             },
         )
+        cut_piles = {}
+        for book in batches[0]["books"]:
+            cut_piles.setdefault(book["pose"], []).append(book)
         instructions = folder / "fiche-souches.pdf"
         report(
             instructions,
@@ -129,19 +132,16 @@ def impose(folder, source, params, *, preview=False):
                 ("Grille", f"{plan.columns} colonnes × {plan.rows} lignes ; {plan.rotation}°"),
                 *[
                     (
-                        f"Lot {i + 1} · feuilles {batch['first_sheet']} à {batch['last_sheet']}",
-                        "; ".join(
-                            f"Pose {book['pose']} : {serial(book['first_index'])} "
-                            f"à {serial(book['last_index'])}"
-                            for book in batch["books"]
-                        ),
+                        f"Pose {pose} · {len(books)} souche(s)",
+                        f"{serial(books[0]['first_index'])} à {serial(books[-1]['last_index'])}",
                     )
-                    for i, batch in enumerate(batches)
+                    for pose, books in cut_piles.items()
                 ],
             ],
             "Imprimer à 100 %, dans l’ordre du PDF, première feuille au-dessus de la pile. "
-            "Séparer les lots indiqués avant la coupe. Couper chaque lot suivant les repères, "
-            "puis ramasser les poses de gauche à droite et de haut en bas. Les emplacements "
+            "Empiler toutes les feuilles ensemble et couper la pile suivant les repères, "
+            "puis ramasser les poses de gauche à droite et de haut en bas. Diviser chaque pile "
+            "découpée en souches du nombre de billets demandé. Les emplacements "
             "vides restent blancs ; la dernière souche peut être incomplète. "
             "Les repères du gabarit Pizza sont absents de l’export.",
         )

@@ -546,9 +546,13 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
   const [drag, setDrag] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
-  const selected = result?.artifacts?.find((a) => a.name === activeArtifact)
   const previewable =
-    result?.artifacts?.filter((a) => ['application/pdf', 'image/png'].includes(a.media_type)) || []
+    result?.artifacts?.filter(
+      (a) =>
+        ['application/pdf', 'image/png'].includes(a.media_type) &&
+        (tool.id !== 'fortune-cookie' || a.name === 'serie.pdf'),
+    ) || []
+  const selected = previewable.find((a) => a.name === activeArtifact) || previewable[0]
   const totalPages = selected?.pages || 1
   const burgerInputs = burgerFiles(burger)
   const burgerRoles = burgerInputs.map((file) => file.label)
@@ -725,8 +729,11 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
       setResult(response)
       setMobileView('preview')
       setActiveArtifact(
-        response.artifacts?.find((a) => ['application/pdf', 'image/png'].includes(a.media_type))
-          ?.name || '',
+        response.artifacts?.find(
+          (a) =>
+            ['application/pdf', 'image/png'].includes(a.media_type) &&
+            (tool.id !== 'fortune-cookie' || a.name === 'serie.pdf'),
+        )?.name || '',
       )
       setPage(1)
     } catch (e) {
@@ -1345,12 +1352,12 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   <div className="artifact-stage">
                     {selected?.media_type === 'application/pdf' ? (
                       <PdfPreview
-                        url={assetUrl(result.id, activeArtifact)}
+                        url={assetUrl(result.id, selected.name)}
                         page={page}
                         scrollable={false}
                       />
                     ) : selected?.media_type === 'image/png' ? (
-                      <img src={assetUrl(result.id, activeArtifact)} alt={selected.label} />
+                      <img src={assetUrl(result.id, selected.name)} alt={selected.label} />
                     ) : null}
                   </div>
                 </>
