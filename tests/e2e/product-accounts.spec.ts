@@ -49,6 +49,9 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
   await page.getByLabel('Nom du produit', { exact: true }).fill('Invitation atelier')
   await page.getByLabel('Nom de la déclinaison', { exact: true }).fill('Petit format')
   await page.getByLabel('Support matière', { exact: true }).selectOption('mat350')
+  await expect(
+    page.getByLabel('Ajouter un tracé', { exact: true }).locator('option[value=sushi]'),
+  ).toHaveCount(1)
   await page
     .getByLabel('Gabarit Pizza', { exact: true })
     .selectOption(`${fixed.id}:${fixed.revision}`)
@@ -99,7 +102,11 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
     .getByLabel('Gabarit Pizza', { exact: true })
     .selectOption(`${fixed.id}:${fixed.revision}`)
   await page.getByLabel('Ajouter un tracé', { exact: true }).selectOption('perforation')
-  await page.getByLabel('Outil de découpe', { exact: true }).selectOption('sushi')
+  await expect(
+    page.getByLabel('Ajouter un tracé', { exact: true }).locator('option[value=sushi]'),
+  ).toHaveText('Sushi — découpe et rainage — remplace Pizza')
+  await page.getByLabel('Ajouter un tracé', { exact: true }).selectOption('sushi')
+  await expect(page.getByLabel('Outil de découpe', { exact: true })).toHaveValue('sushi')
   await expect(page.getByLabel('Gabarit Pizza', { exact: true })).toHaveCount(0)
   await expect(page.getByLabel('Sens des perforations')).toHaveValue('vertical')
   await expect(page.getByLabel('Largeur finie (mm)', { exact: true })).toHaveValue('85')

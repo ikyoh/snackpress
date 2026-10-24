@@ -160,7 +160,16 @@ test('billet numéroté : perforation, série, BAT premier et dernier, mode libr
   await expect(page.getByLabel('Nom du produit pour ce BAT')).toHaveValue('Produit sur mesure')
   await page.getByLabel('Ajouter un tracé').selectOption('taco')
   await page.getByLabel('Ajouter un tracé').selectOption('pizza')
-  await expect(page.getByLabel('Ajouter un tracé').locator('option[value=sushi]')).toHaveCount(0)
+  await page.getByLabel('Ajouter un tracé', { exact: true }).selectOption('sushi')
+  await expect(
+    page.getByRole('group', { name: 'Sushi — découpe et rainage', exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.getByRole('group', { name: 'Pizza — coupe et sécurité', exact: true }),
+  ).toHaveCount(0)
+  await expect(
+    page.getByRole('group', { name: 'Taco — plis et panneaux', exact: true }),
+  ).toBeVisible()
   await expect(
     page.getByRole('button', { name: 'Enregistrer comme nouveau produit' }),
   ).toBeVisible()

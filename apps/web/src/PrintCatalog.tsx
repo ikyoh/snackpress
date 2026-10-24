@@ -780,6 +780,16 @@ export function VariantEditor({
       components: variant.components.map((c, i) => (i === index ? { ...c, ...patch } : c)),
     })
   }
+  function selectCuttingTool(index: number, tool: string) {
+    const component = variant.components[index]
+    update(index, {
+      pizza_template: null,
+      guides: [
+        ...component.guides.filter((g) => !['pizza', 'sushi'].includes(g.tool)),
+        ...(tool === 'sushi' ? [{ tool: 'sushi' as const, settings: {} }] : []),
+      ],
+    })
+  }
   return (
     <>
       <Text
@@ -824,15 +834,7 @@ export function VariantEditor({
             <Select
               label="Outil de découpe"
               value={c.guides.some((g) => g.tool === 'sushi') ? 'sushi' : 'pizza'}
-              onChange={(tool) =>
-                update(index, {
-                  pizza_template: null,
-                  guides: [
-                    ...c.guides.filter((g) => !['pizza', 'sushi'].includes(g.tool)),
-                    ...(tool === 'sushi' ? [{ tool: 'sushi' as const, settings: {} }] : []),
-                  ],
-                })
-              }
+              onChange={(tool) => selectCuttingTool(index, tool)}
             >
               <option value="pizza">Pizza — gabarit enregistré</option>
               <option value="sushi">Sushi — découpe et rainage</option>
@@ -1027,24 +1029,23 @@ export function VariantEditor({
                     })}
                 </div>
               )}
-              {!(choosePizza && g.tool === 'sushi') && (
-                <Button
-                  variant="outline"
-                  className="print-action-button print-action-button-remove"
-                  type="button"
-                  disabled={g.tool === 'pizza' && !!c.pizza_template}
-                  onClick={() => update(index, { guides: c.guides.filter((_, i) => i !== gi) })}
-                >
-                  <Trash2 size={18} aria-hidden="true" /> Retirer ce tracé
-                </Button>
-              )}
+              <Button
+                variant="outline"
+                className="print-action-button print-action-button-remove"
+                type="button"
+                disabled={g.tool === 'pizza' && !!c.pizza_template}
+                onClick={() => update(index, { guides: c.guides.filter((_, i) => i !== gi) })}
+              >
+                <Trash2 size={18} aria-hidden="true" /> Retirer ce tracé
+              </Button>
             </fieldset>
           ))}
           <Select
             label="Ajouter un tracé"
             value=""
             onChange={(tool) => {
-              if (tool)
+              if (tool === 'sushi') selectCuttingTool(index, tool)
+              else if (tool)
                 update(index, {
                   guides: [
                     ...c.guides,
@@ -1063,20 +1064,24 @@ export function VariantEditor({
             {Object.entries(guideNames)
               .filter(
                 ([id]) =>
-                  !(choosePizza && ['pizza', 'sushi'].includes(id)) &&
+                  !(choosePizza && id === 'pizza') &&
                   !c.guides.some((g) => g.tool === id) &&
-                  !(id === 'pizza' && c.guides.some((g) => g.tool === 'sushi')) &&
-                  !(id === 'sushi' && c.guides.some((g) => g.tool === 'pizza')),
+                  !(id === 'pizza' && c.guides.some((g) => g.tool === 'sushi')),
               )
               .map(([id, name]) => (
                 <option key={id} value={id}>
                   {name}
+                  {id === 'sushi' && c.guides.some((g) => g.tool === 'pizza')
+                    ? ' — remplace Pizza'
+                    : ''}
                 </option>
               ))}
           </Select>
           <p className="field-hint">
             Les tracés partagent les dimensions du composant. Pizza et Sushi sont deux références de
             découpe alternatives. Les tracés sont téléchargeables séparément à l’échelle 1:1.
+            {c.guides.some((g) => g.tool === 'pizza') &&
+              ' Choisir Sushi remplace Pizza et conserve les autres tracés.'}
           </p>
           <label className="checkbox-label">
             <input
