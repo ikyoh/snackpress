@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { getDocument } from 'pdfjs-dist'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from './components/ui/button'
@@ -34,38 +34,52 @@ export function FortuneTemplate({
   template,
   defaults,
   onChange,
+  children,
 }: {
   template: PizzaValues | null
   defaults: PizzaValues
   onChange: (template: PizzaValues | null) => void
+  children: ReactNode
 }) {
   return (
     <SettingsSection
-      title="Gabarit Pizza"
+      title="Format"
+      defaultOpen
       summary={
-        template ? `${template.width} × ${template.height} mm · Aperçu uniquement` : 'Sans gabarit'
+        template ? `Gabarit Pizza · ${template.width} × ${template.height} mm` : 'Format du support'
       }
     >
-      <label className="checkbox-label">
-        <input
-          type="checkbox"
-          checked={!!template}
-          onChange={(e) => onChange(e.target.checked ? defaults : null)}
-        />
-        <span>Afficher un gabarit Pizza dans l’aperçu PDF</span>
+      <label className="field">
+        <span>Source du format</span>
+        <select
+          value={template ? 'pizza' : 'support'}
+          onChange={(e) => onChange(e.target.value === 'pizza' ? defaults : null)}
+        >
+          <option value="support">Format du support</option>
+          <option value="pizza">Gabarit Pizza</option>
+        </select>
       </label>
-      <p className="field-hint">
-        Chargez une configuration Pizza enregistrée. Le support reprend son format fini et son fond
-        perdu. Les repères sont absents du PDF final téléchargé.
-      </p>
-      {template && (
-        <Configurations
-          compact
-          autoLoadDefault={false}
-          toolId="pizza"
-          settings={template}
-          onLoad={(settings) => onChange(settings as PizzaValues)}
-        />
+      {template ? (
+        <>
+          <p className="field-hint">
+            Chargez une configuration Pizza enregistrée. Son format fini et son fond perdu
+            définissent le format des billets. Les repères sont visibles dans l’aperçu PDF et
+            absents du PDF final téléchargé.
+          </p>
+          <Configurations
+            compact
+            autoLoadDefault={false}
+            toolId="pizza"
+            settings={template}
+            onLoad={(settings) => onChange(settings as PizzaValues)}
+          />
+          <p className="field-hint">
+            Format fini : {template.width} × {template.height} mm · Fond perdu : {template.bleed} mm
+            par côté.
+          </p>
+        </>
+      ) : (
+        children
       )}
     </SettingsSection>
   )

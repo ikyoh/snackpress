@@ -1077,18 +1077,27 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                         ) as Values,
                       )
                     } else if (tool.id === 'fortune-cookie') {
-                      setFortuneTemplate((fields.pizza_template as Values | null) ?? null)
+                      const savedTemplate = (fields.pizza_template as Values | null) ?? null
+                      const template: Values | null = savedTemplate
+                        ? {
+                            ...savedTemplate,
+                            height:
+                              savedTemplate.shape === 'circle'
+                                ? savedTemplate.width
+                                : savedTemplate.height,
+                            bleed: savedTemplate.bleed ?? 3,
+                          }
+                        : null
+                      setFortuneTemplate(template)
                       setFortuneLayer((fields.layer_template as Values | null) ?? null)
                       setTicketsPerBook((fields.tickets_per_book as number) ?? 25)
                       setValues(
                         Object.fromEntries(
                           tool.fields.map((f) => [
                             f.key,
-                            fields[f.key] ??
-                              (f.key === 'bleed'
-                                ? (fields.pizza_template as Values | null)?.bleed
-                                : undefined) ??
-                              f.default,
+                            (template && ['width', 'height', 'bleed'].includes(f.key)
+                              ? (template[f.key] ?? f.default)
+                              : fields[f.key]) ?? f.default,
                           ]),
                         ) as Values,
                       )
@@ -1124,36 +1133,6 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                     )}
                   />
                 )}
-                {tool.id !== 'pizza' && tool.fields.length > 0 && (
-                  <ToolSettings
-                    toolId={tool.id}
-                    fields={tool.fields.filter(
-                      (field) =>
-                        visibleField(tool.id, field.key, values) &&
-                        !(
-                          tool.id === 'burger' &&
-                          burger.source_mode !== 'classic' &&
-                          field.key === 'paper'
-                        ),
-                    )}
-                    values={values}
-                    renderField={(field) => (
-                      <Setting
-                        field={field}
-                        value={values[field.key] ?? field.default}
-                        update={(value) => change(field.key, value)}
-                        disabled={
-                          (tool.id === 'sushi' &&
-                            values.shape === 'circle' &&
-                            field.key === 'height') ||
-                          (tool.id === 'fortune-cookie' &&
-                            !!fortuneTemplate &&
-                            ['width', 'height', 'bleed'].includes(field.key))
-                        }
-                      />
-                    )}
-                  />
-                )}
                 {tool.id === 'fortune-cookie' && (
                   <FortuneTemplate
                     template={fortuneTemplate}
@@ -1168,6 +1147,48 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                       bleed: values.bleed,
                     }}
                     onChange={changeFortuneTemplate}
+                  >
+                    <div className="tool-fields grouped-tool-fields">
+                      {tool.fields
+                        .filter((field) => ['width', 'height', 'bleed'].includes(field.key))
+                        .map((field) => (
+                          <Setting
+                            key={field.key}
+                            field={field}
+                            value={values[field.key] ?? field.default}
+                            update={(value) => change(field.key, value)}
+                          />
+                        ))}
+                    </div>
+                  </FortuneTemplate>
+                )}
+                {tool.id !== 'pizza' && tool.fields.length > 0 && (
+                  <ToolSettings
+                    toolId={tool.id}
+                    fields={tool.fields.filter(
+                      (field) =>
+                        visibleField(tool.id, field.key, values) &&
+                        !(
+                          tool.id === 'fortune-cookie' &&
+                          ['width', 'height', 'bleed'].includes(field.key)
+                        ) &&
+                        !(
+                          tool.id === 'burger' &&
+                          burger.source_mode !== 'classic' &&
+                          field.key === 'paper'
+                        ),
+                    )}
+                    values={values}
+                    renderField={(field) => (
+                      <Setting
+                        field={field}
+                        value={values[field.key] ?? field.default}
+                        update={(value) => change(field.key, value)}
+                        disabled={
+                          tool.id === 'sushi' && values.shape === 'circle' && field.key === 'height'
+                        }
+                      />
+                    )}
                   />
                 )}
                 {tool.id === 'fortune-cookie' && (

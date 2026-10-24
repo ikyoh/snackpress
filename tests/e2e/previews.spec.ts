@@ -138,24 +138,27 @@ test('Fortune Cookie : configuration Pizza dans l’aperçu et export sans gabar
   await page.goto('/?tool=fortune-cookie')
   await openSettings(page, 'Numérotation')
   await page.getByLabel('Nombre d’exemplaires').fill('3')
-  await openSettings(page, 'Gabarit Pizza')
-  const enabled = page.getByLabel('Afficher un gabarit Pizza dans l’aperçu PDF')
-  await enabled.check()
-  await expect(page.getByLabel('Charger une configuration')).toHaveValue('')
+  const format = page.getByLabel('Source du format')
+  await expect(format).toHaveValue('support')
   await expect(page.getByLabel('Largeur du support')).toHaveValue('85')
+  await format.selectOption('pizza')
+  await expect(page.getByLabel('Charger une configuration')).toHaveValue('')
+  await expect(page.getByLabel('Largeur du support')).toHaveCount(0)
   await page.getByLabel('Charger une configuration').selectOption('pizza-oval')
-  await expect(page.getByLabel('Largeur du support')).toHaveValue('100')
-  await expect(page.getByLabel('Hauteur du support')).toHaveValue('60')
-  await expect(page.getByLabel('Largeur du support')).not.toBeEditable()
+  await expect(page.getByText('Format fini : 100 × 60 mm')).toBeVisible()
+  await expect(page.getByLabel('Hauteur du support')).toHaveCount(0)
   const live = page.getByLabel('Aperçu automatique', { exact: true })
   await expect(live.locator('.pdf-viewer-footer')).toContainText('108 × 68 mm', { timeout: 15000 })
   await expect(live).toContainText('gabarit Pizza est visible uniquement ici')
   await expect(live.locator('canvas[data-ready=true]')).toBeVisible()
   await page.screenshot({ path: 'test-results/fortune-pizza-preview.png', fullPage: true })
-  await enabled.uncheck()
+  await format.selectOption('support')
   await expect(page.getByLabel('Largeur du support')).toBeEditable()
+  await expect(page.getByLabel('Largeur du support')).toHaveValue('100')
+  await expect(page.getByLabel('Hauteur du support')).toHaveValue('60')
+  await expect(page.getByLabel('Fond perdu sur chaque côté')).toHaveValue('4')
   await expect(live.locator('.pdf-viewer-footer')).toContainText('108 × 68 mm', { timeout: 15000 })
-  await enabled.check()
+  await format.selectOption('pizza')
   await page.getByLabel('Charger une configuration').selectOption('pizza-oval')
   await expect(live.locator('.pdf-viewer-footer')).toContainText('108 × 68 mm', { timeout: 15000 })
   const final = page.waitForResponse((r) => r.url().includes('/api/tools/fortune-cookie/run'))
@@ -167,6 +170,35 @@ test('Fortune Cookie : configuration Pizza dans l’aperçu et export sans gabar
   })
   await expect(page.locator('.artifact-downloads')).toContainText('3 pages')
   await page.screenshot({ path: 'test-results/fortune-pizza-final.png', fullPage: true })
+  // Older Fortune configurations may still carry different manual support dimensions.
+  await page.route('**/api/configurations?tool_id=fortune-cookie', (route) =>
+    route.fulfill({
+      json: [
+        {
+          id: 'fortune-saved',
+          tool_id: 'fortune-cookie',
+          name: 'Billets ronds',
+          settings: {
+            width: 85,
+            height: 55,
+            bleed: 3,
+            count: 3,
+            pizza_template: { shape: 'circle', width: 100, height: 60, bleed: 4 },
+          },
+          schema_version: 1,
+          is_default: true,
+          revision: 1,
+          created_at: '2026-10-23T12:00:00',
+          updated_at: '2026-10-23T12:00:00',
+        },
+      ],
+    }),
+  )
+  await page.reload()
+  await expect(format).toHaveValue('pizza')
+  await expect(page.getByText('Format fini : 100 × 100 mm')).toBeVisible()
+  await expect(page.getByLabel('Largeur du support')).toHaveCount(0)
+  await expect(live.locator('.pdf-viewer-footer')).toContainText('108 × 108 mm', { timeout: 15000 })
 })
 
 test('Fortune Cookie : Layer Cake et coupe en souches', async ({ page }) => {

@@ -178,12 +178,16 @@ def test_fortune_pizza_guides_are_only_in_preview(tmp_path, source, shape, with_
         assert not any(r > 140 and g > 90 and b < 60 for r, g, b in image.get_flattened_data())
 
 
-def test_fortune_pizza_template_must_match_support(api):
-    client, _ = api
+def test_fortune_pizza_template_defines_the_format(api):
+    client, module = api
     preview_id = session(client, "fortune-cookie")
     response = render(client, preview_id, {"pizza_template": {"width": 100}})
-    assert response.status_code == 422
-    assert "format fini du gabarit Pizza" in response.text
+    assert response.status_code == 200, response.text
+    data = response.json()
+    with pikepdf.open(module.DATA / preview_id / data["generation"] / "serie.pdf") as pdf:
+        assert float(pdf.pages[0].TrimBox[2] - pdf.pages[0].TrimBox[0]) / (
+            72 / 25.4
+        ) == pytest.approx(100)
 
 
 def test_imposition_preview_reuses_source_and_never_exports_final_implicitly(api, source):

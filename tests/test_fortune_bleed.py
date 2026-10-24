@@ -136,6 +136,24 @@ def test_pizza_supplies_the_bleed_and_legacy_codes_are_dropped():
         Fortune(count=1001)
 
 
+@pytest.mark.parametrize("shape,height", [("rectangle", 60), ("circle", 100)])
+def test_pizza_defines_the_format_instead_of_manual_dimensions(shape, height):
+    params = Fortune(
+        width=85,
+        height=55,
+        bleed=3,
+        pizza_template={"shape": shape, "width": 100, "height": 60, "bleed": 4},
+    )
+    assert (params.width, params.height, params.bleed) == (100, height, 4)
+    restored = Fortune.model_validate(params.model_dump())
+    assert (restored.width, restored.height) == (100, height)
+
+
+def test_pizza_format_still_respects_fortune_size_limits():
+    with pytest.raises(ValueError):
+        Fortune(pizza_template={"width": 600})
+
+
 @pytest.mark.parametrize("template", ["invalid", [1]])
 def test_invalid_template_is_a_validation_error(template):
     with pytest.raises(ValueError):

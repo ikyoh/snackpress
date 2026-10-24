@@ -195,16 +195,17 @@ class Fortune(Params):
 
     @model_validator(mode="before")
     @classmethod
-    def remove_legacy_fields(cls, values):
+    def normalize_format(cls, values):
         if isinstance(values, dict):
             values = dict(values)
             for key in ("text", "code", "payload"):
                 values.pop(key, None)
             template = values.get("pizza_template")
-            if isinstance(template, Pizza):
-                values["bleed"] = template.bleed
-            elif isinstance(template, dict):
-                values["bleed"] = template.get("bleed", 3)
+            if isinstance(template, (Pizza, dict)):
+                template = Pizza.model_validate(template)
+                values["pizza_template"] = template
+                for key in ("width", "height", "bleed"):
+                    values[key] = getattr(template, key)
         return values
 
     @model_validator(mode="after")
@@ -212,13 +213,6 @@ class Fortune(Params):
         if self.layer_template and self.layer_template.mode != "repeat":
             raise ValueError(
                 "Choisissez une configuration Layer Cake en poses répétées pour les souches."
-            )
-        if self.pizza_template and (
-            abs(self.pizza_template.width - self.width) > 0.001
-            or abs(self.pizza_template.height - self.height) > 0.001
-        ):
-            raise ValueError(
-                "Le format du support doit correspondre au format fini du gabarit Pizza."
             )
         for numbering in self.numberings or []:
             if numbering.x > self.width or numbering.y > self.height:
@@ -256,7 +250,6 @@ class Kebab(Params):
     quantity: int = Field(default=250, ge=1, le=10000000)
     colors: str = Field(default="Quadri", max_length=200)
     notes: str = Field(default="", max_length=4000)
-
 
 
 class Bento(Params):
@@ -541,7 +534,11 @@ DEFINITIONS = [
             number("width", "Largeur du support", 85, low=40, high=500),
             number("height", "Hauteur du support", 55, low=40, high=500),
             number(
-                "bleed", "Fond perdu sur chaque côté", 3, low=0, high=20,
+                "bleed",
+                "Fond perdu sur chaque côté",
+                3,
+                low=0,
+                high=20,
                 help="Les dimensions du support sont les dimensions finies, hors fond perdu.",
             ),
             number("count", "Nombre d’exemplaires", 10, "", 1, 1000, 1),
