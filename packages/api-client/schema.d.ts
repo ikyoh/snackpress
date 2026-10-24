@@ -1147,7 +1147,7 @@ export interface components {
              * Type
              * @enum {string}
              */
-            type: "number" | "text" | "textarea" | "select";
+            type: "number" | "text" | "textarea" | "select" | "lines";
             /** Default */
             default: string | number;
             /**

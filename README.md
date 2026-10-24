@@ -20,6 +20,10 @@ Atelier : http://127.0.0.1:5173. API : http://127.0.0.1:8000/docs. Les services 
 
 L’atelier d’imposition détaillé reste accessible depuis Layer Cake ou directement à http://127.0.0.1:5173/?tool=imposition. Réglages et aperçu côte à côte, grille manuelle, fonds perdus, repères et configurations personnelles y sont disponibles.
 
+## Sushi : découpe et rainage
+
+Sushi propose un fond perdu réglable par côté (0 mm par défaut) et un contour facultatif : Aucun par défaut, Rectangle ou Cercle. Le contour carré ou rectangulaire accepte un rayon des coins en mm (0 par défaut, au maximum la moitié du plus petit côté). « Ajouter un tracé » permet de créer autant de lignes que nécessaire, chacune avec son type Coupe / Rainage, son orientation Horizontal / Vertical et sa position en mm. Les positions sont mesurées depuis le bord gauche pour les verticales et depuis le haut pour les horizontales, sur le format fini, bords inclus. Les tracés ne se prolongent pas dans le fond perdu. Le PDF conserve les tons directs et la surimpression ; la TrimBox définit le format fini, la BleedBox le fond perdu. Le format du PDF est exactement (largeur + 2 × fond perdu) × (hauteur + 2 × fond perdu). Les anciens rainages enregistrés sont repris comme tracés verticaux. Ces réglages sont aussi disponibles dans Burger et dans les composants du catalogue.
+
 ## Vérifier
 
 ```sh

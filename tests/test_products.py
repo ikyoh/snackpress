@@ -90,6 +90,31 @@ def test_seed_products_generate_proofs_and_public_artifacts(tmp_path, product_id
         assert result.metrics["Pages du BAT"] == 5
 
 
+def test_sushi_component_uses_product_bleed_and_exports_both_line_types(tmp_path):
+    snapshot = specification("label").model_dump()
+    component = snapshot["variant"]["components"][0]
+    component["bleed"] = 4
+    component["guides"][0]["settings"] = {
+        "shape": "none",
+        "bleed": 0,
+        "lines": [
+            {"kind": "cut", "axis": "horizontal", "position": 10},
+            {"kind": "crease", "axis": "vertical", "position": 25},
+        ],
+    }
+    snapshot = Snapshot.model_validate(snapshot)
+    assert snapshot.variant.components[0].guides[0].settings["bleed"] == 4
+    files = artwork(tmp_path, snapshot)
+    output = tmp_path / "out"
+    output.mkdir()
+    result = run(output, "burger", files, {"product_snapshot": snapshot.model_dump()})
+    guide = next(a for a in result.artifacts if "traces" in a.name)
+    with pikepdf.open(output / guide.name) as pdf:
+        assert [float(v) / mm for v in pdf.pages[0].TrimBox] == pytest.approx([4, 4, 89, 59])
+    text = content(output / "bat.pdf")
+    assert "Découpe (CutContour)" in text and "Rainage (Crease)" in text
+
+
 def test_multiple_guides_share_trim_origin(tmp_path):
     snapshot = specification("leaflet")
     component = snapshot.variant.components[0]

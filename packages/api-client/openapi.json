@@ -2688,7 +2688,8 @@
               "number",
               "text",
               "textarea",
-              "select"
+              "select",
+              "lines"
             ],
             "title": "Type"
           },

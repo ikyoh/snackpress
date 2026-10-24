@@ -50,6 +50,8 @@ import { pizzaErrors, pizzaValue, visiblePizzaField } from './pizza'
 import { PizzaSettings } from './PizzaSettings'
 import { PizzaHighlight, pizzaFocusLabel } from './PizzaHighlight'
 import { ToolSettings } from './ToolSettings'
+import { SushiLines } from './SushiLines'
+import { sushiField, visibleSushiField } from './sushi'
 import { ClubEstimate } from './ClubEstimate'
 import { SettingsSection } from './SettingsSection'
 import './studio.css'
@@ -357,6 +359,7 @@ function Catalog({ tools }: { tools: Tool[] }) {
 }
 
 function visibleField(tool: string, field: string, values: Values) {
+  if (tool === 'sushi') return visibleSushiField(field, values)
   if (tool === 'pizza') return visiblePizzaField(field, values)
   if (tool === 'club-sandwich') {
     if (['gsm', 'bulk'].includes(field)) return values.mode === 'bulk'
@@ -630,6 +633,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
   function change(key: string, value: string | number) {
     setValues((old) => {
       const next = { ...old, [key]: value }
+      if (tool.id === 'sushi' && key === 'lines') delete next.creases
       if (
         tool.id === 'sushi' &&
         ((key === 'shape' && value === 'circle') || (key === 'width' && old.shape === 'circle'))
@@ -1199,16 +1203,31 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                         ),
                     )}
                     values={values}
-                    renderField={(field) => (
-                      <Setting
-                        field={field}
-                        value={values[field.key] ?? field.default}
-                        update={(value) => change(field.key, value)}
-                        disabled={
-                          tool.id === 'sushi' && values.shape === 'circle' && field.key === 'height'
-                        }
-                      />
-                    )}
+                    renderField={(field) =>
+                      tool.id === 'sushi' && field.type === 'lines' ? (
+                        <SushiLines
+                          value={values.lines}
+                          legacyCreases={values.creases}
+                          width={Number(values.width)}
+                          height={Number(values.height)}
+                          onChange={(value) => change('lines', value)}
+                        />
+                      ) : (
+                        <Setting
+                          field={tool.id === 'sushi' ? sushiField(field, values) : field}
+                          value={values[field.key] ?? field.default}
+                          update={(value) => change(field.key, value)}
+                          disabled={
+                            tool.id === 'sushi' &&
+                            values.shape === 'circle' &&
+                            field.key === 'height'
+                          }
+                          displayLabel={
+                            tool.id === 'sushi' && field.key === 'height' ? 'Hauteur' : undefined
+                          }
+                        />
+                      )
+                    }
                   />
                 )}
                 {tool.id === 'fortune-cookie' && (

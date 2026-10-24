@@ -141,7 +141,7 @@ def test_presentation_uses_trimbox_without_a_template(tmp_path, rotation):
 @pytest.mark.parametrize("tool", ["pizza", "sushi"])
 def test_round_product_hides_bleed_outside_the_cut_shape(tmp_path, tool):
     visual = tmp_path / "round.pdf"
-    margin = 3 if tool == "pizza" else 5
+    margin = 3
     size = 80 + 2 * margin
     c = new_canvas(visual, size, size)
     c.setFillColorRGB(0, 0, 1)
@@ -157,7 +157,7 @@ def test_round_product_hides_bleed_outside_the_cut_shape(tmp_path, tool):
         [visual],
         {
             "template_tool": tool,
-            "template_settings": {"shape": "circle", "width": 80, "height": 80},
+            "template_settings": {"shape": "circle", "width": 80, "height": 80, "bleed": margin},
         },
     )
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:

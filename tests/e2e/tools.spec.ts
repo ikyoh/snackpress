@@ -190,8 +190,11 @@ for (const [id, name, needsFile] of tools) {
       await page.getByLabel('Nombre d’exemplaires').fill('3')
     }
     if (id === 'sushi') {
-      await openSettings(page, 'Tracés et tons directs')
-      await page.getByLabel('Rainages verticaux depuis le bord gauche').fill('20,60')
+      await openSettings(page, 'Tracés')
+      await page.getByRole('button', { name: 'Ajouter un tracé', exact: true }).click()
+      await page.getByLabel('Position du tracé 1', { exact: true }).fill('20')
+      await page.getByRole('button', { name: 'Ajouter un tracé', exact: true }).click()
+      await page.getByLabel('Position du tracé 2', { exact: true }).fill('60')
     }
     await expect(page.locator('.tool-controls input:invalid')).toHaveCount(0)
     const response = page.waitForResponse((r) => r.url().includes(`/api/tools/${id}/run`))

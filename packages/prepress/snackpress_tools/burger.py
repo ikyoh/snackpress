@@ -107,11 +107,9 @@ def template(folder, files, p):
         doc.save(path)
     origin = (
         settings.bleed
-        if p.template_tool == "pizza"
+        if p.template_tool in {"pizza", "sushi"}
         else 15
         if p.template_tool == "taco"
-        else 5
-        if p.template_tool == "sushi"
         else 0
     )
     return path, (w, h), (origin, origin, settings.width, settings.height)
@@ -140,8 +138,10 @@ def prepare(
             f"BAT : {expected} fichier(s) attendu(s) : {p.expected_files} visuel(s), "
             f"{len(p.finishes)} finition(s) et {int(p.template_tool == 'pdf')} gabarit PDF."
         )
-    if p.template_tool == "pizza":
-        settings = MODELS["pizza"].model_validate(p.template_settings)
+    if p.template_tool == "pizza" or (
+        p.template_tool == "sushi" and p.template_settings.get("bleed", 0) > 0
+    ):
+        settings = MODELS[p.template_tool].model_validate(p.template_settings)
         normalized = folder / "sources-validees"
         normalized.mkdir()
         validated = []

@@ -141,8 +141,10 @@ def guide_key(tool, settings):
         if p.sleeve:
             entries.append(("Fourreau", CORAL, "dashed"))
         return entries
-    entries = [(f"Découpe ({p.cut_name})", colors.magenta, "solid")]
-    if p.creases.strip():
+    entries = []
+    if p.shape != "none" or any(line.kind == "cut" for line in p.lines):
+        entries.append((f"Découpe ({p.cut_name})", colors.magenta, "solid"))
+    if any(line.kind == "crease" for line in p.lines):
         entries.append((f"Rainage ({p.crease_name})", colors.cyan, "solid"))
     return entries
 

@@ -391,37 +391,66 @@ def club(folder, files, p):
 
 
 def sushi(folder, files, p):
-    try:
-        creases = [float(x.strip()) for x in p.creases.split(",") if x.strip()]
-    except ValueError as exc:
-        raise ValueError("Rainages invalides : saisissez des positions en mm, ex. 25, 60.") from exc
-    if len(creases) > 100 or any(not 0 < x < p.width for x in creases):
-        raise ValueError("Les rainages doivent rester strictement dans la largeur du contour.")
     path = folder / "contours.pdf"
-    pad = 5
+    pad = p.bleed
     c = new_canvas(path, p.width + 2 * pad, p.height + 2 * pad)
     c.setLineWidth(0.1 * mm)
     c.setStrokeOverprint(True)
     c.setStrokeColor(CMYKColorSep(0, 100, 0, 0, spotName=p.cut_name))
     if p.shape == "circle":
         c.circle((pad + p.width / 2) * mm, (pad + p.height / 2) * mm, p.width / 2 * mm)
-    else:
-        c.rect(pad * mm, pad * mm, p.width * mm, p.height * mm)
-    c.setStrokeColor(CMYKColorSep(100, 0, 0, 0, spotName=p.crease_name))
-    for x in creases:
-        c.line((pad + x) * mm, pad * mm, (pad + x) * mm, (pad + p.height) * mm)
+    elif p.shape == "rectangle":
+        if p.corner_radius:
+            c.roundRect(pad * mm, pad * mm, p.width * mm, p.height * mm, p.corner_radius * mm)
+        else:
+            c.rect(pad * mm, pad * mm, p.width * mm, p.height * mm)
+    for line in p.lines:
+        c.setStrokeColor(
+            CMYKColorSep(0, 100, 0, 0, spotName=p.cut_name)
+            if line.kind == "cut"
+            else CMYKColorSep(100, 0, 0, 0, spotName=p.crease_name)
+        )
+        if line.axis == "vertical":
+            x = (pad + line.position) * mm
+            c.line(x, pad * mm, x, (pad + p.height) * mm)
+        else:
+            y = (pad + p.height - line.position) * mm
+            c.line(pad * mm, y, (pad + p.width) * mm, y)
     c.save()
+    with pikepdf.open(path, allow_overwriting_input=True) as pdf:
+        page = pdf.pages[0]
+        page.TrimBox = pikepdf.Array(
+            [pad * mm, pad * mm, (pad + p.width) * mm, (pad + p.height) * mm]
+        )
+        page.BleedBox = page.MediaBox
+        pdf.save(path)
     sheet = folder / "convention.pdf"
     report(
         sheet,
         "Sushi — convention de tracé",
         [
-            ("Format", f"{p.width} × {p.height} mm, {p.shape}"),
+            ("Format fini", f"{p.width} × {p.height} mm"),
+            ("Format du PDF", f"{p.width + 2 * p.bleed:g} × {p.height + 2 * p.bleed:g} mm"),
+            ("Contour", {"none": "Aucun", "rectangle": "Rectangle", "circle": "Cercle"}[p.shape]),
+            (
+                "Rayon des coins",
+                f"{p.corner_radius:g} mm" if p.shape == "rectangle" else "Sans objet",
+            ),
+            ("Fond perdu", f"{p.bleed:g} mm sur chaque côté, défini par la BleedBox"),
             ("Découpe", p.cut_name),
             ("Rainage", p.crease_name),
-            ("Rainages (mm)", p.creases or "Aucun"),
+            *[
+                (
+                    f"Tracé {index}",
+                    f"{'Coupe' if line.kind == 'cut' else 'Rainage'} "
+                    f"{'vertical' if line.axis == 'vertical' else 'horizontal'} · "
+                    f"{line.position:g} mm depuis "
+                    f"{'la gauche' if line.axis == 'vertical' else 'le haut'} du format fini",
+                )
+                for index, line in enumerate(p.lines, 1)
+            ],
             ("Trait", "Vectoriel 0,1 mm, sans remplissage, surimpression activée"),
-            ("Origine du contour", "5 mm depuis les bords de la page, marge technique"),
+            ("Origine du format fini", f"{pad:g} mm depuis les bords de la page"),
         ],
         (
             "Confirmer les noms de tons directs, l’épaisseur de trait et la "
@@ -431,7 +460,10 @@ def sushi(folder, files, p):
     return ToolResult(
         tool="sushi",
         summary="Contours vectoriels en deux tons directs nommés.",
-        metrics={"Rainages": len(creases)},
+        metrics={
+            "Rainages": sum(line.kind == "crease" for line in p.lines),
+            "Coupes": sum(line.kind == "cut" for line in p.lines),
+        },
         artifacts=[
             artifact(path, "Contours PDF vectoriels"),
             artifact(sheet, "Convention atelier"),
@@ -507,10 +539,23 @@ def kebab(folder, files, p):
                     f" · retrait des œillets : {s['inset']:g} mm"
                 )
             elif guide.tool == "sushi":
+                shape = {"none": "Aucun", "rectangle": "Rectangle", "circle": "Cercle"}[s["shape"]]
                 detail = (
                     f"Ton de découpe : {s['cut_name']} · rainage : {s['crease_name']}"
-                    f" · positions : {s['creases'] or 'Aucun'}"
+                    f" · contour : {shape} · fond perdu : {s['bleed']:g} mm"
                 )
+                if s["shape"] == "rectangle":
+                    detail += f" · rayon des coins : {s['corner_radius']:g} mm"
+                for index, line in enumerate(s["lines"], 1):
+                    rows.append(
+                        (
+                            f"Sushi — tracé {index}",
+                            f"{'Coupe' if line['kind'] == 'cut' else 'Rainage'} · "
+                            f"{'vertical' if line['axis'] == 'vertical' else 'horizontal'} · "
+                            f"{line['position']:g} mm depuis "
+                            f"{'la gauche' if line['axis'] == 'vertical' else 'le haut'}",
+                        )
+                    )
             else:
                 axis = "verticales" if s["axis"] == "vertical" else "horizontales"
                 detail = f"Positions {axis} : " + ", ".join(f"{x:g} mm" for x in s["positions"])

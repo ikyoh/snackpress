@@ -99,7 +99,9 @@ def clip_finished(c, item, x, y, width, height):
     if shape in {"circle", "ellipse"}:
         clip.ellipse(x * mm, y * mm, width * mm, height * mm)
     else:
-        radius = item.shape.get("corner_radius", 0) * width / item.trim[2]
+        radius = (
+            item.shape.get("corner_radius", 0) * width / item.trim[2] if shape == "rectangle" else 0
+        )
         clip.roundRect(x * mm, y * mm, width * mm, height * mm, radius * mm)
     c.clipPath(clip, stroke=0, fill=0)
 

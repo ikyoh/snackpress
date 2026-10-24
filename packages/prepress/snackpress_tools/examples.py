@@ -66,7 +66,12 @@ def burger_example(folder, files, settings):
     guide = template(folder, files, p)
     if guide:
         _, (width, height), trim = guide
-        if p.template_tool in {"taco", "sushi"}:
+        if p.template_tool == "sushi":
+            bleed = p.template_settings["bleed"]
+            _, _, width, height = trim
+            trim = (bleed, bleed, width, height)
+            width, height = width + 2 * bleed, height + 2 * bleed
+        elif p.template_tool == "taco":
             # The guide's technical margins are not part of the artwork format.
             _, _, width, height = trim
             trim = (0, 0, width, height)

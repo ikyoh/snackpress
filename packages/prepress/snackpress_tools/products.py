@@ -165,7 +165,7 @@ class Component(Named):
                 guide.settings = {"axis": axis, "positions": positions}
             else:
                 settings = {**guide.settings, "width": self.width, "height": self.height}
-                if guide.tool == "pizza":
+                if guide.tool in {"pizza", "sushi"}:
                     settings["bleed"] = self.bleed
                 guide.settings = MODELS[guide.tool].model_validate(settings).model_dump()
                 if abs(guide.settings["height"] - self.height) > 0.01:

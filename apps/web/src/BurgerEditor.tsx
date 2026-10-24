@@ -2,6 +2,8 @@ import { pizzaField, pizzaValue, visiblePizzaField } from './pizza'
 import { visibleTacoField } from './taco'
 import { SettingsSection } from './SettingsSection'
 import { Configurations } from './Configurations'
+import { SushiLines } from './SushiLines'
+import { sushiField, visibleSushiField } from './sushi'
 import { ProductSelector, snapshotFiles, type FileRequirement, type Snapshot } from './PrintCatalog'
 import type { components } from '../../../packages/api-client/schema'
 
@@ -257,26 +259,43 @@ export function BurgerEditor({
                     .filter((f) => {
                       if (template.id === 'pizza')
                         return visiblePizzaField(f.key, options.template_settings)
+                      if (template.id === 'sushi')
+                        return visibleSushiField(f.key, options.template_settings)
                       return (
                         template.id !== 'taco' || visibleTacoField(f.key, options.template_settings)
                       )
                     })
                     .map((field) => (
                       <div key={field.key}>
-                        {renderField(
-                          template.id === 'pizza'
-                            ? pizzaField(field, options.template_settings)
-                            : field,
-                          template.id === 'pizza'
-                            ? pizzaValue(field, options.template_settings)
-                            : (options.template_settings[field.key] ?? field.default),
-                          (value) =>
-                            update({
-                              template_settings: {
-                                ...options.template_settings,
-                                [field.key]: value,
-                              },
-                            }),
+                        {template.id === 'sushi' && field.type === 'lines' ? (
+                          <SushiLines
+                            value={options.template_settings.lines}
+                            legacyCreases={options.template_settings.creases}
+                            width={width}
+                            height={height}
+                            onChange={(lines) => {
+                              const { creases: _legacy, ...settings } = options.template_settings
+                              update({ template_settings: { ...settings, lines } })
+                            }}
+                          />
+                        ) : (
+                          renderField(
+                            template.id === 'pizza'
+                              ? pizzaField(field, options.template_settings)
+                              : template.id === 'sushi'
+                                ? sushiField(field, options.template_settings)
+                                : field,
+                            template.id === 'pizza'
+                              ? pizzaValue(field, options.template_settings)
+                              : (options.template_settings[field.key] ?? field.default),
+                            (value) =>
+                              update({
+                                template_settings: {
+                                  ...options.template_settings,
+                                  [field.key]: value,
+                                },
+                              }),
+                          )
                         )}
                       </div>
                     ))}
@@ -285,7 +304,7 @@ export function BurgerEditor({
             )}
             {options.template_tool !== 'none' && (
               <p className="field-hint">
-                {options.template_tool === 'pizza' ? (
+                {['pizza', 'sushi'].includes(options.template_tool) ? (
                   <>
                     Format fini : {format(width)} × {format(height)} mm. Fond perdu :{' '}
                     {format(bleed)} mm sur chaque côté.{' '}

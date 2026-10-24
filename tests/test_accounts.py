@@ -164,6 +164,32 @@ def test_links_one_use_expiration_and_reset_revokes_sessions(account_api):
     )
 
 
+def test_sushi_configurations_preserve_lines_and_convert_legacy_creases(account_api):
+    client, _, deliveries = account_api
+    activate(client, deliveries)
+    response = create(client, tool="sushi", settings={"shape": "rectangle", "creases": "20,60"})
+    assert response.status_code == 201, response.text
+    original = response.json()
+    assert original["settings"]["lines"] == [
+        {"kind": "crease", "axis": "vertical", "position": 20},
+        {"kind": "crease", "axis": "vertical", "position": 60},
+    ]
+    assert "creases" not in original["settings"]
+    settings = {
+        **original["settings"],
+        "bleed": 3,
+        "shape": "none",
+        "lines": '[{"kind":"cut","axis":"horizontal","position":15}]',
+    }
+    response = client.put(
+        f"/api/configurations/{original['id']}", json=body(original, settings=settings)
+    )
+    assert response.status_code == 200, response.text
+    saved = client.get("/api/configurations?tool_id=sushi").json()[0]["settings"]
+    assert saved["bleed"] == 3 and saved["shape"] == "none"
+    assert saved["lines"] == [{"kind": "cut", "axis": "horizontal", "position": 15}]
+
+
 def test_configurations_ownership_defaults_conflicts_and_persistence(account_api):
     client, module, deliveries = account_api
     assert create(client).status_code == 401

@@ -1,4 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
+import { SushiLines } from './SushiLines'
+import { sushiField, visibleSushiField } from './sushi'
 import { Copy, Plus, RotateCw, Save, Trash2 } from 'lucide-react'
 import { useAccount } from './Account'
 import { post, request } from './api'
@@ -942,9 +944,14 @@ export function VariantEditor({
                       (f) =>
                         !['width', 'height', 'bleed'].includes(f.key) &&
                         (g.tool !== 'taco' || visibleTacoField(f.key, g.settings)) &&
+                        (g.tool !== 'sushi' || visibleSushiField(f.key, g.settings)) &&
                         !(g.tool === 'pizza' && /^(width|height)_/.test(f.key)),
                     )
-                    .map((f) => {
+                    .map((field) => {
+                      const f =
+                        g.tool === 'sushi'
+                          ? sushiField(field, { ...g.settings, width: c.width, height: c.height })
+                          : field
                       const value =
                         g.settings[f.key] ??
                         (g.tool === 'pizza' && f.key.startsWith('safety_')
@@ -957,6 +964,24 @@ export function VariantEditor({
                             i === gi ? { ...g, settings: { ...g.settings, [f.key]: value } } : g,
                           ),
                         })
+                      if (g.tool === 'sushi' && f.type === 'lines')
+                        return (
+                          <SushiLines
+                            key={f.key}
+                            value={g.settings.lines}
+                            legacyCreases={g.settings.creases}
+                            width={c.width}
+                            height={c.height}
+                            onChange={(lines) => {
+                              const { creases: _legacy, ...settings } = g.settings
+                              update(index, {
+                                guides: c.guides.map((guide, i) =>
+                                  i === gi ? { ...guide, settings: { ...settings, lines } } : guide,
+                                ),
+                              })
+                            }}
+                          />
+                        )
                       return f.type === 'select' ? (
                         <Select key={f.key} label={f.label} value={String(value)} onChange={change}>
                           {f.options?.map((o) => (

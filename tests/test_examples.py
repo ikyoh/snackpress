@@ -20,6 +20,7 @@ from snackpress_tools.runner import run
             (0, 0, 600, 300),
         ),
         ("sushi", {"width": 60, "height": 40}, (60, 40), (0, 0, 60, 40)),
+        ("sushi", {"width": 60, "height": 40, "bleed": 3}, (66, 46), (3, 3, 60, 40)),
     ],
 )
 def test_burger_example_matches_template_and_generates_proof(tmp_path, tool, settings, size, trim):

@@ -37,8 +37,9 @@ const groups: Record<string, Group[]> = {
   ],
   poke: [{ title: 'Échantillonnage', keys: ['dpi'] }],
   sushi: [
-    { title: 'Format', keys: ['width', 'height', 'shape'] },
-    { title: 'Tracés et tons directs', keys: ['creases', 'cut_name', 'crease_name'] },
+    { title: 'Format', keys: ['width', 'height', 'bleed', 'shape', 'corner_radius'] },
+    { title: 'Tracés', keys: ['lines'] },
+    { title: 'Tons directs', keys: ['cut_name', 'crease_name'] },
   ],
   kebab: [
     { title: 'Projet', keys: ['title', 'client'] },
@@ -83,6 +84,14 @@ export function ToolSettings({
           .slice(0, 2)
           .map((field) => {
             const value = values[field.key] ?? field.default
+            if (field.type === 'lines') {
+              try {
+                const lines = typeof value === 'string' ? JSON.parse(value) : value
+                return `${lines.length} tracé${lines.length > 1 ? 's' : ''}`
+              } catch {
+                return 'Aucun tracé'
+              }
+            }
             if (field.type === 'select')
               return (
                 field.options?.find((option) => option.value === String(value))?.label ??
@@ -98,7 +107,11 @@ export function ToolSettings({
             key={group.title}
             title={group.title}
             summary={summary}
-            defaultOpen={index === 0 || (toolId === 'taco' && group.title === 'Recto / Verso')}
+            defaultOpen={
+              index === 0 ||
+              (toolId === 'taco' && group.title === 'Recto / Verso') ||
+              (toolId === 'sushi' && group.title === 'Tracés')
+            }
           >
             {toolId === 'taco' && group.title === 'Recto / Verso' && (
               <p className="field-hint taco-face-help">

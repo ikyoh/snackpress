@@ -1361,6 +1361,48 @@
 .grouped-setting .tool-field {
   margin: 0;
 }
+.sushi-lines {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.sushi-lines > .field-hint,
+.sushi-lines-empty {
+  margin: 0;
+}
+.sushi-lines > .sushi-line {
+  min-width: 0;
+  margin: 0;
+  padding: 12px 0 0;
+  border: 0;
+  border-top: 1px solid #e8d3f2;
+}
+.sushi-line legend {
+  padding: 0 8px 0 0;
+  font-weight: 800;
+}
+.sushi-line-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+.sushi-line-fields .tool-field {
+  min-width: 0;
+  margin: 0;
+  grid-column: auto;
+}
+.sushi-line-fields select {
+  width: 100%;
+}
+.sushi-line-position {
+  grid-column: 1;
+}
+.sushi-line-fields .sushi-line-remove {
+  justify-self: end;
+  min-width: 44px;
+  min-height: 44px;
+}
 .tool-controls .sectioned-settings {
   padding: 0 20px;
 }

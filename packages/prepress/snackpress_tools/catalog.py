@@ -1,3 +1,4 @@
+import json
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
@@ -268,13 +269,49 @@ class Poke(Params):
     dpi: int = Field(default=72, ge=36, le=150)
 
 
+class SushiLine(Params):
+    kind: Literal["cut", "crease"] = "crease"
+    axis: Literal["vertical", "horizontal"] = "vertical"
+    position: float = Field(default=0, ge=0)
+
+
 class Sushi(Params):
     width: float = Field(default=85, gt=5, le=2000)
     height: float = Field(default=55, gt=5, le=2000)
-    shape: Literal["rectangle", "circle"] = "rectangle"
-    creases: str = Field(default="", max_length=300)
+    bleed: float = Field(default=0, ge=0, le=30)
+    shape: Literal["none", "rectangle", "circle"] = "none"
+    corner_radius: float = Field(default=0, ge=0, le=1000)
+    lines: list[SushiLine] = Field(default_factory=list)
     cut_name: str = Field(default="CutContour", min_length=1, max_length=40)
     crease_name: str = Field(default="Crease", min_length=1, max_length=40)
+
+    @model_validator(mode="before")
+    @classmethod
+    def legacy_lines(cls, value):
+        if not isinstance(value, dict):
+            return value
+        value = dict(value)
+        lines = value.get("lines", [])
+        if isinstance(lines, str):
+            try:
+                lines = json.loads(lines)
+            except ValueError as exc:
+                raise ValueError("Liste de tracés invalide.") from exc
+        legacy = value.pop("creases", "")
+        if legacy:
+            try:
+                old = [
+                    {"kind": "crease", "axis": "vertical", "position": float(x.strip())}
+                    for x in legacy.split(",")
+                    if x.strip()
+                ]
+            except (ValueError, AttributeError) as exc:
+                raise ValueError("Rainages invalides : saisissez des positions en mm.") from exc
+            if not isinstance(lines, list):
+                raise ValueError("Liste de tracés invalide.")
+            lines = old + lines
+        value["lines"] = lines
+        return value
 
     @model_validator(mode="after")
     def names(self):
@@ -282,6 +319,16 @@ class Sushi(Params):
             raise ValueError("Les deux tons directs doivent avoir des noms différents.")
         if self.shape == "circle" and abs(self.width - self.height) > 0.001:
             raise ValueError("Un contour cercle demande une largeur et une hauteur identiques.")
+        if self.shape == "rectangle" and self.corner_radius * 2 > min(self.width, self.height):
+            raise ValueError(
+                "Le rayon des coins ne peut pas dépasser la moitié du plus petit côté."
+            )
+        for index, line in enumerate(self.lines, 1):
+            limit = self.width if line.axis == "vertical" else self.height
+            if line.position > limit:
+                raise ValueError(
+                    f"Tracé {index} : la position doit être comprise entre 0 et {limit:g} mm."
+                )
         return self
 
 
@@ -308,7 +355,7 @@ class Option(BaseModel):
 class ToolField(BaseModel):
     key: str
     label: str
-    type: Literal["number", "text", "textarea", "select"]
+    type: Literal["number", "text", "textarea", "select", "lines"]
     default: str | float | int
     unit: str = ""
     min: float | None = None
@@ -612,12 +659,27 @@ DEFINITIONS = [
         fields=[
             number("width", "Largeur", 85, low=6),
             number("height", "Hauteur (égale à la largeur pour un cercle)", 55, low=6),
-            choice("shape", "Contour", [("rectangle", "Rectangle"), ("circle", "Cercle")]),
-            text(
-                "creases",
-                "Rainages verticaux depuis le bord gauche",
-                "",
-                help="Positions en mm séparées par des virgules, ex. 25, 60.",
+            number(
+                "bleed",
+                "Fond perdu",
+                0,
+                high=30,
+                help="Sur chaque côté : format du PDF = format fini + 2 × fond perdu.",
+            ),
+            choice(
+                "shape",
+                "Contour",
+                [("none", "Aucun"), ("rectangle", "Rectangle"), ("circle", "Cercle")],
+            ),
+            number(
+                "corner_radius",
+                "Rayon des coins",
+                0,
+                high=1000,
+                help="0 mm pour des coins droits ; au maximum la moitié du plus petit côté.",
+            ),
+            ToolField(
+                key="lines", label="Tracés de coupe et de rainage", type="lines", default="[]"
             ),
             text("cut_name", "Ton direct de découpe", "CutContour"),
             text("crease_name", "Ton direct de rainage", "Crease"),
