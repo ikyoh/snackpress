@@ -6,6 +6,8 @@ import os
 import shutil
 from contextlib import suppress
 from datetime import datetime, timedelta
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from uuid import uuid4
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
@@ -13,6 +15,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, ValidationError
 from snackpress_imposition.geometry import Settings
 from snackpress_tools.catalog import CATALOG, MODELS, ToolResult
+from snackpress_tools.products import Component
 from sqlalchemy.orm import Session
 
 from .database import Job
@@ -33,6 +36,24 @@ class PreviewSettings(BaseModel):
 class PreviewResult(ToolResult):
     generation: str
     notice: str
+
+
+class PlacementGuides(BaseModel):
+    url: str
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+@router.post("/api/tools/fortune-cookie/guides", response_model=PlacementGuides)
+async def fortune_guides(component: Component, request: Request):
+    svc = service()
+    with TemporaryDirectory(prefix="fortune-guides-", dir=svc.DATA) as temporary:
+        folder = Path(temporary)
+        # Use the same isolated, bounded worker as the other PDF previews.
+        (folder / "component.json").write_text(component.model_dump_json())
+        return await disconnected_worker(request, "fortune-guides", folder)
 
 
 def preview_job(preview_id: str):
@@ -184,7 +205,11 @@ async def render_preview(preview_id: str, data: PreviewSettings, request: Reques
         if info["tool"] == "fortune-cookie":
             if params.layer_template:
                 notice += " L’imposition en souches est générée uniquement pour le téléchargement."
-            if params.pizza_template:
+            if params.product_snapshot:
+                notice += (
+                    " Les tracés du produit sont visibles uniquement dans l’aperçu de placement."
+                )
+            elif params.pizza_template:
                 notice += " Les repères Pizza sont visibles uniquement dans l’aperçu de placement."
         if info["tool"] in {"donut", "tiramisu", "poke"}:
             notice = (

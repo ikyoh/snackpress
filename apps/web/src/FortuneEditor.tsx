@@ -1,10 +1,12 @@
-import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { getDocument } from 'pdfjs-dist'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from './components/ui/button'
 import { Configurations } from './Configurations'
 import { SettingsSection } from './SettingsSection'
 import type { PizzaValues } from './pizza'
+import type { Component } from './PrintCatalog'
+import { useFortuneGuides } from './FortuneProduct'
 
 import {
   barcodeError,
@@ -24,61 +26,6 @@ const fonts = [
   ['Times-Roman', 'Times', 'Times New Roman, serif'],
   ['Courier', 'Courier', 'Courier New, monospace'],
 ]
-
-export function FortuneTemplate({
-  template,
-  defaults,
-  onChange,
-  children,
-}: {
-  template: PizzaValues | null
-  defaults: PizzaValues
-  onChange: (template: PizzaValues | null) => void
-  children: ReactNode
-}) {
-  return (
-    <SettingsSection
-      title="Format"
-      defaultOpen
-      summary={
-        template ? `Gabarit Pizza · ${template.width} × ${template.height} mm` : 'Format du support'
-      }
-    >
-      <label className="field">
-        <span>Source du format</span>
-        <select
-          value={template ? 'pizza' : 'support'}
-          onChange={(e) => onChange(e.target.value === 'pizza' ? defaults : null)}
-        >
-          <option value="support">Format du support</option>
-          <option value="pizza">Gabarit Pizza</option>
-        </select>
-      </label>
-      {template ? (
-        <>
-          <p className="field-hint">
-            Chargez une configuration Pizza enregistrée. Son format fini et son fond perdu
-            définissent le format des billets. Les repères sont visibles dans l’aperçu de placement.
-            L’aperçu PDF montre le format fini, sans repères ni fonds perdus.
-          </p>
-          <Configurations
-            compact
-            autoLoadDefault={false}
-            toolId="pizza"
-            settings={template}
-            onLoad={(settings) => onChange(settings as PizzaValues)}
-          />
-          <p className="field-hint">
-            Format fini : {template.width} × {template.height} mm · Fond perdu : {template.bleed} mm
-            par côté.
-          </p>
-        </>
-      ) : (
-        children
-      )}
-    </SettingsSection>
-  )
-}
 
 export function FortuneImposition({
   template,
@@ -420,70 +367,6 @@ export function FortuneSettings({
   )
 }
 
-function FortunePizzaGuides({ template }: { template: PizzaValues }) {
-  const id = useId()
-  const n = (key: string) =>
-    Number(template[key] ?? (key.startsWith('safety_') ? (template.safety ?? 4) : 0))
-  const width = n('width')
-  const height = template.shape === 'circle' ? width : n('height')
-  const contour = (left = 0, right = 0, top = 0, bottom = 0) => {
-    const w = width - left - right
-    const h = height - top - bottom
-    if (template.shape === 'circle' || template.shape === 'ellipse')
-      return <ellipse cx={left + w / 2} cy={top + h / 2} rx={w / 2} ry={h / 2} />
-    const radius = Math.min(
-      Math.max(0, n('corner_radius') - Math.max(left, right, top, bottom)),
-      w / 2,
-      h / 2,
-    )
-    return <rect x={left} y={top} width={w} height={h} rx={radius} />
-  }
-  const [left, right, top, bottom] = ['left', 'right', 'top', 'bottom'].map((side) =>
-    n(`unusable_${side}`),
-  )
-  const bleed = n('bleed')
-  return (
-    <g data-fortune-pizza-guides="true" pointerEvents="none" fill="none" strokeWidth={0.25}>
-      <defs>
-        <clipPath id={`${id}-cut`}>{contour()}</clipPath>
-        <clipPath id={`${id}-bands`}>
-          <path
-            clipRule="evenodd"
-            d={`M0 0H${width}V${height}H0Z M${left} ${top}H${width - right}V${height - bottom}H${left}Z`}
-          />
-        </clipPath>
-        <pattern id={`${id}-hatch`} width="3" height="3" patternUnits="userSpaceOnUse">
-          <path d="M-1 1L1 -1 M0 3L3 0 M2 4L4 2" stroke="#e6b800" strokeWidth={0.18} />
-        </pattern>
-      </defs>
-      <g clipPath={`url(#${id}-cut)`}>
-        <g clipPath={`url(#${id}-bands)`}>
-          <rect width={width} height={height} fill={`url(#${id}-hatch)`} />
-        </g>
-        <g stroke="#e6b800" strokeDasharray="2 1" strokeWidth={0.3}>
-          {left > 0 && <line x1={left} x2={left} y1={top} y2={height - bottom} />}
-          {right > 0 && (
-            <line x1={width - right} x2={width - right} y1={top} y2={height - bottom} />
-          )}
-          {top > 0 && <line x1={left} x2={width - right} y1={top} y2={top} />}
-          {bottom > 0 && (
-            <line x1={left} x2={width - right} y1={height - bottom} y2={height - bottom} />
-          )}
-        </g>
-        <g stroke="#183d36" strokeDasharray="2 1">
-          {contour(n('safety_left'), n('safety_right'), n('safety_top'), n('safety_bottom'))}
-        </g>
-      </g>
-      <g stroke="#f06e50">{contour()}</g>
-      {bleed > 0 && (
-        <g stroke="#3265c9" strokeDasharray="2 1">
-          {contour(-bleed, -bleed, -bleed, -bleed)}
-        </g>
-      )}
-    </g>
-  )
-}
-
 function FortuneBarcode({ item, value }: { item: Repiquage; value: string }) {
   const ref = useRef<SVGSVGElement>(null)
   const [valid, setValid] = useState(false)
@@ -583,7 +466,7 @@ export function FortunePreview({
   width,
   height,
   bleed,
-  template,
+  component,
   serial,
   data,
   file,
@@ -594,7 +477,7 @@ export function FortunePreview({
   width: number
   height: number
   bleed: number
-  template: PizzaValues | null
+  component: Component | null
   serial: string
   data: CsvData | null
   file?: File
@@ -644,12 +527,19 @@ export function FortunePreview({
       void task?.destroy()
     }
   }, [file, width, height, bleed])
-  const guideBleed = template ? bleed : 0
+  const guideState = useFortuneGuides(component)
+  const guides = guideState.guides
+  const frame = guides ?? {
+    x: -bleed,
+    y: -bleed,
+    width: width + 2 * bleed,
+    height: height + 2 * bleed,
+  }
   const point = (e: React.PointerEvent) => {
     const rect = svg.current!.getBoundingClientRect()
     return {
-      x: ((e.clientX - rect.left) / rect.width) * (width + 2 * guideBleed) - guideBleed,
-      y: ((e.clientY - rect.top) / rect.height) * (height + 2 * guideBleed) - guideBleed,
+      x: ((e.clientX - rect.left) / rect.width) * frame.width + frame.x,
+      y: ((e.clientY - rect.top) / rect.height) * frame.height + frame.y,
     }
   }
   return (
@@ -660,9 +550,10 @@ export function FortunePreview({
         supérieur gauche.
       </p>
       {error && <p role="alert">{error}</p>}
+      {guideState.error && <p role="alert">Tracés du produit : {guideState.error}</p>}
       <svg
         ref={svg}
-        viewBox={`${-guideBleed} ${-guideBleed} ${width + 2 * guideBleed} ${height + 2 * guideBleed}`}
+        viewBox={`${frame.x} ${frame.y} ${frame.width} ${frame.height}`}
         className="fortune-sheet"
         aria-label="Placement des repiquages sur le support"
         onPointerMove={(e) => {
@@ -688,13 +579,7 @@ export function FortunePreview({
           moving.current = null
         }}
       >
-        <rect
-          x={-guideBleed}
-          y={-guideBleed}
-          width={width + 2 * guideBleed}
-          height={height + 2 * guideBleed}
-          fill="white"
-        />
+        <rect x={frame.x} y={frame.y} width={frame.width} height={frame.height} fill="white" />
         {background && (
           <image
             href={background.url}
@@ -705,7 +590,18 @@ export function FortunePreview({
             preserveAspectRatio="none"
           />
         )}
-        {template && <FortunePizzaGuides template={template} />}
+        {guides && (
+          <image
+            data-fortune-product-guides="true"
+            x={guides.x}
+            y={guides.y}
+            width={guides.width}
+            height={guides.height}
+            href={guides.url}
+            preserveAspectRatio="none"
+            pointerEvents="none"
+          />
+        )}
         <defs>
           <clipPath id={trimId}>
             <rect width={width} height={height} />
@@ -753,7 +649,8 @@ export function FortunePreview({
       <p>
         {width} × {height} mm finis · Premier exemplaire · Les coordonnées des repiquages restent
         relatives au format fini.{' '}
-        {template && 'Repères Pizza : coupe, sécurité, zones inexploitables et fond perdu.'}
+        {component &&
+          'Tracés du produit : coupe, sécurité, plis, œillets et perforations selon sa configuration.'}
       </p>
     </div>
   )

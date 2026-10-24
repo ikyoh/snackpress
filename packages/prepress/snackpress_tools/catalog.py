@@ -219,6 +219,8 @@ class Fortune(Params):
     bleed: float = Field(default=3, ge=0, le=20)
     repiquages: list[Repiquage] | None = None
     csv_data: CsvData | None = None
+    product_snapshot: Snapshot | None = None
+    product_component_id: str = Field(default="", max_length=80)
     pizza_template: Pizza | None = None
     layer_template: Layer | None = None
     tickets_per_book: int = Field(default=25, ge=1, le=100)
@@ -233,8 +235,23 @@ class Fortune(Params):
             legacy = values.pop("numberings", None)
             if "repiquages" not in values and legacy is not None:
                 values["repiquages"] = legacy
+            product = values.get("product_snapshot")
             template = values.get("pizza_template")
-            if isinstance(template, (Pizza, dict)):
+            if isinstance(product, (Snapshot, dict)):
+                product = Snapshot.model_validate(product)
+                component_id = values.get("product_component_id")
+                component = next(
+                    (c for c in product.variant.components if c.id == component_id),
+                    None if component_id else product.variant.components[0],
+                )
+                if component is None:
+                    raise ValueError("Choisissez un composant présent dans le produit.")
+                values["product_snapshot"] = product
+                values["product_component_id"] = component.id
+                values["pizza_template"] = None
+                for key in ("width", "height", "bleed"):
+                    values[key] = getattr(component, key)
+            elif isinstance(template, (Pizza, dict)):
                 template = Pizza.model_validate(template)
                 values["pizza_template"] = template
                 for key in ("width", "height", "bleed"):

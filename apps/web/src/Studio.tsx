@@ -37,14 +37,9 @@ import { Button } from './components/ui/button'
 import { PdfFaceSwitch, PdfPreview } from './PdfPreview'
 import { visibleTacoField } from './taco'
 import { LivePreview, useLivePreview } from './LivePreview'
-import {
-  FortunePreview,
-  FortuneSettings,
-  FortuneTemplate,
-  FortuneImposition,
-  FortuneData,
-} from './FortuneEditor'
+import { FortunePreview, FortuneSettings, FortuneImposition, FortuneData } from './FortuneEditor'
 import { newRepiquage, type Repiquage, type CsvData } from './fortuneData'
+import { FortuneProduct, fortuneComponent, legacyFortuneProduct } from './FortuneProduct'
 import type { components } from '../../../packages/api-client/schema'
 import { pizzaErrors, pizzaValue, visiblePizzaField } from './pizza'
 import { PizzaSettings } from './PizzaSettings'
@@ -510,7 +505,9 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
   const [fortuneData, setFortuneData] = useState<CsvData | null>(null)
   const fortuneSerial =
     String(values.prefix) + String(values.start).padStart(Number(values.digits), '0')
-  const [fortuneTemplate, setFortuneTemplate] = useState<Values | null>(null)
+  const [fortuneProduct, setFortuneProduct] = useState<Snapshot | null>(null)
+  const [fortuneComponentId, setFortuneComponentId] = useState('')
+  const selectedFortuneComponent = fortuneComponent(fortuneProduct, fortuneComponentId)
   const [fortuneLayer, setFortuneLayer] = useState<Values | null>(null)
   const [ticketsPerBook, setTicketsPerBook] = useState<string | number>(25)
   function changeFortuneLayer(next: Values | null) {
@@ -522,23 +519,17 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
     setResult(null)
     setError('')
   }
-  function changeFortuneTemplate(next: Values | null) {
-    if (next) {
-      const width = Number(next.width)
-      const height = next.shape === 'circle' ? width : Number(next.height)
-      const bleed = Number(next.bleed ?? 3)
-      if (![width, height].every((size) => Number.isFinite(size) && size >= 40 && size <= 500)) {
-        setError('Fortune Cookie accepte un gabarit Pizza de 40 à 500 mm par côté.')
-        return
-      }
-      if (!Number.isFinite(bleed) || bleed < 0 || bleed > 20) {
-        setError('Fortune Cookie accepte un fond perdu de 0 à 20 mm sur chaque côté.')
-        return
-      }
-      next = { ...next, width, height, bleed }
-      setValues((old) => ({ ...old, width, height, bleed }))
-    }
-    setFortuneTemplate(next)
+  function changeFortuneProduct(next: Snapshot, componentId: string) {
+    const component = fortuneComponent(next, componentId)
+    if (!component) return
+    setFortuneProduct(next)
+    setFortuneComponentId(component.id)
+    setValues((old) => ({
+      ...old,
+      width: component.width,
+      height: component.height,
+      bleed: component.bleed,
+    }))
     setResult(null)
     setError('')
   }
@@ -576,14 +567,17 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
           : burger.source_mode === 'classic' && burger.expected_files > 0)
       : tool.id === 'kebab'
         ? !!kebabProduct
-        : files.length >= tool.min_files && files.length <= tool.max_files
+        : (tool.id !== 'fortune-cookie' || !!selectedFortuneComponent) &&
+          files.length >= tool.min_files &&
+          files.length <= tool.max_files
   const settings =
     tool.id === 'fortune-cookie'
       ? {
           ...values,
           repiquages,
           csv_data: fortuneData,
-          pizza_template: fortuneTemplate,
+          product_snapshot: fortuneProduct,
+          product_component_id: fortuneComponentId,
           layer_template: fortuneLayer,
           tickets_per_book: fortuneLayer ? ticketsPerBook : 25,
         }
@@ -1089,18 +1083,14 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                         ) as Values,
                       )
                     } else if (tool.id === 'fortune-cookie') {
-                      const savedTemplate = (fields.pizza_template as Values | null) ?? null
-                      const template: Values | null = savedTemplate
-                        ? {
-                            ...savedTemplate,
-                            height:
-                              savedTemplate.shape === 'circle'
-                                ? savedTemplate.width
-                                : savedTemplate.height,
-                            bleed: savedTemplate.bleed ?? 3,
-                          }
-                        : null
-                      setFortuneTemplate(template)
+                      const snapshot =
+                        (fields.product_snapshot as Snapshot | null) ?? legacyFortuneProduct(fields)
+                      const component = fortuneComponent(
+                        snapshot,
+                        String(fields.product_component_id ?? ''),
+                      )!
+                      setFortuneProduct(snapshot)
+                      setFortuneComponentId(component.id)
                       setFortuneData((fields.csv_data as CsvData | null) ?? null)
                       setFortuneLayer((fields.layer_template as Values | null) ?? null)
                       setTicketsPerBook((fields.tickets_per_book as number) ?? 25)
@@ -1108,8 +1098,8 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                         Object.fromEntries(
                           tool.fields.map((f) => [
                             f.key,
-                            (template && ['width', 'height', 'bleed'].includes(f.key)
-                              ? (template[f.key] ?? f.default)
+                            (['width', 'height', 'bleed'].includes(f.key)
+                              ? component[f.key as 'width' | 'height' | 'bleed']
                               : fields[f.key]) ?? f.default,
                           ]),
                         ) as Values,
@@ -1153,33 +1143,11 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   />
                 )}
                 {tool.id === 'fortune-cookie' && (
-                  <FortuneTemplate
-                    template={fortuneTemplate}
-                    defaults={{
-                      ...Object.fromEntries(
-                        tools
-                          .find((t) => t.id === 'pizza')
-                          ?.fields.map((f) => [f.key, f.default]) ?? [],
-                      ),
-                      width: values.width,
-                      height: values.height,
-                      bleed: values.bleed,
-                    }}
-                    onChange={changeFortuneTemplate}
-                  >
-                    <div className="tool-fields grouped-tool-fields">
-                      {tool.fields
-                        .filter((field) => ['width', 'height', 'bleed'].includes(field.key))
-                        .map((field) => (
-                          <Setting
-                            key={field.key}
-                            field={field}
-                            value={values[field.key] ?? field.default}
-                            update={(value) => change(field.key, value)}
-                          />
-                        ))}
-                    </div>
-                  </FortuneTemplate>
+                  <FortuneProduct
+                    snapshot={fortuneProduct}
+                    componentId={fortuneComponentId}
+                    onChange={changeFortuneProduct}
+                  />
                 )}
                 {tool.id !== 'pizza' && tool.fields.length > 0 && (
                   <ToolSettings
@@ -1340,7 +1308,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                     width={Number(values.width) || 85}
                     height={Number(values.height) || 55}
                     bleed={Number(values.bleed) || 0}
-                    template={fortuneTemplate}
+                    component={selectedFortuneComponent}
                     serial={fortuneSerial}
                     data={fortuneData}
                     file={files[0]}

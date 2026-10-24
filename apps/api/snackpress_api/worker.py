@@ -17,6 +17,12 @@ try:
     action, folder = sys.argv[1], Path(sys.argv[2])
     if action == "inspect":
         result = inspect(folder / "source.pdf").model_dump()
+    elif action == "fortune-guides":
+        from snackpress_tools.fortune_product import placement_guides
+        from snackpress_tools.products import Component
+
+        component = Component.model_validate_json((folder / "component.json").read_text())
+        result = placement_guides(folder, component)
     elif action in {"tools", "tool-preview", "tool-example"}:
         from snackpress_tools.runner import run
 

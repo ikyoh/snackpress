@@ -101,65 +101,63 @@ test('Fortune Cookie : PDF automatique limité, placement interactif et série c
   await expect(page.locator('.artifact-downloads')).toContainText('12 pages')
 })
 
-test('Fortune Cookie : configuration Pizza dans l’aperçu et export sans gabarit', async ({
+test('Fortune Cookie : produit, tracés combinés, composants et format conservé', async ({
   page,
 }) => {
-  test.setTimeout(60000)
+  test.setTimeout(90000)
+  const library = await (await page.request.get('/api/print-catalog/starter')).json()
   await page.route('**/api/auth/me', (route) =>
-    route.fulfill({ json: { id: 'fortune-template-test', email: 'atelier@example.com' } }),
+    route.fulfill({ json: { id: 'fortune-product-test', email: 'atelier@example.com' } }),
   )
-  await page.route('**/api/configurations?tool_id=*', (route) => {
-    const pizza = new URL(route.request().url()).searchParams.get('tool_id') === 'pizza'
-    return route.fulfill({
-      json: pizza
-        ? [
-            {
-              id: 'pizza-oval',
-              tool_id: 'pizza',
-              name: 'Cartes ovales',
-              settings: {
-                shape: 'ellipse',
-                width: 100,
-                height: 60,
-                bleed: 4,
-                safety: 5,
-                unusable_left: 2,
-              },
-              schema_version: 1,
-              is_default: true,
-              revision: 1,
-              created_at: '2026-10-23T12:00:00',
-              updated_at: '2026-10-23T12:00:00',
-            },
-          ]
-        : [],
-    })
+  await page.route('**/api/configurations?tool_id=*', (route) => route.fulfill({ json: [] }))
+  const product = library.catalog.products[0]
+  product.name = 'Cartes atelier'
+  const component = product.variants[0].components[0]
+  Object.assign(component, {
+    width: 100,
+    height: 60,
+    bleed: 4,
+    guides: [
+      { tool: 'pizza', settings: { shape: 'ellipse', safety: 5 } },
+      { tool: 'burrito', settings: { hem: 5, inset: 5 } },
+      { tool: 'taco', settings: { panels: 3 } },
+      { tool: 'perforation', settings: { positions: [20] } },
+    ],
   })
+  const second = structuredClone(component)
+  Object.assign(second, {
+    id: 'sushi-face',
+    name: 'Face Sushi',
+    width: 80,
+    height: 50,
+    bleed: 2,
+    guides: [
+      {
+        tool: 'sushi',
+        settings: {
+          shape: 'rectangle',
+          lines: [{ kind: 'crease', axis: 'vertical', position: 30 }],
+        },
+      },
+    ],
+  })
+  product.variants[0].components.push(second)
+  await page.route('**/api/print-catalog/starter', (route) => route.fulfill({ json: library }))
+  await page.route('**/api/print-catalog', (route) => route.fulfill({ json: library }))
   await page.goto('/?tool=fortune-cookie')
-  await openSettings(page, 'Production')
-  await page.getByLabel('Nombre d’exemplaires').fill('3')
-  const format = page.getByLabel('Source du format')
-  await expect(format).toHaveValue('support')
-  await expect(page.getByLabel('Largeur du support')).toHaveValue('85')
-  await format.selectOption('pizza')
-  await expect(page.getByLabel('Charger une configuration')).toHaveValue('')
-  await expect(page.getByLabel('Largeur du support')).toHaveCount(0)
-  await page.getByLabel('Charger une configuration').selectOption('pizza-oval')
-  await expect(page.getByText('Format fini : 100 × 60 mm')).toBeVisible()
-  await expect(page.getByLabel('Hauteur du support')).toHaveCount(0)
   const placement = page.getByLabel('Placement des repiquages sur le support')
-  const guides = placement.locator('[data-fortune-pizza-guides]')
-  await expect(guides).toBeVisible()
-  await expect(placement).toHaveAttribute('viewBox', '-4 -4 108 68')
-  await expect(guides.locator('g[stroke="#f06e50"] ellipse')).toHaveAttribute('rx', '50')
-  await expect(guides.locator('g[stroke="#183d36"] ellipse')).toHaveAttribute('rx', '45')
-  await expect(guides.locator('g[stroke="#3265c9"] ellipse')).toHaveAttribute('rx', '54')
+  const guides = placement.locator('[data-fortune-product-guides]')
+  await expect(page.getByLabel('Produit', { exact: true })).toHaveValue(product.id)
+  await expect(page.getByLabel('Source du format')).toHaveCount(0)
+  await expect(page.getByLabel('Largeur du support')).toHaveCount(0)
+  await expect(page.getByText('Format fini : 100 × 60 mm')).toBeVisible()
+  await expect(guides).toBeVisible({ timeout: 15000 })
+  await expect(placement).toHaveAttribute('viewBox', '-15 -15 130 90')
   const live = page.getByLabel('Aperçu automatique', { exact: true })
   await expect(live.locator('.pdf-viewer-footer')).toContainText('100 × 60 mm', { timeout: 15000 })
   await expect(live).toContainText(
-    'repères Pizza sont visibles uniquement dans l’aperçu de placement',
+    'tracés du produit sont visibles uniquement dans l’aperçu de placement',
   )
-  await expect(live.locator('canvas[data-ready=true]')).toBeVisible()
   await openSettings(page, 'Repiquages')
   const number = page.getByLabel('Déplacer le repiquage 1')
   await number.scrollIntoViewIfNeeded()
@@ -168,66 +166,76 @@ test('Fortune Cookie : configuration Pizza dans l’aperçu et export sans gabar
   await page.mouse.move(numberBox.x + numberBox.width / 2, numberBox.y + numberBox.height / 2)
   await page.mouse.down()
   await page.mouse.move(
-    numberBox.x + numberBox.width / 2 + (sheetBox.width * 10) / 108,
-    numberBox.y + numberBox.height / 2 + (sheetBox.height * 5) / 68,
+    numberBox.x + numberBox.width / 2 + (sheetBox.width * 10) / 130,
+    numberBox.y + numberBox.height / 2 + (sheetBox.height * 5) / 90,
   )
   await page.mouse.up()
   expect(Number(await page.getByLabel('Position X').inputValue())).toBeCloseTo(16, 0)
   expect(Number(await page.getByLabel('Position Y').inputValue())).toBeCloseTo(54, 0)
-  await page.screenshot({ path: 'test-results/fortune-pizza-preview.png', fullPage: true })
-  await format.selectOption('support')
-  await expect(guides).toHaveCount(0)
-  await expect(page.getByLabel('Largeur du support')).toBeEditable()
-  await expect(page.getByLabel('Largeur du support')).toHaveValue('100')
-  await expect(page.getByLabel('Hauteur du support')).toHaveValue('60')
-  await expect(page.getByLabel('Fond perdu sur chaque côté')).toHaveValue('4')
-  await expect(live.locator('.pdf-viewer-footer')).toContainText('100 × 60 mm', { timeout: 15000 })
-  await format.selectOption('pizza')
-  await page.getByLabel('Charger une configuration').selectOption('pizza-oval')
-  await expect(live.locator('.pdf-viewer-footer')).toContainText('100 × 60 mm', { timeout: 15000 })
+  await page.screenshot({ path: 'test-results/fortune-product-guides.png', fullPage: true })
+  await openSettings(page, 'Produit')
+  await page.getByLabel('Composant à repiquer').selectOption('sushi-face')
+  await expect(placement).toHaveAttribute('viewBox', '-2 -2 84 54', { timeout: 15000 })
+  await page.getByLabel('Position Y').fill('40')
+  await expect(live.locator('.pdf-viewer-footer')).toContainText('80 × 50 mm', { timeout: 15000 })
+  await page.screenshot({ path: 'test-results/fortune-product-sushi.png', fullPage: true })
+  await page.getByLabel('Composant à repiquer').selectOption(component.id)
+  await openSettings(page, 'Production')
+  await page.getByLabel('Nombre d’exemplaires').fill('3')
   const final = page.waitForResponse((r) => r.url().includes('/api/tools/fortune-cookie/run'))
   await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
   const response = await final
   expect(response.status(), await response.text()).toBe(201)
+  const result = await response.json()
   await expect(page.locator('.tool-result .pdf-viewer-footer')).toContainText('100 × 60 mm', {
     timeout: 15000,
   })
   await expect(page.locator('.artifact-downloads')).toContainText('3 pages')
-  await page.screenshot({ path: 'test-results/fortune-pizza-final.png', fullPage: true })
-  // Older Fortune configurations may still carry different manual support dimensions.
+  const config = await (
+    await page.request.get(`/api/tool-jobs/${result.id}/files/reglages.json`)
+  ).json()
+  config.settings.width = 85
+  config.settings.height = 55
   await page.route('**/api/configurations?tool_id=fortune-cookie', (route) =>
     route.fulfill({
       json: [
         {
           id: 'fortune-saved',
           tool_id: 'fortune-cookie',
-          name: 'Billets ronds',
-          settings: {
-            width: 85,
-            height: 55,
-            bleed: 3,
-            count: 3,
-            pizza_template: { shape: 'circle', width: 100, height: 60, bleed: 4 },
-          },
+          name: 'Cartes conservées',
+          settings: config.settings,
           schema_version: 1,
           is_default: true,
           revision: 1,
-          created_at: '2026-10-23T12:00:00',
-          updated_at: '2026-10-23T12:00:00',
+          created_at: '2026-10-24T12:00:00',
+          updated_at: '2026-10-24T12:00:00',
         },
       ],
     }),
   )
   await page.reload()
-  await expect(format).toHaveValue('pizza')
+  await expect(page.getByText('Format fini : 100 × 60 mm')).toBeVisible()
+  await expect(placement).toHaveAttribute('viewBox', '-15 -15 130 90', { timeout: 15000 })
+  await expect(live.locator('.pdf-viewer-footer')).toContainText('100 × 60 mm', { timeout: 15000 })
+  // A saved Pizza configuration keeps its format even after adopting products.
+  config.settings = {
+    count: 3,
+    width: 85,
+    height: 55,
+    bleed: 3,
+    pizza_template: { shape: 'circle', width: 100, height: 60, bleed: 4 },
+  }
+  await page.reload()
   await expect(page.getByText('Format fini : 100 × 100 mm')).toBeVisible()
-  await expect(page.getByLabel('Largeur du support')).toHaveCount(0)
-  await expect(guides.locator('g[stroke="#f06e50"] ellipse')).toHaveAttribute('ry', '50')
+  await expect(page.getByLabel('Produit', { exact: true })).toHaveValue('saved')
+  await expect(placement).toHaveAttribute('viewBox', '-4 -4 108 108', { timeout: 15000 })
   await expect(live.locator('.pdf-viewer-footer')).toContainText('100 × 100 mm', { timeout: 15000 })
 })
 
 test('Fortune Cookie : Layer Cake et coupe en souches', async ({ page }) => {
   test.setTimeout(60000)
+  const library = await (await page.request.get('/api/print-catalog/starter')).json()
+  await page.route('**/api/print-catalog', (route) => route.fulfill({ json: library }))
   await page.route('**/api/auth/me', (route) =>
     route.fulfill({ json: { id: 'fortune-layer-test', email: 'atelier@example.com' } }),
   )
@@ -311,7 +319,7 @@ test('Fortune Cookie : Layer Cake et coupe en souches', async ({ page }) => {
   await expect(page.getByLabel('Document à prévisualiser')).toHaveCount(0)
   await expect(page.locator('.artifact-downloads')).toContainText('Plan de coupe')
   await expect(
-    page.locator('.artifact-downloads a').filter({ hasText: 'Billets imposés' }),
+    page.locator('.artifact-downloads a').filter({ hasText: 'Planche imposée pour coupe' }),
   ).toContainText('250 pages')
   await page.screenshot({ path: 'test-results/fortune-souches-final.png', fullPage: true })
   await enabled.uncheck()

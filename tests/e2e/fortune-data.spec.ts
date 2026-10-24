@@ -6,6 +6,8 @@ test('Fortune Cookie : repiquages CSV, alignements, codes-barres et configuratio
 }) => {
   test.setTimeout(90000)
   let saved: Record<string, unknown> | null = null
+  const library = await (await page.request.get('/api/print-catalog/starter')).json()
+  await page.route('**/api/print-catalog', (route) => route.fulfill({ json: library }))
   await page.route('**/api/auth/me', (route) =>
     route.fulfill({ json: { id: 'fortune-csv', email: 'atelier@example.com' } }),
   )

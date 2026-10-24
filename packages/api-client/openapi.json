@@ -227,6 +227,47 @@
         }
       }
     },
+    "/api/tools/fortune-cookie/guides": {
+      "post": {
+        "tags": [
+          "previews"
+        ],
+        "summary": "Fortune Guides",
+        "operationId": "fortune_guides_api_tools_fortune_cookie_guides_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Component"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlacementGuides"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/tools/{tool_id}/previews": {
       "post": {
         "tags": [
@@ -2019,6 +2060,39 @@
           "rotation"
         ],
         "title": "Placement"
+      },
+      "PlacementGuides": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "x": {
+            "type": "number",
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "title": "Y"
+          },
+          "width": {
+            "type": "number",
+            "title": "Width"
+          },
+          "height": {
+            "type": "number",
+            "title": "Height"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "title": "PlacementGuides"
       },
       "Plan": {
         "properties": {
