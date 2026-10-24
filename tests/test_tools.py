@@ -274,10 +274,13 @@ def test_fortune_sequence_and_count_limit(tmp_path, code):
         text = doc[2].get_textpage().get_text_range()
         assert text.strip() == "SP-0010"
     with pytest.raises(ValueError):
-        MODELS["fortune-cookie"](count=101)
+        MODELS["fortune-cookie"](count=1001)
 
 
-@pytest.mark.parametrize("settings", [{}, {"text": "Votre invitation", "code": "qr"}])
+@pytest.mark.parametrize(
+    "settings",
+    [{}, {"text": "Votre invitation", "code": "qr"}, {"code": "code128", "payload": "{n}"}],
+)
 def test_fortune_only_adds_numbering_by_default_and_with_legacy_settings(tmp_path, settings):
     run(tmp_path, "fortune-cookie", [], {"count": 1, **settings})
     with pdfium.PdfDocument(str(tmp_path / "serie.pdf")) as doc:
@@ -285,9 +288,9 @@ def test_fortune_only_adds_numbering_by_default_and_with_legacy_settings(tmp_pat
     with pikepdf.open(tmp_path / "serie.pdf") as doc:
         operations = pikepdf.parse_content_stream(doc.pages[0])
         # No QR graphics or white masks covering the imported artwork.
-        assert not any(str(op) in {"re", "f", "f*", "Do"} for _, op in operations)
+        assert not any(str(op) in {"f", "f*", "Do"} for _, op in operations)
     saved = json.loads((tmp_path / "reglages.json").read_text())["settings"]
-    assert saved["code"] == "none" and "text" not in saved
+    assert not {"code", "payload", "text"}.intersection(saved)
 
 
 def test_bento_order_rotation_and_signatures_removed(tmp_path, source):

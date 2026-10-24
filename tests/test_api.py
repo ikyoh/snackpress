@@ -87,7 +87,9 @@ def test_tools_catalog_validation_generation_and_delete(api):
     assert client.get(f"{url}/files/gabarit.pdf").status_code == 404
     assert not (module.DATA / data["id"]).exists()
     assert (
-        client.post("/api/tools/fortune-cookie/run", data={"settings": '{"count":101}'}).status_code
+        client.post(
+            "/api/tools/fortune-cookie/run", data={"settings": '{"count":1001}'}
+        ).status_code
         == 422
     )
     assert client.post("/api/tools/tiramisu/run").status_code == 422

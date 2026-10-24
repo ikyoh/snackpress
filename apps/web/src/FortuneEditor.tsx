@@ -55,8 +55,8 @@ export function FortuneTemplate({
         <span>Afficher un gabarit Pizza dans l’aperçu PDF</span>
       </label>
       <p className="field-hint">
-        Chargez une configuration Pizza enregistrée. Le support reprend son format fini. Les repères
-        sont absents du PDF final téléchargé.
+        Chargez une configuration Pizza enregistrée. Le support reprend son format fini et son fond
+        perdu. Les repères sont absents du PDF final téléchargé.
       </p>
       {template && (
         <Configurations
@@ -226,6 +226,7 @@ export function FortunePreview({
   items,
   width,
   height,
+  bleed,
   serial,
   file,
   disabled,
@@ -234,6 +235,7 @@ export function FortunePreview({
   items: Numbering[]
   width: number
   height: number
+  bleed: number
   serial: string
   file?: File
   disabled: boolean
@@ -261,17 +263,44 @@ export function FortunePreview({
         canvas.width = viewport.width
         canvas.height = viewport.height
         await page.render({ canvas, viewport }).promise
-        if (!disposed) setBackground(canvas.toDataURL())
+        const matches = (w: number, h: number) =>
+          Math.abs((viewport.width * 25.4) / 144 - w) <= 0.1 &&
+          Math.abs((viewport.height * 25.4) / 144 - h) <= 0.1
+        let artwork = canvas
+        if (bleed > 0 && matches(width + 2 * bleed, height + 2 * bleed)) {
+          artwork = document.createElement('canvas')
+          const inset = (bleed * 144) / 25.4
+          artwork.width = Math.round((width * 144) / 25.4)
+          artwork.height = Math.round((height * 144) / 25.4)
+          artwork
+            .getContext('2d')!
+            .drawImage(
+              canvas,
+              inset,
+              inset,
+              (width * 144) / 25.4,
+              (height * 144) / 25.4,
+              0,
+              0,
+              artwork.width,
+              artwork.height,
+            )
+        } else if (!matches(width, height)) {
+          throw new Error('Unsupported artwork frame')
+        }
+        if (!disposed) setBackground(artwork.toDataURL())
       } catch {
         if (!disposed)
-          setError('Le fond ne peut pas être affiché. Vérifiez le fichier PDF importé.')
+          setError(
+            'Le cadrage du fond ne peut pas être affiché ici. Contrôlez le fond dans l’aperçu PDF.',
+          )
       }
     })()
     return () => {
       disposed = true
       void task?.destroy()
     }
-  }, [file])
+  }, [file, width, height, bleed])
   const point = (e: React.PointerEvent) => {
     const rect = svg.current!.getBoundingClientRect()
     return {
@@ -343,8 +372,8 @@ export function FortunePreview({
         ))}
       </svg>
       <p>
-        {width} × {height} mm · Premier exemplaire · Les codes sont visibles dans le PDF généré. Les
-        éléments hors du support seront coupés.
+        {width} × {height} mm finis · Premier exemplaire · Le fond perdu de {bleed} mm est visible
+        dans l’aperçu PDF. Les coordonnées des numéros restent relatives au format fini.
       </p>
     </div>
   )

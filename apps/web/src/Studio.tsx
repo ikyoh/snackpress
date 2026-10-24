@@ -368,7 +368,6 @@ function visibleField(tool: string, field: string, values: Values) {
   }
   if (tool === 'taco') return visibleTacoField(field, values)
   if (tool === 'layer-cake' && ['gap', 'flip'].includes(field)) return values.mode === 'repeat'
-  if (tool === 'fortune-cookie' && field === 'payload') return values.code !== 'none'
   return true
 }
 
@@ -521,12 +520,17 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
     if (next) {
       const width = Number(next.width)
       const height = next.shape === 'circle' ? width : Number(next.height)
+      const bleed = Number(next.bleed ?? 3)
       if (![width, height].every((size) => Number.isFinite(size) && size >= 40 && size <= 500)) {
         setError('Fortune Cookie accepte un gabarit Pizza de 40 à 500 mm par côté.')
         return
       }
-      next = { ...next, width, height }
-      setValues((old) => ({ ...old, width, height }))
+      if (!Number.isFinite(bleed) || bleed < 0 || bleed > 20) {
+        setError('Fortune Cookie accepte un fond perdu de 0 à 20 mm sur chaque côté.')
+        return
+      }
+      next = { ...next, width, height, bleed }
+      setValues((old) => ({ ...old, width, height, bleed }))
     }
     setFortuneTemplate(next)
     setResult(null)
@@ -1080,9 +1084,11 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                         Object.fromEntries(
                           tool.fields.map((f) => [
                             f.key,
-                            f.key === 'code' && fields.code === 'qr'
-                              ? 'none'
-                              : (fields[f.key] ?? f.default),
+                            fields[f.key] ??
+                              (f.key === 'bleed'
+                                ? (fields.pizza_template as Values | null)?.bleed
+                                : undefined) ??
+                              f.default,
                           ]),
                         ) as Values,
                       )
@@ -1142,7 +1148,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                             field.key === 'height') ||
                           (tool.id === 'fortune-cookie' &&
                             !!fortuneTemplate &&
-                            ['width', 'height'].includes(field.key))
+                            ['width', 'height', 'bleed'].includes(field.key))
                         }
                       />
                     )}
@@ -1159,6 +1165,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                       ),
                       width: values.width,
                       height: values.height,
+                      bleed: values.bleed,
                     }}
                     onChange={changeFortuneTemplate}
                   />
@@ -1254,6 +1261,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                     items={numberings}
                     width={Number(values.width) || 85}
                     height={Number(values.height) || 55}
+                    bleed={Number(values.bleed) || 0}
                     serial={
                       String(values.prefix) +
                       String(values.start).padStart(Number(values.digits), '0')

@@ -203,7 +203,7 @@ export function LivePreview({
       </div>
       {error && (
         <p className="live-preview-error" role="alert">
-          {error} Le fichier final reste accessible avec le bouton de génération.
+          {error} Vérifiez le fichier et les réglages avant de générer le fichier final.
         </p>
       )}
       {selected && preview ? (

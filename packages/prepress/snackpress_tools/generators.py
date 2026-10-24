@@ -1,11 +1,12 @@
+from contextlib import ExitStack
 from math import ceil
 
 import pikepdf
-from reportlab.graphics.barcode import code128
 from reportlab.lib import colors
 from reportlab.lib.colors import CMYKColorSep
 from reportlab.lib.units import mm
 
+from .artwork_geometry import validate_page
 from .catalog import Numbering, ToolResult
 from .common import CORAL, INK, artifact, new_canvas, open_pdf, report
 from .taco_layout import fold_widths as fold_widths
@@ -553,34 +554,16 @@ def kebab(folder, files, p):
 def fortune(folder, files, p, *, preview=False):
     path = folder / "serie.pdf"
     overlay = folder / "variable.pdf"
-    c = new_canvas(overlay, p.width, p.height)
+    bleed = p.bleed * mm
+    full_width, full_height = (p.width + 2 * p.bleed) * mm, (p.height + 2 * p.bleed) * mm
+    c = new_canvas(overlay, p.width + 2 * p.bleed, p.height + 2 * p.bleed)
     for index in range(p.count):
         serial = p.prefix + str(p.start + index).zfill(p.digits)
-        payload = p.payload.replace("{n}", serial)
-        if p.code == "code128":
-            if not payload.isascii() or any(ord(ch) < 32 for ch in payload):
-                raise ValueError("Code 128 : utilisez uniquement des caractères ASCII imprimables.")
-            bar = code128.Code128(
-                payload, barWidth=0.25 * mm, barHeight=min(12, p.height - 27) * mm
-            )
-            scale = min(1, (p.width - 12) * mm / bar.width)
-            if 0.25 * scale < 0.18:
-                raise ValueError("Code 128 trop long pour ce format. Réduisez son contenu.")
-            c.setFillColor(colors.white)
-            c.rect(
-                5 * mm,
-                12 * mm,
-                min(bar.width, (p.width - 12) * mm) + 2 * mm,
-                min(12, p.height - 27) * mm + 2 * mm,
-                fill=1,
-                stroke=0,
-            )
-            c.setFillColor(INK)
-            c.saveState()
-            c.translate(6 * mm, 13 * mm)
-            c.scale(scale, 1)
-            bar.drawOn(c, 0, 0)
-            c.restoreState()
+        c.saveState()
+        c.translate(bleed, bleed)
+        clip = c.beginPath()
+        clip.rect(0, 0, p.width * mm, p.height * mm)
+        c.clipPath(clip, stroke=0, fill=0)
         numberings = p.numberings if p.numberings is not None else [Numbering(y=p.height - 6)]
         for numbering in numberings:
             c.saveState()
@@ -590,51 +573,54 @@ def fortune(folder, files, p, *, preview=False):
             c.setFont(numbering.font, numbering.size)
             c.drawString(0, 0, serial)
             c.restoreState()
+        c.restoreState()
         c.showPage()
     c.save()
-    if files:
-        with open_pdf(files[0], 1) as background, pikepdf.open(overlay) as variable:
+    with ExitStack() as stack:
+        variable = stack.enter_context(pikepdf.open(overlay))
+        out = pikepdf.Pdf.new()
+        background_form = None
+        if files:
+            background = stack.enter_context(open_pdf(files[0], 1))
             src = background.pages[0]
             if int(src.obj.get("/Rotate", 0)) % 360 or float(src.obj.get("/UserUnit", 1)) != 1:
                 raise ValueError(
                     "Normalisez la rotation et les unités du fond PDF avant utilisation."
                 )
-            box = [float(v) for v in src.trimbox]
-            if (
-                abs((box[2] - box[0]) / mm - p.width) > 0.02
-                or abs((box[3] - box[1]) / mm - p.height) > 0.02
-            ):
-                raise ValueError("Le format du support doit correspondre à la TrimBox du fond PDF.")
-            form = src.as_form_xobject()
-            form.BBox = pikepdf.Array(box)
-            out = pikepdf.Pdf.new()
-            for page in variable.pages:
-                target = out.add_blank_page(page_size=(p.width * mm, p.height * mm))
-                target.add_overlay(form, pikepdf.Rectangle(0, 0, p.width * mm, p.height * mm))
-                target.add_overlay(page)
-            out.save(path)
-    else:
-        overlay.replace(path)
+            region = validate_page(src, p.width, p.height, p.bleed, "Fond PDF Fortune Cookie")
+            box = list(map(float, src.trimbox))
+            background_form = out.copy_foreign(src.as_form_xobject())
+            background_form.BBox = region
+            background_form.Matrix = pikepdf.Array([1, 0, 0, 1, 0, 0])
+        for page in variable.pages:
+            if background_form is None:
+                out.pages.append(page)
+                target = out.pages[-1]
+            else:
+                target = out.add_blank_page(page_size=(full_width, full_height))
+                name = target.add_resource(background_form, pikepdf.Name.XObject)
+                # Keep the artwork at its native scale, including non-zero page origins.
+                target.contents_add(
+                    f"q 1 0 0 1 {bleed - box[0]:.8f} {bleed - box[1]:.8f} cm {name} Do Q".encode()
+                )
+                target.add_overlay(page, pikepdf.Rectangle(0, 0, full_width, full_height))
+            target.TrimBox = pikepdf.Array(
+                [bleed, bleed, bleed + p.width * mm, bleed + p.height * mm]
+            )
+            target.BleedBox = target.MediaBox
+        out.save(path)
     if preview and p.pizza_template:
         work = folder / "gabarit-pizza"
         work.mkdir()
         pizza(work, [], p.pizza_template, guides_only=True)
-        with pikepdf.open(work / "gabarit.pdf") as guide, pikepdf.open(path) as series:
-            out = pikepdf.Pdf.new()
-            template = guide.pages[0]
-            size = (float(template.mediabox[2]), float(template.mediabox[3]))
-            guide_form = template.as_form_xobject()
-            guide_form.BBox = pikepdf.Array(template.mediabox)
+        with pikepdf.open(work / "gabarit.pdf") as guide, pikepdf.open(
+            path, allow_overwriting_input=True
+        ) as series:
+            guide_form = guide.pages[0].as_form_xobject()
+            guide_form.BBox = pikepdf.Array(guide.pages[0].mediabox)
             for page in series.pages:
-                target = out.add_blank_page(page_size=size)
-                # Numbering coordinates remain relative to the finished support.
-                target.add_overlay(page, pikepdf.Rectangle(*map(float, template.trimbox)))
-                target.add_overlay(guide_form, pikepdf.Rectangle(*map(float, template.mediabox)))
-                target.TrimBox = pikepdf.Array(template.trimbox)
-                target.BleedBox = target.MediaBox
-            target_path = folder / "apercu-gabarit.pdf"
-            out.save(target_path)
-        target_path.replace(path)
+                page.add_overlay(guide_form, pikepdf.Rectangle(*map(float, page.mediabox)))
+            series.save(path)
     if p.layer_template:
         from .fortune_imposition import impose
 
@@ -651,7 +637,7 @@ def fortune(folder, files, p, *, preview=False):
         summary=f"{p.count} exemplaires numérotés générés.",
         metrics={"Exemplaires": p.count, "Premier numéro": p.prefix + str(p.start).zfill(p.digits)},
         warnings=[
-            "Contrôler les données, le placement et la lecture des codes sur une épreuve à 100 %."
+            "Contrôler la numérotation, le placement et le fond perdu sur une épreuve à 100 %."
         ],
         artifacts=[artifact(path, "Série PDF personnalisée")],
     )

@@ -183,12 +183,11 @@ class Numbering(Params):
 class Fortune(Params):
     width: float = Field(default=85, ge=40, le=500)
     height: float = Field(default=55, ge=40, le=500)
-    count: int = Field(default=10, ge=1, le=100)
+    count: int = Field(default=10, ge=1, le=1000)
     start: int = Field(default=1, ge=0, le=999999999)
     digits: int = Field(default=4, ge=1, le=12)
     prefix: str = Field(default="SP-", max_length=30)
-    code: Literal["code128", "none"] = "none"
-    payload: str = Field(default="https://example.com/{n}", max_length=500)
+    bleed: float = Field(default=3, ge=0, le=20)
     numberings: list[Numbering] | None = None
     pizza_template: Pizza | None = None
     layer_template: Layer | None = None
@@ -199,9 +198,13 @@ class Fortune(Params):
     def remove_legacy_fields(cls, values):
         if isinstance(values, dict):
             values = dict(values)
-            values.pop("text", None)
-            if values.get("code") == "qr":
-                values["code"] = "none"
+            for key in ("text", "code", "payload"):
+                values.pop(key, None)
+            template = values.get("pizza_template")
+            if isinstance(template, Pizza):
+                values["bleed"] = template.bleed
+            elif isinstance(template, dict):
+                values["bleed"] = template.get("bleed", 3)
         return values
 
     @model_validator(mode="after")
@@ -527,25 +530,24 @@ DEFINITIONS = [
         category="Personnaliser",
         min_files=0,
         max_files=1,
-        description="Générer une série numérotée avec un Code 128 facultatif.",
+        description=(
+            "Générer des billets numérotés, avec fond perdu et imposition en souches facultative."
+        ),
         limit=(
-            "Jusqu’à 100 billets, en pages individuelles ou imposés pour une coupe en souches. "
-            "Fond PDF "
-            "facultatif d’une page ; contrôler la numérotation et les éventuels Code 128."
+            "Jusqu’à 1 000 billets, en pages individuelles ou imposés pour une coupe en souches. "
+            "Fond PDF facultatif d’une page ; contrôler la numérotation et le format fini."
         ),
         fields=[
             number("width", "Largeur du support", 85, low=40, high=500),
             number("height", "Hauteur du support", 55, low=40, high=500),
-            number("count", "Nombre d’exemplaires", 10, "", 1, 100, 1),
+            number(
+                "bleed", "Fond perdu sur chaque côté", 3, low=0, high=20,
+                help="Les dimensions du support sont les dimensions finies, hors fond perdu.",
+            ),
+            number("count", "Nombre d’exemplaires", 10, "", 1, 1000, 1),
             number("start", "Premier numéro", 1, "", 0, 999999999, 1),
             number("digits", "Nombre minimal de chiffres", 4, "", 1, 12, 1),
             text("prefix", "Préfixe", "SP-"),
-            choice(
-                "code", "Code", [("none", "Sans code"), ("code128", "Code 128")]
-            ),
-            text(
-                "payload", "Contenu du code ({n} = numéro avec préfixe)", "https://example.com/{n}"
-            ),
         ],
     ),
     ToolDefinition(

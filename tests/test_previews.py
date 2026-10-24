@@ -104,11 +104,11 @@ def test_expiry_busy_and_invalid_import_cleanup(api, source):
 def test_light_preview_does_not_change_full_resolution_or_count(api, source):
     client, module = api
     preview_id = session(client, "fortune-cookie")
-    data = render(client, preview_id, {"count": 20}).json()
+    data = render(client, preview_id, {"count": 1000}).json()
     assert data["artifacts"][0]["pages"] == 2
-    final = client.post("/api/tools/fortune-cookie/run", data={"settings": '{"count":20}'})
+    final = client.post("/api/tools/fortune-cookie/run", data={"settings": '{"count":1000}'})
     assert final.status_code == 201
-    assert final.json()["artifacts"][0]["pages"] == 20
+    assert final.json()["artifacts"][0]["pages"] == 1000
     preview_id = session(client, "donut", source)
     data = render(client, preview_id, {"dpi": 300}).json()
     assert data["metrics"]["Résolution (dpi)"] == 96
@@ -140,8 +140,8 @@ def test_fortune_pizza_guides_are_only_in_preview(tmp_path, source, shape, with_
     if with_background and shape == "circle":
         # The optional background follows the template's finished dimensions.
         with pikepdf.open(source, allow_overwriting_input=True) as pdf:
-            pdf.pages[0].MediaBox = [0, 0, 85 * 72 / 25.4, 85 * 72 / 25.4]
-            pdf.pages[0].TrimBox = pdf.pages[0].MediaBox
+            pdf.pages[0].MediaBox = [0, 0, 91 * 72 / 25.4, 91 * 72 / 25.4]
+            pdf.pages[0].TrimBox = [3 * 72 / 25.4, 3 * 72 / 25.4, 88 * 72 / 25.4, 88 * 72 / 25.4]
             del pdf.pages[1]
             pdf.save(source)
     elif with_background:
@@ -164,7 +164,7 @@ def test_fortune_pizza_guides_are_only_in_preview(tmp_path, source, shape, with_
         )
     with pikepdf.open(final / "serie.pdf") as pdf:
         assert len(pdf.pages) == 3
-        assert float(pdf.pages[0].MediaBox[2]) == pytest.approx(85 * 72 / 25.4)
+        assert float(pdf.pages[0].MediaBox[2]) == pytest.approx(91 * 72 / 25.4)
         assert "/XObject" not in pdf.pages[0].Resources or with_background
     with pdfium.PdfDocument(str(preview / "serie.pdf")) as pdf:
         assert "SP-0001" in pdf[0].get_textpage().get_text_range()
