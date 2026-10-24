@@ -19,7 +19,7 @@ export type Repiquage = {
 export const newRepiquage = (height: number): Repiquage => ({
   x: 6,
   y: Math.max(0, height - 6),
-  color: '#183d36',
+  color: '#000000',
   size: 8,
   font: 'SnackBold',
   rotation: 0,

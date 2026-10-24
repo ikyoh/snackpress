@@ -197,7 +197,7 @@ class CsvData(Params):
 class Repiquage(Params):
     x: float = Field(default=6, ge=0, le=500)
     y: float = Field(default=49, ge=0, le=500)
-    color: str = Field(default="#183d36", pattern=r"^#[0-9a-fA-F]{6}$")
+    color: str = Field(default="#000000", pattern=r"^#[0-9a-fA-F]{6}$")
     size: float = Field(default=8, ge=1, le=300)
     font: Literal["Snack", "SnackBold", "Helvetica", "Times-Roman", "Courier"] = "SnackBold"
     rotation: float = Field(default=0, ge=-360, le=360)
@@ -215,7 +215,7 @@ class Fortune(Params):
     count: int = Field(default=10, ge=1, le=1000)
     start: int = Field(default=1, ge=0, le=999999999)
     digits: int = Field(default=4, ge=1, le=12)
-    prefix: str = Field(default="SP-", max_length=30)
+    prefix: str = Field(default="", max_length=30)
     bleed: float = Field(default=3, ge=0, le=20)
     repiquages: list[Repiquage] | None = None
     csv_data: CsvData | None = None
@@ -651,7 +651,7 @@ DEFINITIONS = [
             number("count", "Nombre d’exemplaires", 10, "", 1, 1000, 1),
             number("start", "Premier numéro", 1, "", 0, 999999999, 1),
             number("digits", "Nombre minimal de chiffres", 4, "", 1, 12, 1),
-            text("prefix", "Préfixe", "SP-"),
+            text("prefix", "Préfixe", ""),
         ],
     ),
     ToolDefinition(

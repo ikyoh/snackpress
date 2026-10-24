@@ -56,7 +56,7 @@ def test_full_artwork_bleed_is_preserved_without_rescaling(tmp_path, trim, cropp
         assert image.getpixel((round(PT * 4), round(PT * 4))) == (255, 0, 0)
         assert image.getpixel((round(4 * PT * 4), round(4 * PT * 4))) == (0, 0, 255)
         text = page.get_textpage()
-        first = text.get_text_range().index("SP-0001")
+        first = text.get_text_range().index("0001")
         left, _, _, _ = text.get_charbox(first)
         assert left / PT == pytest.approx(9, abs=0.5)  # 6 mm from trim + 3 mm bleed.
         bitmap.close()
@@ -124,7 +124,7 @@ def test_thousand_tickets_remain_in_sequence_after_imposition(tmp_path):
         assert len(pdf.pages) == 1000
     manifest = json.loads((tmp_path / "plan-souches.json").read_text())
     gathered = [row[pose] for pose in range(4) for row in manifest["sheets"] if row[pose]]
-    assert gathered == [f"SP-{index:04d}" for index in range(1, 1001)]
+    assert gathered == [f"{index:04d}" for index in range(1, 1001)]
 
 
 def test_pizza_supplies_the_bleed_and_legacy_codes_are_dropped():

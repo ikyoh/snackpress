@@ -60,12 +60,12 @@ def test_pdf_numbering_is_continuous_after_cutting_the_whole_stack(
                 text = page.get_textpage().get_text_bounded(
                     x * PT, y * PT, (x + 85) * PT, (y + 55) * PT
                 )
-                pile.extend(map(int, re.findall(r"SP-(\d+)", text)))
+                pile.extend(map(int, re.findall(r"\b(\d{4})\b", text)))
             assert pile == list(range(*ranges[pose]))
     plan = json.loads((tmp_path / "plan-souches.json").read_text())
-    assert plan["sheets"][0] == [f"SP-{first:04d}" for first, _ in ranges]
+    assert plan["sheets"][0] == [f"{first:04d}" for first, _ in ranges]
     assert plan["sheets"][-1] == [
-        f"SP-{last - 1:04d}" if last - first == sheets else None for first, last in ranges
+        f"{last - 1:04d}" if last - first == sheets else None for first, last in ranges
     ]
 
 
@@ -116,7 +116,7 @@ def test_rotation_keeps_native_ticket_size_and_readable_numbers(tmp_path):
     assert plan["grid"]["rotation"] == 90
     with pdfium.PdfDocument(str(tmp_path / "imposition.pdf")) as pdf:
         assert len(pdf) == 2
-        assert "SP-0001" in pdf[0].get_textpage().get_text_range()
+        assert "0001" in pdf[0].get_textpage().get_text_range()
     with pikepdf.open(tmp_path / "imposition.pdf") as pdf:
         matrices = [
             list(args) for args, op in pikepdf.parse_content_stream(pdf.pages[0]) if str(op) == "cm"
@@ -139,8 +139,8 @@ def test_preview_stays_on_individual_tickets_and_export_contains_imposed_sheets(
     assert result.artifacts[0].pages == 2
     assert not (preview / "imposition.pdf").exists()
     with pdfium.PdfDocument(str(preview / "serie.pdf")) as pdf:
-        assert "SP-0001" in pdf[0].get_textpage().get_text_range()
-        assert "SP-0026" not in pdf[0].get_textpage().get_text_range()
+        assert "0001" in pdf[0].get_textpage().get_text_range()
+        assert "0026" not in pdf[0].get_textpage().get_text_range()
         bitmap = pdf[0].render(scale=2, rev_byteorder=True)
         pixels = bitmap.to_pil().convert("RGB").get_flattened_data()
         assert not any(r > 140 and g > 90 and b < 60 for r, g, b in pixels)
@@ -149,7 +149,7 @@ def test_preview_stays_on_individual_tickets_and_export_contains_imposed_sheets(
     with pdfium.PdfDocument(str(final / "imposition.pdf")) as pdf:
         assert len(pdf) == 25
         text = pdf[0].get_textpage().get_text_range()
-        assert all(f"SP-{n:04d}" in text for n in [1, 26, 51, 76])
+        assert all(f"{n:04d}" in text for n in [1, 26, 51, 76])
         bitmap = pdf[0].render(scale=2, rev_byteorder=True)
         pixels = bitmap.to_pil().convert("RGB").get_flattened_data()
         assert not any(r > 140 and g > 90 and b < 60 for r, g, b in pixels)

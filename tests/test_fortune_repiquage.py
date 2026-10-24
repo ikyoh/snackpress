@@ -81,7 +81,7 @@ def test_csv_text_sequence_and_both_vector_barcodes_share_the_same_record(tmp_pa
         assert "Zoé" in pdf[1].get_textpage().get_text_range()
         for index, page in enumerate(pdf):
             content = page.get_textpage().get_text_range()
-            assert f"SP-{index + 1:04d}" in content
+            assert f"{index + 1:04d}" in content
             assert f"000{17 + index}" in content
             assert "5901234123457" in content  # Includes the calculated EAN-13 check digit.
             text = page.get_textpage()

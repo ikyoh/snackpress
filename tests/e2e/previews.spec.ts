@@ -83,11 +83,16 @@ test('Fortune Cookie : PDF automatique limité, placement interactif et série c
   await page.goto('/?tool=fortune-cookie')
   await openSettings(page, 'Production')
   await page.getByLabel('Nombre d’exemplaires').fill('12')
+  await openSettings(page, 'Numérotation')
+  await expect(page.getByLabel('Préfixe', { exact: true })).toHaveValue('')
   const live = page.getByLabel('Aperçu automatique', { exact: true })
   await expect(live.locator('canvas[data-ready=true]')).toBeVisible({ timeout: 15000 })
   await expect(live).toContainText('deux premiers exemplaires')
   await expect(page.getByLabel('Déplacer le repiquage 1')).toBeVisible()
   await openSettings(page, 'Repiquages')
+  await expect(
+    page.getByRole('group', { name: 'Repiquage 1', exact: true }).getByLabel('Couleur'),
+  ).toHaveValue('#000000')
   await page
     .getByRole('group', { name: 'Repiquage 1', exact: true })
     .getByLabel('Position X')
@@ -306,13 +311,11 @@ test('Fortune Cookie : Layer Cake et coupe en souches', async ({ page }) => {
   )
   expect(manifestResponse.ok()).toBe(true)
   const manifest = await manifestResponse.json()
-  expect(manifest.sheets[0]).toEqual(['SP-0001', 'SP-0251', 'SP-0501', 'SP-0751'])
+  expect(manifest.sheets[0]).toEqual(['0001', '0251', '0501', '0751'])
   const gathered = [0, 1, 2, 3].flatMap((pose) =>
     manifest.sheets.map((sheet: Array<string | null>) => sheet[pose]).filter(Boolean),
   )
-  expect(gathered).toEqual(
-    Array.from({ length: 1000 }, (_, i) => `SP-${String(i + 1).padStart(4, '0')}`),
-  )
+  expect(gathered).toEqual(Array.from({ length: 1000 }, (_, i) => String(i + 1).padStart(4, '0')))
   await expect(page.locator('.tool-result .pdf-viewer-footer')).toContainText('Page 1 sur 1000', {
     timeout: 15000,
   })

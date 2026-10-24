@@ -272,7 +272,7 @@ def test_fortune_sequence_and_count_limit(tmp_path, code):
     with pdfium.PdfDocument(str(tmp_path / "serie.pdf")) as doc:
         assert len(doc) == 3
         text = doc[2].get_textpage().get_text_range()
-        assert text.strip() == "SP-0010"
+        assert text.strip() == "0010"
     with pytest.raises(ValueError):
         MODELS["fortune-cookie"](count=1001)
 
@@ -284,9 +284,10 @@ def test_fortune_sequence_and_count_limit(tmp_path, code):
 def test_fortune_only_adds_numbering_by_default_and_with_legacy_settings(tmp_path, settings):
     run(tmp_path, "fortune-cookie", [], {"count": 1, **settings})
     with pdfium.PdfDocument(str(tmp_path / "serie.pdf")) as doc:
-        assert doc[0].get_textpage().get_text_range().strip() == "SP-0001"
+        assert doc[0].get_textpage().get_text_range().strip() == "0001"
     with pikepdf.open(tmp_path / "serie.pdf") as doc:
         operations = pikepdf.parse_content_stream(doc.pages[0])
+        assert [0, 0, 0] in [list(args) for args, op in operations if str(op) == "rg"]
         # No QR graphics or white masks covering the imported artwork.
         assert not any(str(op) in {"f", "f*", "Do"} for _, op in operations)
     saved = json.loads((tmp_path / "reglages.json").read_text())["settings"]
@@ -370,7 +371,7 @@ def test_fortune_multiple_numberings_styles_and_sequence(tmp_path):
     )
     with pdfium.PdfDocument(str(tmp_path / "serie.pdf")) as doc:
         for index, page in enumerate(doc):
-            assert page.get_textpage().get_text_range().count(f"SP-{9 + index:04d}") == 3
+            assert page.get_textpage().get_text_range().count(f"{9 + index:04d}") == 3
     with pikepdf.open(tmp_path / "serie.pdf") as doc:
         operations = pikepdf.parse_content_stream(doc.pages[0])
         colors = [list(args) for args, op in operations if str(op) == "rg"]
@@ -406,12 +407,10 @@ def test_fortune_numberings_without_fixed_limit_and_empty_list(tmp_path):
     )
     with pikepdf.open(tmp_path / "serie.pdf") as doc:
         operations = pikepdf.parse_content_stream(doc.pages[0])
-        assert (
-            sum(str(op) == "Tj" and bytes(args[0]) == b"SP-0001" for args, op in operations) == 125
-        )
+        assert sum(str(op) == "Tj" and bytes(args[0]) == b"0001" for args, op in operations) == 125
     run(tmp_path, "fortune-cookie", [], {"count": 1, "code": "none", "numberings": []})
     with pdfium.PdfDocument(str(tmp_path / "serie.pdf")) as doc:
-        assert "SP-0001" not in doc[0].get_textpage().get_text_range()
+        assert "0001" not in doc[0].get_textpage().get_text_range()
 
 
 @pytest.mark.parametrize(

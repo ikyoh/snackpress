@@ -169,7 +169,7 @@ def test_fortune_pdf_preview_and_export_have_no_pizza_guides(
         assert float(pdf.pages[0].MediaBox[2]) == pytest.approx(91 * 72 / 25.4)
         assert "/XObject" not in pdf.pages[0].Resources or with_background
     with pdfium.PdfDocument(str(preview / "serie.pdf")) as pdf:
-        assert "SP-0001" in pdf[0].get_textpage().get_text_range()
+        assert "0001" in pdf[0].get_textpage().get_text_range()
         image = pdf[0].render(scale=2, rev_byteorder=True).to_pil().convert("RGB")
         pixels = image.get_flattened_data()
         assert not any(r > 140 and g > 90 and b < 60 for r, g, b in pixels)
