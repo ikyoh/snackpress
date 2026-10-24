@@ -348,23 +348,6 @@ export const newVariant = (): Variant => ({
   components: [newComponent()],
   finish_ids: [],
 })
-const newTickets = (height: number): Tickets => ({
-  start: 1,
-  count: 50,
-  digits: 4,
-  prefix: '',
-  suffix: '',
-  per_book: 25,
-  binding: 'loose',
-  placements: [
-    { x: 5, y: height - 10, size: 10, offset: 0, face: 1 },
-    { x: 40, y: height - 10, size: 10, offset: 0, face: 1 },
-  ],
-  code: 'none',
-  payload: '{n}',
-  code_x: 60,
-  code_y: 5,
-})
 
 export function usePrintCatalog() {
   const { user, loading: accountLoading } = useAccount()
@@ -1089,16 +1072,6 @@ export function VariantEditor({
           </p>
           {!guidesOnly && (
             <>
-              <label className="checkbox-label">
-                <input
-                  type="checkbox"
-                  checked={!!c.tickets}
-                  onChange={(e) =>
-                    update(index, { tickets: e.target.checked ? newTickets(c.height) : null })
-                  }
-                />
-                <span>Billets ou coupons numérotés</span>
-              </label>
               {c.tickets && (
                 <TicketEditor
                   value={c.tickets}

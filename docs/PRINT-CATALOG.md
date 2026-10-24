@@ -38,6 +38,8 @@ Le BAT contient une présentation seule et une présentation avec tracés pour c
 
 ## Billets détachables numérotés
 
+L’option « Billets ou coupons numérotés » n’est plus proposée dans la fiche produit ni dans le mode libre du BAT. Les produits déjà configurés avec une numérotation conservent leurs réglages et leur génération de série.
+
 Le produit pilote comporte une souche et un billet dans un même visuel, une perforation verticale à 30 mm et deux positions portant le même numéro. Les coordonnées partent du coin supérieur gauche du format fini.
 
 Réglages : premier numéro, quantité de 1 à 100, chiffres, préfixe, suffixe, une à vingt positions, taille et face pour chaque position. Un décalage permet une séquence différente sur une position. Pour un verso, ajouter un second emplacement visuel d’une page. Les billets utilisent un recto et un verso facultatif dans deux fichiers distincts.
