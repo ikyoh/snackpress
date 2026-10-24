@@ -22,6 +22,8 @@ Mode Operate. Réglages à gauche et résultat à droite ; empilement sur mobile
 
 ## Interactions et accessibilité
 
+La création d’un produit suit un assistant intégré à la page, en quatre étapes : Produit, Format et papier, Fichiers et tracés, Vérification. Une seule étape apparaît à la fois ; les retours conservent les saisies et les liens Modifier du récapitulatif ramènent à la bonne étape. Les noms techniques de déclinaison et de composant ne sont pas demandés pendant la création. Les PDF attendus se choisissent par usage (recto, recto verso), les tracés se configurent à la demande, et le récapitulatif précède l’enregistrement. La fiche détaillée conserve les réglages avancés. Le focus suit le titre de l’étape, les champs utilisent la validation native et le parcours s’empile sur mobile.
+
 L’en-tête commun au catalogue, aux outils et à l’imposition regroupe « Tous les outils », « Produits d’impression » et l’accès au compte. Les trois commandes utilisent une hauteur de 48 px, la même typographie et les mêmes espacements. La destination active est indiquée visuellement et par `aria-current`. Les accès restent visibles sur mobile, sur deux colonnes puis une seule sur les écrans les plus étroits.
 
 Commandes bombées qui s’enfoncent au clic, cartes légèrement soulevées au survol, confirmation ponctuelle par une transition jaune/verte après un vrai traitement réussi. Focus clavier violet visible, contrastes élevés pour les textes utiles, cibles tactiles larges, mouvements désactivés lorsque l’utilisateur demande une réduction des animations. Les pictogrammes de snacks sont décoratifs ; les noms d’outils restent du texte accessible.

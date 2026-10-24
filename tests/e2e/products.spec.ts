@@ -1,5 +1,99 @@
 import { expect, test } from '@playwright/test'
 
+test('assistant produit : validation, retours, annulation et création recto verso', async ({
+  page,
+}) => {
+  await page.goto('/?view=products')
+  await page.getByRole('button', { name: 'Ajouter un produit', exact: true }).click()
+  await page.getByLabel('Nom du produit', { exact: true }).fill('Produit abandonné')
+  await page.getByRole('button', { name: 'Annuler la création' }).click()
+  await expect(page.getByRole('button', { name: 'Produit abandonné' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Ajouter un produit', exact: true }).click()
+  const assistant = page.getByRole('region', { name: 'Assistant de création de produit' })
+  await expect(page.getByLabel('Nom de la déclinaison')).toHaveCount(0)
+  await expect(page.getByLabel('Nom du composant')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Continuer', exact: true }).click()
+  await expect(assistant.getByRole('heading', { name: 'Produit', exact: true })).toBeVisible()
+  expect(
+    await page
+      .getByLabel('Nom du produit', { exact: true })
+      .evaluate((input: HTMLInputElement) => input.validity.valueMissing),
+  ).toBe(true)
+  await page.getByLabel('Nom du produit', { exact: true }).fill('Carte guidée')
+  await page.getByLabel('Nom du produit', { exact: true }).press('Enter')
+  await expect(
+    assistant.getByRole('heading', { name: 'Format et papier', exact: true }),
+  ).toBeFocused()
+  await page.getByLabel('Largeur finie (mm)', { exact: true }).fill('100')
+  await page.getByLabel('Hauteur finie (mm)', { exact: true }).fill('70')
+  await page.getByLabel('Support matière', { exact: true }).selectOption('mat350')
+  await test.info().attach('wizard-desktop-layout', {
+    contentType: 'application/json',
+    body: JSON.stringify(
+      await assistant.evaluate((element) => {
+        const body = element.querySelector('.print-wizard-body > p')!
+        const format = element.querySelector('.print-wizard-format')!
+        const style = getComputedStyle(body)
+        const layout = getComputedStyle(format)
+        return {
+          fontSize: style.fontSize,
+          color: style.color,
+          background: getComputedStyle(element).backgroundColor,
+          gap: layout.gap,
+          columns: layout.gridTemplateColumns,
+        }
+      }),
+    ),
+  })
+  await page.screenshot({ path: 'test-results/product-wizard-format-desktop.png', fullPage: true })
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await test.info().attach('wizard-mobile-layout', {
+    contentType: 'application/json',
+    body: JSON.stringify(
+      await assistant.evaluate((element) => {
+        const layout = getComputedStyle(element.querySelector('.print-wizard-format')!)
+        return {
+          width: element.getBoundingClientRect().width,
+          gap: layout.gap,
+          columns: layout.gridTemplateColumns,
+        }
+      }),
+    ),
+  })
+  await page.screenshot({ path: 'test-results/product-wizard-format-mobile.png', fullPage: true })
+  await page.getByRole('button', { name: 'Continuer', exact: true }).click()
+  await page.getByLabel('Fichiers PDF attendus', { exact: true }).selectOption('combined')
+  await page.getByLabel('Ajouter un tracé', { exact: true }).selectOption('sushi')
+  await page.getByLabel('Contour', { exact: true }).selectOption('circle')
+  await page.getByRole('button', { name: 'Précédent', exact: true }).click()
+  await expect(page.getByLabel('Diamètre fini (mm)')).toHaveValue('100')
+  await page.getByLabel('Diamètre fini (mm)').fill('85')
+  await page.getByRole('button', { name: 'Continuer', exact: true }).click()
+  await expect(page.getByLabel('Fichiers PDF attendus', { exact: true })).toHaveValue('combined')
+  await expect(page.getByLabel('Contour', { exact: true })).toHaveValue('circle')
+  await page.getByLabel('Contour', { exact: true }).selectOption('rectangle')
+  await page.getByRole('button', { name: 'Ajouter un tracé', exact: true }).click()
+  await page.getByLabel('Position du tracé 1', { exact: true }).fill('20')
+  await page.getByRole('button', { name: 'Continuer', exact: true }).click()
+  await page.getByRole('button', { name: 'Modifier le format et le papier', exact: true }).click()
+  await expect(page.getByLabel('Hauteur finie (mm)', { exact: true })).toHaveValue('85')
+  await page.getByLabel('Hauteur finie (mm)', { exact: true }).fill('55')
+  await page.getByRole('button', { name: 'Continuer', exact: true }).click()
+  await expect(page.getByLabel('Position du tracé 1', { exact: true })).toHaveValue('20')
+  await page.getByRole('button', { name: 'Continuer', exact: true }).click()
+  await expect(page.getByText('85 × 55 mm', { exact: true })).toBeVisible()
+  await expect(page.getByText('Recto verso · 1 PDF de deux pages', { exact: true })).toBeVisible()
+  await page.screenshot({ path: 'test-results/product-wizard-review-mobile.png', fullPage: true })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.screenshot({ path: 'test-results/product-wizard-review-desktop.png', fullPage: true })
+  await page.getByRole('button', { name: 'Créer le produit', exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('Produit ajouté au catalogue temporaire')
+  await expect(page.getByLabel('Nom du produit', { exact: true })).toHaveValue('Carte guidée')
+  await expect(page.getByLabel('Pages attendues', { exact: true })).toHaveValue('2')
+  await expect(page.getByLabel('Position du tracé 1', { exact: true })).toHaveValue('20')
+})
+
 test('apparence des finitions : zone, alpha, dégradé et tracé bicolore', async ({ page }) => {
   await page.goto('/?view=products')
   await page.getByRole('button', { name: 'Façonnages et finitions', exact: true }).click()

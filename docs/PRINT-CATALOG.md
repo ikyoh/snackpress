@@ -4,6 +4,10 @@ Accès : **Produits d’impression** dans l’en-tête (`/?view=products`). Le c
 
 ## Bibliothèques et produits
 
+**Ajouter un produit** ouvre un assistant en quatre étapes : nom et catégorie, format et papier, fichiers et tracés, puis vérification. Le format est personnalisé par défaut ; un gabarit Pizza enregistré peut aussi être choisi. Les fichiers attendus se définissent en un choix : recto seul, recto verso dans deux PDF ou recto verso dans un PDF de deux pages. Sushi et les autres tracés restent accessibles dans la troisième étape.
+
+Les boutons Précédent et Modifier conservent les saisies. Annuler revient au catalogue sans ajouter de produit. **Créer le produit** l’enregistre directement dans le compte connecté ; sans compte, il est ajouté au catalogue temporaire. En cas d’échec, le récapitulatif et les réglages sont conservés pour réessayer. Une déclinaison Standard et un composant portant le nom du produit sont créés automatiquement. Les finitions, les autres déclinaisons et les composants supplémentaires se règlent ensuite dans la fiche détaillée. Les éventuelles autres modifications du catalogue sont également enregistrées, ce qui est annoncé dans le récapitulatif.
+
 - Catégories et sous-catégories modifiables ; suppression refusée tant qu’une catégorie est utilisée.
 - Supports matières réutilisables : famille, grammage et épaisseur facultatifs.
 - Façonnages et finitions : supports compatibles, exclusions entre finitions et PDF de masque facultatif. Une finition sans masque reste une instruction de fabrication.

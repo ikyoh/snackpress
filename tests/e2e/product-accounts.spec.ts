@@ -47,6 +47,10 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
   await expect(page.getByRole('button', { name: 'Mon compte', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Ajouter un produit', exact: true }).click()
   await page.getByLabel('Nom du produit', { exact: true }).fill('Invitation atelier')
+  for (let step = 0; step < 3; step++)
+    await page.getByRole('button', { name: 'Continuer', exact: true }).click()
+  await page.getByRole('button', { name: 'Créer le produit', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Produit enregistré' })).toBeVisible()
   await page.getByLabel('Nom de la déclinaison', { exact: true }).fill('Petit format')
   await page.getByLabel('Support matière', { exact: true }).selectOption('mat350')
   await expect(
@@ -97,26 +101,20 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
   await expect(page.getByRole('button', { name: 'Libre sauvegardé' })).toBeVisible()
   await page.getByRole('button', { name: 'Ajouter un produit', exact: true }).click()
   await page.getByLabel('Nom du produit', { exact: true }).fill('Carte Sushi')
+  await page.getByRole('button', { name: 'Continuer', exact: true }).click()
   await page.getByLabel('Support matière', { exact: true }).selectOption('mat350')
+  await page.getByLabel('Définir le format').selectOption('pizza')
   await page
     .getByLabel('Gabarit Pizza', { exact: true })
     .selectOption(`${fixed.id}:${fixed.revision}`)
+  await page.getByRole('button', { name: 'Continuer', exact: true }).click()
   await page.getByLabel('Ajouter un tracé', { exact: true }).selectOption('perforation')
   await expect(
     page.getByLabel('Ajouter un tracé', { exact: true }).locator('option[value=sushi]'),
   ).toHaveText('Sushi — découpe et rainage — remplace Pizza')
   await page.getByLabel('Ajouter un tracé', { exact: true }).selectOption('sushi')
-  await expect(page.getByLabel('Outil de découpe', { exact: true })).toHaveValue('sushi')
-  await expect(page.getByLabel('Gabarit Pizza', { exact: true })).toHaveCount(0)
   await expect(page.getByLabel('Sens des perforations')).toHaveValue('vertical')
-  await expect(page.getByLabel('Largeur finie (mm)', { exact: true })).toHaveValue('85')
-  await expect(page.getByLabel('Fond perdu attendu (mm)')).toHaveValue('3')
-  await page.getByLabel('Contour', { exact: true }).selectOption('circle')
-  await page.getByLabel('Diamètre fini (mm)').fill('90')
   await page.getByLabel('Contour', { exact: true }).selectOption('rectangle')
-  await expect(page.getByLabel('Hauteur finie (mm)', { exact: true })).toHaveValue('90')
-  await page.getByLabel('Largeur finie (mm)', { exact: true }).fill('85')
-  await page.getByLabel('Hauteur finie (mm)', { exact: true }).fill('55')
   await page.getByLabel('Rayon des coins (mm)').fill('5')
   for (const [index, [kind, axis, position]] of [
     ['crease', 'vertical', '20'],
@@ -127,8 +125,20 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
     await page.getByLabel(`Orientation du tracé ${index + 1}`, { exact: true }).selectOption(axis)
     await page.getByLabel(`Position du tracé ${index + 1}`, { exact: true }).fill(position)
   }
-  await page.getByRole('button', { name: 'Enregistrer le catalogue', exact: true }).click()
-  await expect(page.getByRole('status')).toContainText('Catalogue enregistré')
+  await page.getByRole('button', { name: 'Continuer', exact: true }).click()
+  await expect(page.getByText('85 × 55 mm', { exact: true })).toBeVisible()
+  await expect(page.getByText('Perforations, Sushi', { exact: true })).toBeVisible()
+  await page.route(
+    '**/api/print-catalog',
+    (route) =>
+      route.fulfill({ status: 503, json: { detail: 'Enregistrement indisponible. Réessayez.' } }),
+    { times: 1 },
+  )
+  await page.getByRole('button', { name: 'Créer le produit', exact: true }).click()
+  await expect(page.getByRole('alert')).toContainText('Enregistrement indisponible')
+  await expect(page.getByRole('heading', { name: 'Carte Sushi', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Créer le produit', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Produit enregistré' })).toBeVisible()
   await page.reload()
   await page.getByRole('button', { name: 'Carte Sushi' }).click()
   await expect(page.getByLabel('Outil de découpe', { exact: true })).toHaveValue('sushi')

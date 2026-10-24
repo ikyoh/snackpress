@@ -14,6 +14,7 @@ import {
 import type { components } from '../../../packages/api-client/schema'
 import { PizzaTemplatePicker, usePizzaTemplates } from './PizzaTemplates'
 import { visibleTacoField } from './taco'
+import { ProductCreationWizard } from './ProductCreationWizard'
 import './print-catalog.css'
 
 type Tool = components['schemas']['ToolDefinition']
@@ -705,7 +706,7 @@ function TicketEditor({ value, onChange }: { value: Tickets; onChange: (v: Ticke
   )
 }
 
-function ComponentDimensions({
+export function ComponentDimensions({
   component: c,
   onChange,
 }: {
@@ -765,6 +766,7 @@ export function VariantEditor({
   tools,
   onChange,
   choosePizza = false,
+  guidesOnly = false,
 }: {
   variant: Variant
   materials: Material[]
@@ -772,8 +774,9 @@ export function VariantEditor({
   tools: Tool[]
   onChange: (v: Variant) => void
   choosePizza?: boolean
+  guidesOnly?: boolean
 }) {
-  const pizzaTemplates = usePizzaTemplates(choosePizza)
+  const pizzaTemplates = usePizzaTemplates(choosePizza && !guidesOnly)
   function update(index: number, patch: Partial<Component>) {
     onChange({
       ...variant,
@@ -792,138 +795,152 @@ export function VariantEditor({
   }
   return (
     <>
-      <Text
-        label="Nom de la déclinaison"
-        value={variant.name}
-        onChange={(name) => onChange({ ...variant, name })}
-      />
-      <Checks
-        title="Options et finitions sélectionnées"
-        rows={finishes}
-        selected={variant.finish_ids}
-        onChange={(finish_ids) => onChange({ ...variant, finish_ids })}
-      />
-      {variant.components.map((c, index) => (
-        <fieldset className="print-block" key={c.id}>
-          <legend>
-            Composant {index + 1} — {c.name}
-          </legend>
-          <div className="tool-fields">
-            <Text
-              label="Nom du composant"
-              value={c.name}
-              onChange={(name) => update(index, { name })}
-            />
-            <Select
-              label="Support matière"
-              value={c.material_id}
-              onChange={(material_id) => update(index, { material_id })}
-            >
-              <option value="">À confirmer</option>
-              {materials.map((m) => (
-                <option value={m.id} key={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </Select>
-            {(!choosePizza || c.guides.some((g) => g.tool === 'sushi')) && (
-              <ComponentDimensions component={c} onChange={(patch) => update(index, patch)} />
-            )}
-          </div>
-          {choosePizza && (
-            <Select
-              label="Outil de découpe"
-              value={c.guides.some((g) => g.tool === 'sushi') ? 'sushi' : 'pizza'}
-              onChange={(tool) => selectCuttingTool(index, tool)}
-            >
-              <option value="pizza">Pizza — gabarit enregistré</option>
-              <option value="sushi">Sushi — découpe et rainage</option>
-            </Select>
-          )}
-          {choosePizza && !c.guides.some((g) => g.tool === 'sushi') && (
-            <PizzaTemplatePicker
-              component={c}
-              source={pizzaTemplates}
-              onChange={(patch) => update(index, patch)}
-            />
-          )}
-          <Num
-            label="Pagination par multiple de"
-            value={c.page_multiple || 1}
-            min={1}
-            max={32}
-            step="1"
-            onChange={(page_multiple) => update(index, { page_multiple })}
+      {!guidesOnly && (
+        <>
+          <Text
+            label="Nom de la déclinaison"
+            value={variant.name}
+            onChange={(name) => onChange({ ...variant, name })}
           />
-          <h4>Fichiers PDF attendus</h4>
-          <p className="field-hint">
-            Un emplacement par fichier, avec pagination exacte. Pour fournir recto et verso
-            ensemble, créez un emplacement de deux pages. Une finition avec masque ajoute
-            automatiquement un PDF par composant.
-          </p>
-          {c.slots.map((s, slotIndex) => (
-            <div className="print-slot" key={s.id}>
-              <Text
-                label={`Emplacement ${slotIndex + 1}`}
-                value={s.name}
-                onChange={(name) =>
-                  update(index, {
-                    slots: c.slots.map((s, i) => (i === slotIndex ? { ...s, name } : s)),
-                  })
-                }
-              />
+          <Checks
+            title="Options et finitions sélectionnées"
+            rows={finishes}
+            selected={variant.finish_ids}
+            onChange={(finish_ids) => onChange({ ...variant, finish_ids })}
+          />
+        </>
+      )}
+      {variant.components.map((c, index) => (
+        <fieldset
+          className={guidesOnly ? 'print-guide-editor' : 'print-block'}
+          key={c.id}
+          aria-label={guidesOnly ? 'Tracés du produit' : undefined}
+        >
+          {!guidesOnly && (
+            <>
+              <legend>
+                Composant {index + 1} — {c.name}
+              </legend>
+              <div className="tool-fields">
+                <Text
+                  label="Nom du composant"
+                  value={c.name}
+                  onChange={(name) => update(index, { name })}
+                />
+                <Select
+                  label="Support matière"
+                  value={c.material_id}
+                  onChange={(material_id) => update(index, { material_id })}
+                >
+                  <option value="">À confirmer</option>
+                  {materials.map((m) => (
+                    <option value={m.id} key={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </Select>
+                {(!choosePizza || c.guides.some((g) => g.tool === 'sushi')) && (
+                  <ComponentDimensions component={c} onChange={(patch) => update(index, patch)} />
+                )}
+              </div>
+              {choosePizza && (
+                <Select
+                  label="Outil de découpe"
+                  value={c.guides.some((g) => g.tool === 'sushi') ? 'sushi' : 'pizza'}
+                  onChange={(tool) => selectCuttingTool(index, tool)}
+                >
+                  <option value="pizza">Pizza — gabarit enregistré</option>
+                  <option value="sushi">Sushi — découpe et rainage</option>
+                </Select>
+              )}
+              {choosePizza && !c.guides.some((g) => g.tool === 'sushi') && (
+                <PizzaTemplatePicker
+                  component={c}
+                  source={pizzaTemplates}
+                  onChange={(patch) => update(index, patch)}
+                />
+              )}
               <Num
-                label="Pages attendues"
-                value={s.pages}
+                label="Pagination par multiple de"
+                value={c.page_multiple || 1}
                 min={1}
-                max={200}
+                max={32}
                 step="1"
-                onChange={(pages) =>
-                  update(index, {
-                    slots: c.slots.map((s, i) => (i === slotIndex ? { ...s, pages } : s)),
-                  })
-                }
+                onChange={(page_multiple) => update(index, { page_multiple })}
               />
-              <Select
-                label="Rôle"
-                value={s.role}
-                onChange={(role) =>
-                  update(index, {
-                    slots: c.slots.map((s, i) =>
-                      i === slotIndex ? { ...s, role: role as Slot['role'] } : s,
-                    ),
-                  })
-                }
-              >
-                <option value="visual">Visuel</option>
-                <option value="mask">Masque technique</option>
-              </Select>
+              <h4>Fichiers PDF attendus</h4>
+              <p className="field-hint">
+                Un emplacement par fichier, avec pagination exacte. Pour fournir recto et verso
+                ensemble, créez un emplacement de deux pages. Une finition avec masque ajoute
+                automatiquement un PDF par composant.
+              </p>
+              {c.slots.map((s, slotIndex) => (
+                <div className="print-slot" key={s.id}>
+                  <Text
+                    label={`Emplacement ${slotIndex + 1}`}
+                    value={s.name}
+                    onChange={(name) =>
+                      update(index, {
+                        slots: c.slots.map((s, i) => (i === slotIndex ? { ...s, name } : s)),
+                      })
+                    }
+                  />
+                  <Num
+                    label="Pages attendues"
+                    value={s.pages}
+                    min={1}
+                    max={200}
+                    step="1"
+                    onChange={(pages) =>
+                      update(index, {
+                        slots: c.slots.map((s, i) => (i === slotIndex ? { ...s, pages } : s)),
+                      })
+                    }
+                  />
+                  <Select
+                    label="Rôle"
+                    value={s.role}
+                    onChange={(role) =>
+                      update(index, {
+                        slots: c.slots.map((s, i) =>
+                          i === slotIndex ? { ...s, role: role as Slot['role'] } : s,
+                        ),
+                      })
+                    }
+                  >
+                    <option value="visual">Visuel</option>
+                    <option value="mask">Masque technique</option>
+                  </Select>
+                  <Button
+                    variant="outline"
+                    className="print-action-button print-action-button-remove"
+                    type="button"
+                    disabled={c.slots.length <= 1}
+                    aria-label={`Retirer l’emplacement ${slotIndex + 1}`}
+                    onClick={() =>
+                      update(index, { slots: c.slots.filter((_, i) => i !== slotIndex) })
+                    }
+                  >
+                    <Trash2 size={18} aria-hidden="true" /> Retirer
+                  </Button>
+                </div>
+              ))}
               <Button
                 variant="outline"
-                className="print-action-button print-action-button-remove"
+                className="print-action-button"
                 type="button"
-                disabled={c.slots.length <= 1}
-                aria-label={`Retirer l’emplacement ${slotIndex + 1}`}
-                onClick={() => update(index, { slots: c.slots.filter((_, i) => i !== slotIndex) })}
+                disabled={c.slots.length >= 30}
+                onClick={() =>
+                  update(index, {
+                    slots: [...c.slots, { id: newId(), name: 'Verso', pages: 1, role: 'visual' }],
+                  })
+                }
               >
-                <Trash2 size={18} aria-hidden="true" /> Retirer
+                <Plus size={18} aria-hidden="true" />
+                Ajouter un emplacement
               </Button>
-            </div>
-          ))}
-          <Button
-            variant="outline"
-            className="print-action-button"
-            type="button"
-            disabled={c.slots.length >= 30}
-            onClick={() =>
-              update(index, {
-                slots: [...c.slots, { id: newId(), name: 'Verso', pages: 1, role: 'visual' }],
-              })
-            }
-          >
-            <Plus size={18} aria-hidden="true" />
-            Ajouter un emplacement
-          </Button>
+            </>
+          )}
           <h4>Gabarits et tracés</h4>
           {c.guides.map((g, gi) => (
             <fieldset className="print-block print-guide" key={g.tool}>
@@ -1083,45 +1100,57 @@ export function VariantEditor({
             {c.guides.some((g) => g.tool === 'pizza') &&
               ' Choisir Sushi remplace Pizza et conserve les autres tracés.'}
           </p>
-          <label className="checkbox-label">
-            <input
-              type="checkbox"
-              checked={!!c.tickets}
-              onChange={(e) =>
-                update(index, { tickets: e.target.checked ? newTickets(c.height) : null })
-              }
-            />
-            <span>Billets ou coupons numérotés</span>
-          </label>
-          {c.tickets && (
-            <TicketEditor value={c.tickets} onChange={(tickets) => update(index, { tickets })} />
+          {!guidesOnly && (
+            <>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={!!c.tickets}
+                  onChange={(e) =>
+                    update(index, { tickets: e.target.checked ? newTickets(c.height) : null })
+                  }
+                />
+                <span>Billets ou coupons numérotés</span>
+              </label>
+              {c.tickets && (
+                <TicketEditor
+                  value={c.tickets}
+                  onChange={(tickets) => update(index, { tickets })}
+                />
+              )}
+              <Button
+                variant="outline"
+                className="print-action-button print-action-button-remove"
+                type="button"
+                disabled={variant.components.length <= 1}
+                onClick={() =>
+                  onChange({
+                    ...variant,
+                    components: variant.components.filter((_, i) => i !== index),
+                  })
+                }
+              >
+                <Trash2 size={18} aria-hidden="true" />
+                Retirer ce composant
+              </Button>
+            </>
           )}
-          <Button
-            variant="outline"
-            className="print-action-button print-action-button-remove"
-            type="button"
-            disabled={variant.components.length <= 1}
-            onClick={() =>
-              onChange({ ...variant, components: variant.components.filter((_, i) => i !== index) })
-            }
-          >
-            <Trash2 size={18} aria-hidden="true" />
-            Retirer ce composant
-          </Button>
         </fieldset>
       ))}
-      <Button
-        variant="outline"
-        className="print-action-button"
-        type="button"
-        disabled={variant.components.length >= 12}
-        onClick={() =>
-          onChange({ ...variant, components: [...variant.components, newComponent()] })
-        }
-      >
-        <Plus size={18} aria-hidden="true" />
-        Ajouter un composant
-      </Button>
+      {!guidesOnly && (
+        <Button
+          variant="outline"
+          className="print-action-button"
+          type="button"
+          disabled={variant.components.length >= 12}
+          onClick={() =>
+            onChange({ ...variant, components: [...variant.components, newComponent()] })
+          }
+        >
+          <Plus size={18} aria-hidden="true" />
+          Ajouter un composant
+        </Button>
+      )}
     </>
   )
 }
@@ -1203,10 +1232,15 @@ function CatalogManager({
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [creating, setCreating] = useState(false)
   useEffect(() => {
     if (source.library) {
       setDraft(clone(source.library.catalog))
-      setSelectedId(source.library.catalog.products[0]?.id || '')
+      setSelectedId((current) =>
+        source.library!.catalog.products.some((p) => p.id === current)
+          ? current
+          : source.library!.catalog.products[0]?.id || '',
+      )
     }
   }, [source.library])
   const product = draft?.products.find((p) => p.id === selectedId)
@@ -1233,18 +1267,35 @@ function CatalogManager({
       setError((e as Error).message)
     }
   }
+  async function createProduct(product: Product) {
+    if (!draft) return
+    const next = { ...draft, products: [...draft.products, product] }
+    const catalog = signedIn ? (await source.save(next)).catalog : next
+    setDraft(catalog)
+    setSelectedId(product.id)
+    setVariantIndex(0)
+    setCreating(false)
+    setNotice(
+      signedIn
+        ? 'Produit enregistré dans votre compte.'
+        : 'Produit ajouté au catalogue temporaire de cette page.',
+    )
+  }
   return (
-    <main className="studio-main print-catalog">
+    <main className={`studio-main print-catalog${creating ? ' print-catalog-creating' : ''}`}>
       <div className="catalog-intro">
         <div>
           <h1>
-            Produits d’impression<span>.</span>
+            {creating ? 'Créer un produit' : 'Produits d’impression'}
+            <span>.</span>
           </h1>
           <p className="catalog-description">
-            Les matières, les fichiers et les tracés de vos prochains BAT.
+            {creating
+              ? 'Un produit prêt pour vos prochains BAT, en quatre étapes.'
+              : 'Les matières, les fichiers et les tracés de vos prochains BAT.'}
           </p>
         </div>
-        <a href="/?tool=burger">Créer un BAT →</a>
+        {!creating && <a href="/?tool=burger">Créer un BAT →</a>}
       </div>
       {(error || source.error) && (
         <p className="alert error" role="alert">
@@ -1263,575 +1314,586 @@ function CatalogManager({
         </p>
       ) : (
         <>
-          <div className="print-savebar">
-            <p>
-              {signedIn
-                ? dirty
-                  ? 'Modifications non enregistrées'
-                  : `Catalogue personnel · version ${source.library?.revision || 0}`
-                : 'Gamme de départ. Connectez-vous pour personnaliser et enregistrer votre catalogue.'}
-            </p>
-            {!signedIn && <Button onClick={open}>Se connecter</Button>}
-          </div>
-          <div className="print-library-toolbar">
-            <nav className="catalog-tabs" aria-label="Bibliothèques d’impression">
-              {[
-                ['products', 'Produits'],
-                ['categories', 'Catégories'],
-                ['materials', 'Supports matières'],
-                ['finishes', 'Façonnages et finitions'],
-              ].map(([id, name]) => (
-                <button
-                  key={id}
-                  className={tab === id ? 'selected' : ''}
-                  onClick={() => setTab(id)}
-                >
-                  {name}
-                </button>
-              ))}
-            </nav>
-            <Button
-              variant="outline"
-              className="print-action-button"
-              type="button"
-              disabled={source.busy}
-              onClick={() => {
-                source.reload()
-                setError('')
-                setNotice('')
-              }}
-            >
-              <RotateCw size={18} aria-hidden="true" /> Recharger le catalogue
-            </Button>
-          </div>
-          <form onSubmit={save}>
-            <fieldset disabled={source.busy}>
-              {tab === 'products' ? (
-                <div className="print-layout">
-                  <aside className="print-list">
-                    <label className="field">
-                      Rechercher un produit
-                      <input
-                        type="search"
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                      />
-                    </label>
-                    <Select label="Filtrer par catégorie" value={category} onChange={setCategory}>
-                      <option value="">Toutes les catégories</option>
-                      {draft.categories.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </Select>
-                    {draft.products
-                      .filter(
-                        (p) =>
-                          (!category ||
-                            p.category_id === category ||
-                            draft.categories.find((c) => c.id === p.category_id)?.parent_id ===
-                              category) &&
-                          p.name.toLocaleLowerCase('fr').includes(search.toLocaleLowerCase('fr')),
-                      )
-                      .map((p) => (
-                        <button
-                          type="button"
-                          key={p.id}
-                          className={p.id === selectedId ? 'selected' : ''}
-                          onClick={() => {
-                            setSelectedId(p.id)
-                            setVariantIndex(0)
-                          }}
-                        >
-                          <strong>{p.name}</strong>
-                          <small>{p.variants.length} déclinaison(s)</small>
-                        </button>
-                      ))}
-                    <Button
-                      variant="outline"
-                      className="print-action-button"
-                      type="button"
-                      disabled={!draft.categories.length}
-                      onClick={() => {
-                        const p: Product = {
-                          id: newId(),
-                          name: 'Nouveau produit',
-                          category_id: draft.categories[0].id,
-                          description: '',
-                          material_ids: draft.materials.map((m) => m.id),
-                          finish_ids: [],
-                          variants: [newVariant()],
-                        }
-                        setDraft({ ...draft, products: [...draft.products, p] })
-                        setSelectedId(p.id)
-                        setVariantIndex(0)
-                      }}
-                    >
-                      <Plus size={18} aria-hidden="true" /> Ajouter un produit
-                    </Button>
-                  </aside>
-                  <section className="print-edit">
-                    {product && variant ? (
-                      <>
-                        <div className="tool-fields">
-                          <Text
-                            label="Nom du produit"
-                            value={product.name}
-                            onChange={(name) => updateProduct({ name })}
-                          />
-                          <Select
-                            label="Catégorie du produit"
-                            value={product.category_id}
-                            onChange={(category_id) => updateProduct({ category_id })}
-                          >
-                            {draft.categories.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.name}
-                              </option>
-                            ))}
-                          </Select>
-                        </div>
-                        <label className="field tool-field">
-                          <span>Description</span>
-                          <textarea
-                            rows={4}
-                            value={product.description}
-                            maxLength={1000}
-                            onChange={(e) => updateProduct({ description: e.target.value })}
-                          />
-                        </label>
-                        <Checks
-                          title="Supports autorisés"
-                          rows={draft.materials}
-                          selected={product.material_ids}
-                          onChange={(material_ids) => updateProduct({ material_ids })}
+          {!creating && (
+            <div className="print-savebar">
+              <p>
+                {signedIn
+                  ? dirty
+                    ? 'Modifications non enregistrées'
+                    : `Catalogue personnel · version ${source.library?.revision || 0}`
+                  : 'Gamme de départ. Connectez-vous pour personnaliser et enregistrer votre catalogue.'}
+              </p>
+              {!signedIn && <Button onClick={open}>Se connecter</Button>}
+            </div>
+          )}
+          {!creating && (
+            <div className="print-library-toolbar">
+              <nav className="catalog-tabs" aria-label="Bibliothèques d’impression">
+                {[
+                  ['products', 'Produits'],
+                  ['categories', 'Catégories'],
+                  ['materials', 'Supports matières'],
+                  ['finishes', 'Façonnages et finitions'],
+                ].map(([id, name]) => (
+                  <button
+                    key={id}
+                    className={tab === id ? 'selected' : ''}
+                    onClick={() => setTab(id)}
+                  >
+                    {name}
+                  </button>
+                ))}
+              </nav>
+              <Button
+                variant="outline"
+                className="print-action-button"
+                type="button"
+                disabled={source.busy}
+                onClick={() => {
+                  source.reload()
+                  setError('')
+                  setNotice('')
+                }}
+              >
+                <RotateCw size={18} aria-hidden="true" /> Recharger le catalogue
+              </Button>
+            </div>
+          )}
+          {creating ? (
+            <ProductCreationWizard
+              categories={draft.categories}
+              materials={draft.materials}
+              tools={tools}
+              initialCategory={category}
+              signedIn={signedIn}
+              otherChanges={dirty}
+              busy={source.busy}
+              onCancel={() => setCreating(false)}
+              onCreate={createProduct}
+            />
+          ) : (
+            <form onSubmit={save}>
+              <fieldset disabled={source.busy}>
+                {tab === 'products' ? (
+                  <div className="print-layout">
+                    <aside className="print-list">
+                      <label className="field">
+                        Rechercher un produit
+                        <input
+                          type="search"
+                          value={search}
+                          onChange={(e) => setSearch(e.target.value)}
                         />
-                        <Checks
-                          title="Façonnages et finitions disponibles"
-                          rows={draft.finishes}
-                          selected={product.finish_ids}
-                          onChange={(finish_ids) => updateProduct({ finish_ids })}
-                        />
-                        <Select
-                          label="Déclinaison à modifier"
-                          value={variant.id}
-                          onChange={(id) =>
-                            setVariantIndex(product.variants.findIndex((v) => v.id === id))
-                          }
-                        >
-                          {product.variants.map((v) => (
-                            <option key={v.id} value={v.id}>
-                              {v.name}
-                            </option>
-                          ))}
-                        </Select>
-                        <div className="print-actions">
-                          <Button
-                            variant="outline"
-                            className="print-action-button"
+                      </label>
+                      <Select label="Filtrer par catégorie" value={category} onChange={setCategory}>
+                        <option value="">Toutes les catégories</option>
+                        {draft.categories.map((c) => (
+                          <option key={c.id} value={c.id}>
+                            {c.name}
+                          </option>
+                        ))}
+                      </Select>
+                      {draft.products
+                        .filter(
+                          (p) =>
+                            (!category ||
+                              p.category_id === category ||
+                              draft.categories.find((c) => c.id === p.category_id)?.parent_id ===
+                                category) &&
+                            p.name.toLocaleLowerCase('fr').includes(search.toLocaleLowerCase('fr')),
+                        )
+                        .map((p) => (
+                          <button
                             type="button"
-                            disabled={product.variants.length >= 30}
+                            key={p.id}
+                            className={p.id === selectedId ? 'selected' : ''}
                             onClick={() => {
-                              updateProduct({
-                                variants: [
-                                  ...product.variants,
-                                  {
-                                    ...clone(variant),
-                                    id: newId(),
-                                    name: `${variant.name} — copie`,
-                                  },
-                                ],
-                              })
-                              setVariantIndex(product.variants.length)
-                            }}
-                          >
-                            <Copy size={18} aria-hidden="true" />
-                            Dupliquer la déclinaison
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="print-action-button print-action-button-remove"
-                            type="button"
-                            disabled={product.variants.length <= 1}
-                            onClick={() => {
-                              updateProduct({
-                                variants: product.variants.filter((v) => v.id !== variant.id),
-                              })
-                              setVariantIndex(0)
-                            }}
-                          >
-                            <Trash2 size={18} aria-hidden="true" />
-                            Retirer la déclinaison
-                          </Button>
-                        </div>
-                        <VariantEditor
-                          choosePizza
-                          variant={variant}
-                          materials={draft.materials.filter((m) =>
-                            product.material_ids.includes(m.id),
-                          )}
-                          finishes={draft.finishes.filter((f) => product.finish_ids.includes(f.id))}
-                          tools={tools}
-                          onChange={(next) =>
-                            updateProduct({
-                              variants: product.variants.map((v) =>
-                                v.id === variant.id ? next : v,
-                              ),
-                            })
-                          }
-                        />
-                        <div className="print-actions">
-                          <Button
-                            variant="outline"
-                            className="print-action-button"
-                            type="button"
-                            onClick={() => {
-                              const p = {
-                                ...clone(product),
-                                id: newId(),
-                                name: `${product.name} — copie`,
-                              }
-                              setDraft({ ...draft, products: [...draft.products, p] })
                               setSelectedId(p.id)
                               setVariantIndex(0)
                             }}
                           >
-                            <Copy size={18} aria-hidden="true" /> Dupliquer le produit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="print-action-button print-action-button-remove"
-                            type="button"
-                            onClick={() => {
-                              setDraft({
-                                ...draft,
-                                products: draft.products.filter((p) => p.id !== product.id),
-                              })
-                              setSelectedId('')
-                            }}
-                          >
-                            <Trash2 size={18} aria-hidden="true" /> Retirer le produit
-                          </Button>
-                        </div>
-                      </>
-                    ) : (
-                      <p>Sélectionnez un produit ou créez-en un.</p>
-                    )}
-                  </section>
-                </div>
-              ) : tab === 'categories' ? (
-                <section className="print-edit">
-                  <h2>Catégories et sous-catégories</h2>
-                  {draft.categories.map((c, i) => (
-                    <div className="print-slot" key={c.id}>
-                      <Text
-                        label="Nom de la catégorie"
-                        value={c.name}
-                        onChange={(name) =>
-                          setDraft({
-                            ...draft,
-                            categories: draft.categories.map((c, n) =>
-                              n === i ? { ...c, name } : c,
-                            ),
-                          })
-                        }
-                      />
-                      <Select
-                        label="Catégorie parente"
-                        value={c.parent_id || ''}
-                        onChange={(parent_id) =>
-                          setDraft({
-                            ...draft,
-                            categories: draft.categories.map((c, n) =>
-                              n === i ? { ...c, parent_id: parent_id || null } : c,
-                            ),
-                          })
-                        }
-                      >
-                        <option value="">À la racine</option>
-                        {draft.categories
-                          .filter((row) => row.id !== c.id)
-                          .map((row) => (
-                            <option key={row.id} value={row.id}>
-                              {row.name}
-                            </option>
-                          ))}
-                      </Select>
+                            <strong>{p.name}</strong>
+                            <small>{p.variants.length} déclinaison(s)</small>
+                          </button>
+                        ))}
                       <Button
                         variant="outline"
-                        className="print-action-button print-action-button-remove"
+                        className="print-action-button"
                         type="button"
-                        disabled={
-                          draft.products.some((p) => p.category_id === c.id) ||
-                          draft.categories.some((row) => row.parent_id === c.id)
-                        }
-                        onClick={() =>
-                          setDraft({
-                            ...draft,
-                            categories: draft.categories.filter((_, n) => n !== i),
-                          })
-                        }
+                        disabled={!draft.categories.length || draft.products.length >= 200}
+                        onClick={() => {
+                          setCreating(true)
+                          setError('')
+                          setNotice('')
+                        }}
                       >
-                        <Trash2 size={18} aria-hidden="true" /> Retirer
+                        <Plus size={18} aria-hidden="true" /> Ajouter un produit
                       </Button>
-                    </div>
-                  ))}
-                  <Button
-                    variant="outline"
-                    className="print-action-button"
-                    type="button"
-                    onClick={() =>
-                      setDraft({
-                        ...draft,
-                        categories: [
-                          ...draft.categories,
-                          { id: newId(), name: 'Nouvelle catégorie', parent_id: null },
-                        ],
-                      })
-                    }
-                  >
-                    <Plus size={18} aria-hidden="true" />
-                    Ajouter une catégorie
-                  </Button>
-                </section>
-              ) : tab === 'materials' ? (
-                <section className="print-edit">
-                  <h2>Bibliothèque des supports matières</h2>
-                  <Accordion
-                    type="single"
-                    collapsible
-                    value={expandedMaterialId}
-                    onValueChange={setExpandedMaterialId}
-                  >
-                    {draft.materials.map((m, i) => (
-                      <AccordionItem key={m.id} value={m.id}>
-                        <AccordionTrigger>{m.name}</AccordionTrigger>
-                        <AccordionContent>
+                    </aside>
+                    <section className="print-edit">
+                      {product && variant ? (
+                        <>
                           <div className="tool-fields">
                             <Text
-                              label="Nom du support"
-                              value={m.name}
+                              label="Nom du produit"
+                              value={product.name}
+                              onChange={(name) => updateProduct({ name })}
+                            />
+                            <Select
+                              label="Catégorie du produit"
+                              value={product.category_id}
+                              onChange={(category_id) => updateProduct({ category_id })}
+                            >
+                              {draft.categories.map((c) => (
+                                <option key={c.id} value={c.id}>
+                                  {c.name}
+                                </option>
+                              ))}
+                            </Select>
+                          </div>
+                          <label className="field tool-field">
+                            <span>Description</span>
+                            <textarea
+                              rows={4}
+                              value={product.description}
+                              maxLength={1000}
+                              onChange={(e) => updateProduct({ description: e.target.value })}
+                            />
+                          </label>
+                          <Checks
+                            title="Supports autorisés"
+                            rows={draft.materials}
+                            selected={product.material_ids}
+                            onChange={(material_ids) => updateProduct({ material_ids })}
+                          />
+                          <Checks
+                            title="Façonnages et finitions disponibles"
+                            rows={draft.finishes}
+                            selected={product.finish_ids}
+                            onChange={(finish_ids) => updateProduct({ finish_ids })}
+                          />
+                          <Select
+                            label="Déclinaison à modifier"
+                            value={variant.id}
+                            onChange={(id) =>
+                              setVariantIndex(product.variants.findIndex((v) => v.id === id))
+                            }
+                          >
+                            {product.variants.map((v) => (
+                              <option key={v.id} value={v.id}>
+                                {v.name}
+                              </option>
+                            ))}
+                          </Select>
+                          <div className="print-actions">
+                            <Button
+                              variant="outline"
+                              className="print-action-button"
+                              type="button"
+                              disabled={product.variants.length >= 30}
+                              onClick={() => {
+                                updateProduct({
+                                  variants: [
+                                    ...product.variants,
+                                    {
+                                      ...clone(variant),
+                                      id: newId(),
+                                      name: `${variant.name} — copie`,
+                                    },
+                                  ],
+                                })
+                                setVariantIndex(product.variants.length)
+                              }}
+                            >
+                              <Copy size={18} aria-hidden="true" />
+                              Dupliquer la déclinaison
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="print-action-button print-action-button-remove"
+                              type="button"
+                              disabled={product.variants.length <= 1}
+                              onClick={() => {
+                                updateProduct({
+                                  variants: product.variants.filter((v) => v.id !== variant.id),
+                                })
+                                setVariantIndex(0)
+                              }}
+                            >
+                              <Trash2 size={18} aria-hidden="true" />
+                              Retirer la déclinaison
+                            </Button>
+                          </div>
+                          <VariantEditor
+                            choosePizza
+                            variant={variant}
+                            materials={draft.materials.filter((m) =>
+                              product.material_ids.includes(m.id),
+                            )}
+                            finishes={draft.finishes.filter((f) =>
+                              product.finish_ids.includes(f.id),
+                            )}
+                            tools={tools}
+                            onChange={(next) =>
+                              updateProduct({
+                                variants: product.variants.map((v) =>
+                                  v.id === variant.id ? next : v,
+                                ),
+                              })
+                            }
+                          />
+                          <div className="print-actions">
+                            <Button
+                              variant="outline"
+                              className="print-action-button"
+                              type="button"
+                              onClick={() => {
+                                const p = {
+                                  ...clone(product),
+                                  id: newId(),
+                                  name: `${product.name} — copie`,
+                                }
+                                setDraft({ ...draft, products: [...draft.products, p] })
+                                setSelectedId(p.id)
+                                setVariantIndex(0)
+                              }}
+                            >
+                              <Copy size={18} aria-hidden="true" /> Dupliquer le produit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              className="print-action-button print-action-button-remove"
+                              type="button"
+                              onClick={() => {
+                                setDraft({
+                                  ...draft,
+                                  products: draft.products.filter((p) => p.id !== product.id),
+                                })
+                                setSelectedId('')
+                              }}
+                            >
+                              <Trash2 size={18} aria-hidden="true" /> Retirer le produit
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <p>Sélectionnez un produit ou créez-en un.</p>
+                      )}
+                    </section>
+                  </div>
+                ) : tab === 'categories' ? (
+                  <section className="print-edit">
+                    <h2>Catégories et sous-catégories</h2>
+                    {draft.categories.map((c, i) => (
+                      <div className="print-slot" key={c.id}>
+                        <Text
+                          label="Nom de la catégorie"
+                          value={c.name}
+                          onChange={(name) =>
+                            setDraft({
+                              ...draft,
+                              categories: draft.categories.map((c, n) =>
+                                n === i ? { ...c, name } : c,
+                              ),
+                            })
+                          }
+                        />
+                        <Select
+                          label="Catégorie parente"
+                          value={c.parent_id || ''}
+                          onChange={(parent_id) =>
+                            setDraft({
+                              ...draft,
+                              categories: draft.categories.map((c, n) =>
+                                n === i ? { ...c, parent_id: parent_id || null } : c,
+                              ),
+                            })
+                          }
+                        >
+                          <option value="">À la racine</option>
+                          {draft.categories
+                            .filter((row) => row.id !== c.id)
+                            .map((row) => (
+                              <option key={row.id} value={row.id}>
+                                {row.name}
+                              </option>
+                            ))}
+                        </Select>
+                        <Button
+                          variant="outline"
+                          className="print-action-button print-action-button-remove"
+                          type="button"
+                          disabled={
+                            draft.products.some((p) => p.category_id === c.id) ||
+                            draft.categories.some((row) => row.parent_id === c.id)
+                          }
+                          onClick={() =>
+                            setDraft({
+                              ...draft,
+                              categories: draft.categories.filter((_, n) => n !== i),
+                            })
+                          }
+                        >
+                          <Trash2 size={18} aria-hidden="true" /> Retirer
+                        </Button>
+                      </div>
+                    ))}
+                    <Button
+                      variant="outline"
+                      className="print-action-button"
+                      type="button"
+                      onClick={() =>
+                        setDraft({
+                          ...draft,
+                          categories: [
+                            ...draft.categories,
+                            { id: newId(), name: 'Nouvelle catégorie', parent_id: null },
+                          ],
+                        })
+                      }
+                    >
+                      <Plus size={18} aria-hidden="true" />
+                      Ajouter une catégorie
+                    </Button>
+                  </section>
+                ) : tab === 'materials' ? (
+                  <section className="print-edit">
+                    <h2>Bibliothèque des supports matières</h2>
+                    <Accordion
+                      type="single"
+                      collapsible
+                      value={expandedMaterialId}
+                      onValueChange={setExpandedMaterialId}
+                    >
+                      {draft.materials.map((m, i) => (
+                        <AccordionItem key={m.id} value={m.id}>
+                          <AccordionTrigger>{m.name}</AccordionTrigger>
+                          <AccordionContent>
+                            <div className="tool-fields">
+                              <Text
+                                label="Nom du support"
+                                value={m.name}
+                                onChange={(name) =>
+                                  setDraft({
+                                    ...draft,
+                                    materials: draft.materials.map((m, n) =>
+                                      n === i ? { ...m, name } : m,
+                                    ),
+                                  })
+                                }
+                              />
+                              <Text
+                                label="Famille de matière"
+                                value={m.family}
+                                onChange={(family) =>
+                                  setDraft({
+                                    ...draft,
+                                    materials: draft.materials.map((m, n) =>
+                                      n === i ? { ...m, family } : m,
+                                    ),
+                                  })
+                                }
+                              />
+                              <Num
+                                label="Grammage (g/m², 0 si non renseigné)"
+                                value={m.gsm || 0}
+                                max={3000}
+                                onChange={(gsm) =>
+                                  setDraft({
+                                    ...draft,
+                                    materials: draft.materials.map((m, n) =>
+                                      n === i ? { ...m, gsm: gsm || null } : m,
+                                    ),
+                                  })
+                                }
+                              />
+                              <Num
+                                label="Épaisseur (mm, 0 si non renseignée)"
+                                value={m.thickness || 0}
+                                max={100}
+                                onChange={(thickness) =>
+                                  setDraft({
+                                    ...draft,
+                                    materials: draft.materials.map((m, n) =>
+                                      n === i ? { ...m, thickness: thickness || null } : m,
+                                    ),
+                                  })
+                                }
+                              />
+                            </div>
+                            <Button
+                              variant="outline"
+                              className="print-action-button print-action-button-remove"
+                              type="button"
+                              disabled={
+                                draft.products.some((p) => p.material_ids.includes(m.id)) ||
+                                draft.finishes.some((f) => f.material_ids.includes(m.id))
+                              }
+                              onClick={() =>
+                                setDraft({
+                                  ...draft,
+                                  materials: draft.materials.filter((_, n) => n !== i),
+                                })
+                              }
+                            >
+                              <Trash2 size={18} aria-hidden="true" /> Retirer le support
+                            </Button>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                    <Button
+                      variant="outline"
+                      className="print-action-button"
+                      type="button"
+                      onClick={() => {
+                        const material: Material = {
+                          id: newId(),
+                          name: 'Nouveau support',
+                          family: 'Papier',
+                          gsm: null,
+                          thickness: null,
+                          description: '',
+                        }
+                        setDraft({ ...draft, materials: [...draft.materials, material] })
+                        setExpandedMaterialId(material.id)
+                      }}
+                    >
+                      <Plus size={18} aria-hidden="true" />
+                      Ajouter un support
+                    </Button>
+                  </section>
+                ) : (
+                  <section className="print-edit">
+                    <h2>Façonnages et finitions</h2>
+                    <Accordion
+                      type="single"
+                      collapsible
+                      value={expandedFinishId}
+                      onValueChange={setExpandedFinishId}
+                    >
+                      {draft.finishes.map((f, i) => (
+                        <AccordionItem key={f.id} value={f.id}>
+                          <AccordionTrigger>{f.name}</AccordionTrigger>
+                          <AccordionContent>
+                            <Text
+                              label="Nom de la finition"
+                              value={f.name}
                               onChange={(name) =>
                                 setDraft({
                                   ...draft,
-                                  materials: draft.materials.map((m, n) =>
-                                    n === i ? { ...m, name } : m,
+                                  finishes: draft.finishes.map((f, n) =>
+                                    n === i ? { ...f, name } : f,
                                   ),
                                 })
                               }
                             />
-                            <Text
-                              label="Famille de matière"
-                              value={m.family}
-                              onChange={(family) =>
+                            <label className="checkbox-label">
+                              <input
+                                type="checkbox"
+                                checked={f.mask}
+                                onChange={(e) =>
+                                  setDraft({
+                                    ...draft,
+                                    finishes: draft.finishes.map((f, n) =>
+                                      n === i ? { ...f, mask: e.target.checked } : f,
+                                    ),
+                                  })
+                                }
+                              />
+                              <span>Demander un PDF de masque séparé</span>
+                            </label>
+                            <FinishAppearanceEditor
+                              finish={f}
+                              onChange={(appearance) =>
                                 setDraft({
                                   ...draft,
-                                  materials: draft.materials.map((m, n) =>
-                                    n === i ? { ...m, family } : m,
+                                  finishes: draft.finishes.map((row, n) =>
+                                    n === i ? { ...row, appearance } : row,
                                   ),
                                 })
                               }
                             />
-                            <Num
-                              label="Grammage (g/m², 0 si non renseigné)"
-                              value={m.gsm || 0}
-                              max={3000}
-                              onChange={(gsm) =>
-                                setDraft({
-                                  ...draft,
-                                  materials: draft.materials.map((m, n) =>
-                                    n === i ? { ...m, gsm: gsm || null } : m,
-                                  ),
-                                })
-                              }
-                            />
-                            <Num
-                              label="Épaisseur (mm, 0 si non renseignée)"
-                              value={m.thickness || 0}
-                              max={100}
-                              onChange={(thickness) =>
-                                setDraft({
-                                  ...draft,
-                                  materials: draft.materials.map((m, n) =>
-                                    n === i ? { ...m, thickness: thickness || null } : m,
-                                  ),
-                                })
-                              }
-                            />
-                          </div>
-                          <Button
-                            variant="outline"
-                            className="print-action-button print-action-button-remove"
-                            type="button"
-                            disabled={
-                              draft.products.some((p) => p.material_ids.includes(m.id)) ||
-                              draft.finishes.some((f) => f.material_ids.includes(m.id))
-                            }
-                            onClick={() =>
-                              setDraft({
-                                ...draft,
-                                materials: draft.materials.filter((_, n) => n !== i),
-                              })
-                            }
-                          >
-                            <Trash2 size={18} aria-hidden="true" /> Retirer le support
-                          </Button>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                  <Button
-                    variant="outline"
-                    className="print-action-button"
-                    type="button"
-                    onClick={() => {
-                      const material: Material = {
-                        id: newId(),
-                        name: 'Nouveau support',
-                        family: 'Papier',
-                        gsm: null,
-                        thickness: null,
-                        description: '',
-                      }
-                      setDraft({ ...draft, materials: [...draft.materials, material] })
-                      setExpandedMaterialId(material.id)
-                    }}
-                  >
-                    <Plus size={18} aria-hidden="true" />
-                    Ajouter un support
-                  </Button>
-                </section>
-              ) : (
-                <section className="print-edit">
-                  <h2>Façonnages et finitions</h2>
-                  <Accordion
-                    type="single"
-                    collapsible
-                    value={expandedFinishId}
-                    onValueChange={setExpandedFinishId}
-                  >
-                    {draft.finishes.map((f, i) => (
-                      <AccordionItem key={f.id} value={f.id}>
-                        <AccordionTrigger>{f.name}</AccordionTrigger>
-                        <AccordionContent>
-                          <Text
-                            label="Nom de la finition"
-                            value={f.name}
-                            onChange={(name) =>
-                              setDraft({
-                                ...draft,
-                                finishes: draft.finishes.map((f, n) =>
-                                  n === i ? { ...f, name } : f,
-                                ),
-                              })
-                            }
-                          />
-                          <label className="checkbox-label">
-                            <input
-                              type="checkbox"
-                              checked={f.mask}
-                              onChange={(e) =>
+                            <Checks
+                              title="Supports compatibles (aucun = tous)"
+                              rows={draft.materials}
+                              selected={f.material_ids}
+                              onChange={(material_ids) =>
                                 setDraft({
                                   ...draft,
                                   finishes: draft.finishes.map((f, n) =>
-                                    n === i ? { ...f, mask: e.target.checked } : f,
+                                    n === i ? { ...f, material_ids } : f,
                                   ),
                                 })
                               }
                             />
-                            <span>Demander un PDF de masque séparé</span>
-                          </label>
-                          <FinishAppearanceEditor
-                            finish={f}
-                            onChange={(appearance) =>
-                              setDraft({
-                                ...draft,
-                                finishes: draft.finishes.map((row, n) =>
-                                  n === i ? { ...row, appearance } : row,
-                                ),
-                              })
-                            }
-                          />
-                          <Checks
-                            title="Supports compatibles (aucun = tous)"
-                            rows={draft.materials}
-                            selected={f.material_ids}
-                            onChange={(material_ids) =>
-                              setDraft({
-                                ...draft,
-                                finishes: draft.finishes.map((f, n) =>
-                                  n === i ? { ...f, material_ids } : f,
-                                ),
-                              })
-                            }
-                          />
-                          <Checks
-                            title="Finitions incompatibles"
-                            rows={draft.finishes.filter((row) => row.id !== f.id)}
-                            selected={f.excludes}
-                            onChange={(excludes) =>
-                              setDraft({
-                                ...draft,
-                                finishes: draft.finishes.map((f, n) =>
-                                  n === i ? { ...f, excludes } : f,
-                                ),
-                              })
-                            }
-                          />
-                          <Button
-                            variant="outline"
-                            className="print-action-button print-action-button-remove"
-                            type="button"
-                            disabled={
-                              draft.products.some((p) => p.finish_ids.includes(f.id)) ||
-                              draft.finishes.some((row) => row.excludes.includes(f.id))
-                            }
-                            onClick={() =>
-                              setDraft({
-                                ...draft,
-                                finishes: draft.finishes.filter((_, n) => n !== i),
-                              })
-                            }
-                          >
-                            <Trash2 size={18} aria-hidden="true" /> Retirer la finition
-                          </Button>
-                        </AccordionContent>
-                      </AccordionItem>
-                    ))}
-                  </Accordion>
-                  <Button
-                    variant="outline"
-                    className="print-action-button"
-                    type="button"
-                    onClick={() => {
-                      const finish: Finish = {
-                        id: newId(),
-                        name: 'Nouvelle finition',
-                        mask: false,
-                        material_ids: [],
-                        excludes: [],
-                      }
-                      setDraft({ ...draft, finishes: [...draft.finishes, finish] })
-                      setExpandedFinishId(finish.id)
-                    }}
-                  >
-                    <Plus size={18} aria-hidden="true" /> Ajouter une finition
-                  </Button>
-                </section>
-              )}
-            </fieldset>
-            <div className="print-savebar">
-              <p>
-                {dirty
-                  ? 'Enregistrez pour rendre ces choix disponibles dans le BAT.'
-                  : 'Les BAT existants conservent leurs spécifications.'}
-              </p>
-              <Button type="submit" disabled={!signedIn || source.busy || !dirty}>
-                {source.busy ? 'Enregistrement…' : 'Enregistrer le catalogue'}
-              </Button>
-            </div>
-          </form>
+                            <Checks
+                              title="Finitions incompatibles"
+                              rows={draft.finishes.filter((row) => row.id !== f.id)}
+                              selected={f.excludes}
+                              onChange={(excludes) =>
+                                setDraft({
+                                  ...draft,
+                                  finishes: draft.finishes.map((f, n) =>
+                                    n === i ? { ...f, excludes } : f,
+                                  ),
+                                })
+                              }
+                            />
+                            <Button
+                              variant="outline"
+                              className="print-action-button print-action-button-remove"
+                              type="button"
+                              disabled={
+                                draft.products.some((p) => p.finish_ids.includes(f.id)) ||
+                                draft.finishes.some((row) => row.excludes.includes(f.id))
+                              }
+                              onClick={() =>
+                                setDraft({
+                                  ...draft,
+                                  finishes: draft.finishes.filter((_, n) => n !== i),
+                                })
+                              }
+                            >
+                              <Trash2 size={18} aria-hidden="true" /> Retirer la finition
+                            </Button>
+                          </AccordionContent>
+                        </AccordionItem>
+                      ))}
+                    </Accordion>
+                    <Button
+                      variant="outline"
+                      className="print-action-button"
+                      type="button"
+                      onClick={() => {
+                        const finish: Finish = {
+                          id: newId(),
+                          name: 'Nouvelle finition',
+                          mask: false,
+                          material_ids: [],
+                          excludes: [],
+                        }
+                        setDraft({ ...draft, finishes: [...draft.finishes, finish] })
+                        setExpandedFinishId(finish.id)
+                      }}
+                    >
+                      <Plus size={18} aria-hidden="true" /> Ajouter une finition
+                    </Button>
+                  </section>
+                )}
+              </fieldset>
+              <div className="print-savebar">
+                <p>
+                  {dirty
+                    ? 'Enregistrez pour rendre ces choix disponibles dans le BAT.'
+                    : 'Les BAT existants conservent leurs spécifications.'}
+                </p>
+                <Button type="submit" disabled={!signedIn || source.busy || !dirty}>
+                  {source.busy ? 'Enregistrement…' : 'Enregistrer le catalogue'}
+                </Button>
+              </div>
+            </form>
+          )}
         </>
       )}
     </main>

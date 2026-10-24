@@ -24,6 +24,171 @@
 .print-guide .sushi-lines {
   grid-column: 1 / -1;
 }
+.print-catalog-creating .catalog-intro {
+  min-height: 0;
+  padding: 24px 28px;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.print-catalog-creating .catalog-intro h1 {
+  font-size: 2rem;
+}
+.print-catalog-creating .catalog-description {
+  max-width: 65ch;
+  margin-bottom: 0;
+}
+.print-wizard {
+  max-width: 960px;
+  margin-inline: auto;
+  padding: clamp(16px, 3vw, 32px);
+  border: 1px solid #ddd5dd;
+  border-radius: 16px;
+  background: #fffbff;
+}
+.print-wizard-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  padding: 0 0 24px;
+  margin: 0 0 24px;
+  list-style: none;
+  border-bottom: 1px solid #ead9ee;
+}
+.print-wizard-steps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #7a527b;
+  font-weight: 750;
+  font-size: var(--text-small);
+}
+.print-wizard-step-number {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #d3b4dd;
+  border-radius: 50%;
+  font-variant-numeric: tabular-nums;
+}
+.print-wizard-steps [aria-current='step'] {
+  color: #633774;
+}
+.print-wizard-steps [aria-current='step'] .print-wizard-step-number {
+  color: white;
+  background: #8033a3;
+  border-color: #8033a3;
+}
+.print-wizard-heading,
+.print-wizard-review > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.print-wizard-heading h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+.print-wizard-body {
+  display: grid;
+  gap: 20px;
+  padding-block: 24px 32px;
+}
+.print-wizard-body > p {
+  margin: 0;
+  max-width: 65ch;
+}
+.print-wizard-body > .field,
+.print-wizard-format .field {
+  margin: 0;
+}
+.print-wizard .print-wizard-format {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+.print-wizard textarea {
+  width: 100%;
+  resize: vertical;
+}
+.print-wizard .field small,
+.print-wizard .field-hint {
+  color: #7a527b;
+}
+.print-wizard h4 {
+  margin: 0 0 16px;
+}
+.print-wizard-review {
+  padding-bottom: 20px;
+  border-bottom: 1px solid #ead9ee;
+}
+.print-wizard-review h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+.print-wizard-review p {
+  margin: 12px 0 0;
+  overflow-wrap: anywhere;
+}
+.print-wizard-review dl {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 2fr;
+  gap: 10px 20px;
+  margin: 16px 0 0;
+}
+.print-wizard-review dt {
+  color: #7a527b;
+}
+.print-wizard-review dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.print-wizard-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-top: 1px solid #ead9ee;
+  padding-top: 24px;
+}
+.print-wizard-footer > span {
+  color: #7a527b;
+  font-size: var(--text-small);
+}
+.print-wizard-footer > span:empty {
+  visibility: hidden;
+}
+@media (max-width: 600px) {
+  .print-wizard-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .print-wizard .print-wizard-format {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .print-wizard-review dl {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
+  }
+  .print-wizard-review dd + dt {
+    margin-top: 12px;
+  }
+  .print-wizard .print-wizard-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .print-wizard-footer > span {
+    order: 3;
+    width: 100%;
+    text-align: center;
+  }
+  .print-wizard-footer > span:empty {
+    display: none;
+  }
+}
 .print-layout {
   display: grid;
   grid-template-columns: 270px minmax(0, 1fr);
