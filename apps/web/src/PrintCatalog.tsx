@@ -713,7 +713,8 @@ function ComponentDimensions({
   onChange: (patch: Partial<Component>) => void
 }) {
   const pizza = c.pizza_template ? c.guides.find((g) => g.tool === 'pizza')?.settings : undefined
-  const circle = pizza?.shape === 'circle'
+  const sushi = c.guides.find((g) => g.tool === 'sushi')?.settings
+  const circle = pizza?.shape === 'circle' || sushi?.shape === 'circle'
   return (
     <>
       {(['width', 'height'] as const)
@@ -736,7 +737,7 @@ function ComponentDimensions({
               label={label}
               value={c[axis]}
               min={bounded ? Math.max(6, Number(pizza?.[`${axis}_min`])) : 6}
-              max={bounded ? Number(pizza?.[`${axis}_max`]) : 5000}
+              max={bounded ? Number(pizza?.[`${axis}_max`]) : sushi ? 2000 : 5000}
               onChange={(value) =>
                 onChange(circle ? { width: value, height: value } : { [axis]: value })
               }
@@ -815,11 +816,29 @@ export function VariantEditor({
                 </option>
               ))}
             </Select>
-            {!choosePizza && (
+            {(!choosePizza || c.guides.some((g) => g.tool === 'sushi')) && (
               <ComponentDimensions component={c} onChange={(patch) => update(index, patch)} />
             )}
           </div>
           {choosePizza && (
+            <Select
+              label="Outil de découpe"
+              value={c.guides.some((g) => g.tool === 'sushi') ? 'sushi' : 'pizza'}
+              onChange={(tool) =>
+                update(index, {
+                  pizza_template: null,
+                  guides: [
+                    ...c.guides.filter((g) => !['pizza', 'sushi'].includes(g.tool)),
+                    ...(tool === 'sushi' ? [{ tool: 'sushi' as const, settings: {} }] : []),
+                  ],
+                })
+              }
+            >
+              <option value="pizza">Pizza — gabarit enregistré</option>
+              <option value="sushi">Sushi — découpe et rainage</option>
+            </Select>
+          )}
+          {choosePizza && !c.guides.some((g) => g.tool === 'sushi') && (
             <PizzaTemplatePicker
               component={c}
               source={pizzaTemplates}
@@ -960,6 +979,9 @@ export function VariantEditor({
                         f.default
                       const change = (value: string | number) =>
                         update(index, {
+                          ...(g.tool === 'sushi' && f.key === 'shape' && value === 'circle'
+                            ? { height: c.width }
+                            : {}),
                           guides: c.guides.map((g, i) =>
                             i === gi ? { ...g, settings: { ...g.settings, [f.key]: value } } : g,
                           ),
@@ -1005,15 +1027,17 @@ export function VariantEditor({
                     })}
                 </div>
               )}
-              <Button
-                variant="outline"
-                className="print-action-button print-action-button-remove"
-                type="button"
-                disabled={g.tool === 'pizza' && !!c.pizza_template}
-                onClick={() => update(index, { guides: c.guides.filter((_, i) => i !== gi) })}
-              >
-                <Trash2 size={18} aria-hidden="true" /> Retirer ce tracé
-              </Button>
+              {!(choosePizza && g.tool === 'sushi') && (
+                <Button
+                  variant="outline"
+                  className="print-action-button print-action-button-remove"
+                  type="button"
+                  disabled={g.tool === 'pizza' && !!c.pizza_template}
+                  onClick={() => update(index, { guides: c.guides.filter((_, i) => i !== gi) })}
+                >
+                  <Trash2 size={18} aria-hidden="true" /> Retirer ce tracé
+                </Button>
+              )}
             </fieldset>
           ))}
           <Select
@@ -1039,7 +1063,7 @@ export function VariantEditor({
             {Object.entries(guideNames)
               .filter(
                 ([id]) =>
-                  !(choosePizza && id === 'pizza') &&
+                  !(choosePizza && ['pizza', 'sushi'].includes(id)) &&
                   !c.guides.some((g) => g.tool === id) &&
                   !(id === 'pizza' && c.guides.some((g) => g.tool === 'sushi')) &&
                   !(id === 'sushi' && c.guides.some((g) => g.tool === 'pizza')),

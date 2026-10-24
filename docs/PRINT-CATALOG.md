@@ -16,6 +16,8 @@ Un emplacement correspond à un PDF avec un nom, un rôle (visuel ou masque tech
 
 Dans les produits, les gabarits sont enregistrés sous forme de paramètres. Pizza, Taco, Burrito, Sushi et les perforations peuvent être combinés par composant. Pizza et Sushi sont des références de découpe alternatives. Les dimensions proviennent du composant ; les autres réglages restent modifiables. Le BAT superpose les tracés en alignant leur origine au format fini. Un PDF vectoriel des tracés à l’échelle 1:1 est téléchargeable par composant. Le gabarit PDF fourni par un façonnier reste disponible dans la composition classique de Burger.
 
+Dans chaque composant, **Outil de découpe** permet de choisir un gabarit Pizza enregistré ou **Sushi — découpe et rainage**. Avec Sushi, régler directement le format fini, le fond perdu, le contour facultatif (rectangle avec coins arrondis ou cercle), les tons directs et les tracés de coupe ou de rainage. Le cercle conserve un format carré quand son diamètre change. Passer de Pizza à Sushi remplace la référence de découpe et libère les dimensions du gabarit Pizza ; les autres tracés du composant sont conservés. Les réglages Sushi sont enregistrés avec la déclinaison et repris dans le BAT.
+
 ## Création du BAT
 
 Dans Burger, **Mode du BAT** propose :

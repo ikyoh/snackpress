@@ -21,6 +21,9 @@
 .print-guide > .print-action-button-remove {
   margin-top: 16px;
 }
+.print-guide .sushi-lines {
+  grid-column: 1 / -1;
+}
 .print-layout {
   display: grid;
   grid-template-columns: 270px minmax(0, 1fr);

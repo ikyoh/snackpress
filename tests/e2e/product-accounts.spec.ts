@@ -5,6 +5,7 @@ import { join } from 'node:path'
 test('catalogue personnel : création, matières, déclinaison, rechargement et BAT libre enregistré', async ({
   page,
 }) => {
+  test.setTimeout(90_000)
   const email = 'produits@example.com'
   const headers = { 'X-Snackpress-Request': '1' }
   await page.goto('/')
@@ -91,6 +92,79 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
   )
   await page.goto('/?view=products')
   await expect(page.getByRole('button', { name: 'Libre sauvegardé' })).toBeVisible()
+  await page.getByRole('button', { name: 'Ajouter un produit', exact: true }).click()
+  await page.getByLabel('Nom du produit', { exact: true }).fill('Carte Sushi')
+  await page.getByLabel('Support matière', { exact: true }).selectOption('mat350')
+  await page
+    .getByLabel('Gabarit Pizza', { exact: true })
+    .selectOption(`${fixed.id}:${fixed.revision}`)
+  await page.getByLabel('Ajouter un tracé', { exact: true }).selectOption('perforation')
+  await page.getByLabel('Outil de découpe', { exact: true }).selectOption('sushi')
+  await expect(page.getByLabel('Gabarit Pizza', { exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('Sens des perforations')).toHaveValue('vertical')
+  await expect(page.getByLabel('Largeur finie (mm)', { exact: true })).toHaveValue('85')
+  await expect(page.getByLabel('Fond perdu attendu (mm)')).toHaveValue('3')
+  await page.getByLabel('Contour', { exact: true }).selectOption('circle')
+  await page.getByLabel('Diamètre fini (mm)').fill('90')
+  await page.getByLabel('Contour', { exact: true }).selectOption('rectangle')
+  await expect(page.getByLabel('Hauteur finie (mm)', { exact: true })).toHaveValue('90')
+  await page.getByLabel('Largeur finie (mm)', { exact: true }).fill('85')
+  await page.getByLabel('Hauteur finie (mm)', { exact: true }).fill('55')
+  await page.getByLabel('Rayon des coins (mm)').fill('5')
+  for (const [index, [kind, axis, position]] of [
+    ['crease', 'vertical', '20'],
+    ['cut', 'horizontal', '15'],
+  ].entries()) {
+    await page.getByRole('button', { name: 'Ajouter un tracé', exact: true }).click()
+    await page.getByLabel(`Type du tracé ${index + 1}`, { exact: true }).selectOption(kind)
+    await page.getByLabel(`Orientation du tracé ${index + 1}`, { exact: true }).selectOption(axis)
+    await page.getByLabel(`Position du tracé ${index + 1}`, { exact: true }).fill(position)
+  }
+  await page.getByRole('button', { name: 'Enregistrer le catalogue', exact: true }).click()
+  await expect(page.getByRole('status')).toContainText('Catalogue enregistré')
+  await page.reload()
+  await page.getByRole('button', { name: 'Carte Sushi' }).click()
+  await expect(page.getByLabel('Outil de découpe', { exact: true })).toHaveValue('sushi')
+  await expect(page.getByLabel('Rayon des coins (mm)')).toHaveValue('5')
+  await expect(page.getByLabel('Position du tracé 2', { exact: true })).toHaveValue('15')
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  expect((await page.locator('.sushi-lines').boundingBox())!.width).toBeGreaterThan(200)
+  await page
+    .locator('.sushi-lines')
+    .screenshot({ path: 'test-results/product-sushi-lines-mobile.png' })
+  await page.screenshot({ path: 'test-results/product-sushi-mobile.png', fullPage: true })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await page.goto('/?tool=burger')
+  await page.getByLabel('Mode du BAT').selectOption('catalog')
+  await page.getByLabel('Produit', { exact: true }).selectOption({ label: 'Carte Sushi' })
+  await page.getByLabel('Choisir les fichiers').setInputFiles('apps/web/public/exemple-fond.pdf')
+  const proofResponse = page.waitForResponse((r) => r.url().includes('/api/tools/burger/run'))
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
+  const proof = await proofResponse
+  expect(proof.status(), await proof.text()).toBe(201)
+  const job = await proof.json()
+  const settings = await page.request.get(`/api/tool-jobs/${job.id}/files/reglages.json`)
+  const component = (await settings.json()).settings.product_snapshot.variant.components[0]
+  expect(component.pizza_template).toBeNull()
+  expect(component.guides.map((g: { tool: string }) => g.tool)).toEqual(['perforation', 'sushi'])
+  expect(component.guides[1].settings).toMatchObject({
+    width: 85,
+    height: 55,
+    bleed: 3,
+    shape: 'rectangle',
+    corner_radius: 5,
+    lines: [
+      { kind: 'crease', axis: 'vertical', position: 20 },
+      { kind: 'cut', axis: 'horizontal', position: 15 },
+    ],
+  })
+  const guide = job.artifacts.find((a: { name: string }) => a.name.includes('traces'))
+  expect(guide).toBeDefined()
+  expect((await page.request.get(`/api/tool-jobs/${job.id}/files/${guide.name}`)).status()).toBe(
+    200,
+  )
+  await page.goto('/?view=products')
   const errors: string[] = []
   page.on('pageerror', (e) => errors.push(e.message))
   await page.getByRole('button', { name: 'Façonnages et finitions', exact: true }).click()
