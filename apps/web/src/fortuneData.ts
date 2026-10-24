@@ -84,6 +84,21 @@ export function repiquageValue(
     : (data?.rows[row]?.[data.columns.indexOf(item.column)] ?? '')
 }
 
+function eanCheckDigit(value: string): number {
+  return (
+    (10 -
+      ([...value.slice(0, 12)].reduce((sum, digit, i) => sum + Number(digit) * (i % 2 ? 3 : 1), 0) %
+        10)) %
+    10
+  )
+}
+
+export const barcodeCaptionHeight = 1 + (8 * 25.4) / 72
+
+export function barcodeCaption(value: string, kind: Repiquage['rendering']): string {
+  return kind === 'ean13' && /^[0-9]{12}$/.test(value) ? value + eanCheckDigit(value) : value
+}
+
 export function barcodeError(value: string, kind: Repiquage['rendering']): string {
   if (kind === 'text') return ''
   if (kind === 'code128')
@@ -91,11 +106,7 @@ export function barcodeError(value: string, kind: Repiquage['rendering']): strin
       ? ''
       : 'Code 128 : caractères ASCII imprimables uniquement, valeur non vide.'
   if (!/^[0-9]{12,13}$/.test(value)) return 'EAN-13 : 12 ou 13 chiffres requis.'
-  const key =
-    (10 -
-      ([...value.slice(0, 12)].reduce((sum, digit, i) => sum + Number(digit) * (i % 2 ? 3 : 1), 0) %
-        10)) %
-    10
+  const key = eanCheckDigit(value)
   return value.length === 13 && Number(value[12]) !== key
     ? 'EAN-13 : clé de contrôle incorrecte.'
     : ''

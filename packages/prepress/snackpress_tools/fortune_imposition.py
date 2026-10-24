@@ -103,7 +103,7 @@ def impose(folder, source, params, *, preview=False):
         "Feuilles à tirer": len(sheets),
         "Lots de coupe": len(batches),
     }
-    artifacts = [artifact(path, "Billets imposés pour coupe en souches")]
+    artifacts = [artifact(path, "Planche imposée pour coupe")]
     if not preview:
 
         def serial(index):
@@ -160,7 +160,7 @@ def impose(folder, source, params, *, preview=False):
             "Les repères du gabarit Pizza sont absents de l’export.",
         )
         artifacts += [
-            artifact(instructions, "Plan de coupe en souches"),
+            artifact(instructions, "Plan de coupe"),
             artifact(manifest, "Ordre des billets et des souches JSON"),
             artifact(source, "Billets individuels sans imposition"),
         ]

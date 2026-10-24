@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import { getDocument } from 'pdfjs-dist'
 import { Plus, Trash2 } from 'lucide-react'
 import { Button } from './components/ui/button'
@@ -8,6 +8,8 @@ import type { PizzaValues } from './pizza'
 
 import {
   barcodeError,
+  barcodeCaption,
+  barcodeCaptionHeight,
   newRepiquage,
   parseCsv,
   repiquageValue,
@@ -392,7 +394,9 @@ export function FortuneSettings({
           </div>
           {item.rendering !== 'text' && (
             <p className="field-hint">
-              La largeur comprend les marges blanches de lecture.{' '}
+              La largeur comprend les marges blanches de lecture. La hauteur règle les barres ; leur
+              valeur lisible est ajoutée en dessous. Le fond reste blanc sous les barres, les marges
+              et les chiffres.{' '}
               {item.rendering === 'ean13' &&
                 '12 chiffres : clé calculée ; 13 chiffres : clé vérifiée.'}
             </p>
@@ -483,6 +487,15 @@ function FortunePizzaGuides({ template }: { template: PizzaValues }) {
 function FortuneBarcode({ item, value }: { item: Repiquage; value: string }) {
   const ref = useRef<SVGSVGElement>(null)
   const [valid, setValid] = useState(false)
+  const label = barcodeCaption(value, item.rendering)
+  const captionFontSize = useMemo(() => {
+    const context = document.createElement('canvas').getContext('2d')
+    const size = (8 * 25.4) / 72
+    if (!context || !label) return size
+    context.font = '8px Arial'
+    const width = (context.measureText(label).width * 25.4) / 72
+    return size * Math.min(1, (item.barcode_width - 2) / width)
+  }, [label, item.barcode_width])
   useEffect(() => {
     const svg = ref.current
     if (!svg) return
@@ -530,12 +543,32 @@ function FortuneBarcode({ item, value }: { item: Repiquage; value: string }) {
   }, [item.rendering, item.color, item.barcode_width, item.barcode_height, value])
   const shift = { left: 0, center: -0.5, right: -1 }[item.align] * item.barcode_width
   return (
-    <g transform={`translate(${shift} ${-item.barcode_height})`}>
+    <g transform={`translate(${shift} ${-item.barcode_height - barcodeCaptionHeight})`}>
+      <rect
+        width={item.barcode_width}
+        height={item.barcode_height + barcodeCaptionHeight}
+        fill="#ffffff"
+        pointerEvents="none"
+      />
       <svg
         ref={ref}
         preserveAspectRatio="none"
         aria-label={`Code-barres ${item.rendering === 'ean13' ? 'EAN-13' : 'Code 128'}`}
       />
+      {valid && (
+        <text
+          x={item.barcode_width / 2}
+          y={item.barcode_height + barcodeCaptionHeight - (8 * 25.4) / 72 / 4}
+          textAnchor="middle"
+          fontFamily="Arial, sans-serif"
+          fontWeight="normal"
+          fontSize={captionFontSize}
+          fill={item.color}
+          pointerEvents="none"
+        >
+          {label}
+        </text>
+      )}
       {!valid && barcodeError(value, item.rendering) && (
         <text y={item.barcode_height} fontSize="2.5" fill="#b42318">
           Code-barres invalide

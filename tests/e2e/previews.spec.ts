@@ -309,7 +309,7 @@ test('Fortune Cookie : Layer Cake et coupe en souches', async ({ page }) => {
     timeout: 15000,
   })
   await expect(page.getByLabel('Document à prévisualiser')).toHaveCount(0)
-  await expect(page.locator('.artifact-downloads')).toContainText('Plan de coupe en souches')
+  await expect(page.locator('.artifact-downloads')).toContainText('Plan de coupe')
   await expect(
     page.locator('.artifact-downloads a').filter({ hasText: 'Billets imposés' }),
   ).toContainText('250 pages')

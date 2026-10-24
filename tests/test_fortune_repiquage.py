@@ -80,7 +80,24 @@ def test_csv_text_sequence_and_both_vector_barcodes_share_the_same_record(tmp_pa
         assert "Atelier A" in pdf[0].get_textpage().get_text_range()
         assert "Zoé" in pdf[1].get_textpage().get_text_range()
         for index, page in enumerate(pdf):
-            assert f"SP-{index + 1:04d}" in page.get_textpage().get_text_range()
+            content = page.get_textpage().get_text_range()
+            assert f"SP-{index + 1:04d}" in content
+            assert f"000{17 + index}" in content
+            assert "5901234123457" in content  # Includes the calculated EAN-13 check digit.
+            text = page.get_textpage()
+            for value, x0, x1, baseline_y in [
+                (f"000{17 + index}", 4, 39, 34),
+                ("5901234123457", 43, 81, 50),
+            ]:
+                start = content.index(value)
+                boxes = [text.get_charbox(start + offset) for offset in range(len(value))]
+                left = min(box[0] for box in boxes) / PT - 3
+                right = max(box[2] for box in boxes) / PT - 3
+                assert (left + right) / 2 == pytest.approx((x0 + x1) / 2, abs=0.3)
+                # The caption stays below the bars and inside the aligned symbol.
+                lower = min(box[1] for box in boxes) / PT - 3
+                upper = max(box[3] for box in boxes) / PT - 3
+                assert 55 - baseline_y <= lower < upper < 55 - baseline_y + 3.83
     with pikepdf.open(tmp_path / "serie.pdf") as pdf:
         # Bars remain vector rectangles, not embedded raster images.
         commands = pikepdf.parse_content_stream(pdf.pages[0])

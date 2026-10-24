@@ -73,6 +73,10 @@ test('Fortune Cookie : repiquages CSV, alignements, codes-barres et configuratio
   await expect(
     page.getByLabel('Code-barres EAN-13', { exact: true }).locator('rect'),
   ).not.toHaveCount(0)
+  await expect(page.getByLabel('Déplacer le repiquage 2').locator('text')).toHaveText('00017')
+  await expect(page.getByLabel('Déplacer le repiquage 3').locator('text')).toHaveText(
+    '5901234123457',
+  )
   for (const label of ['Code-barres Code 128', 'Code-barres EAN-13']) {
     const symbol = page.getByLabel(label, { exact: true })
     const frame = (await symbol.boundingBox())!

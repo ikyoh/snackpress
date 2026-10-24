@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { barcodeError, newRepiquage, parseCsv, repiquageValue } from './fortuneData'
+import { barcodeCaption, barcodeError, newRepiquage, parseCsv, repiquageValue } from './fortuneData'
 
 const csv = (text: string) => parseCsv(new TextEncoder().encode(text).buffer as ArrayBuffer)
 
@@ -36,5 +36,8 @@ describe('repiquages et données CSV', () => {
     expect(barcodeError('5901234123458', 'ean13')).toContain('clé')
     expect(barcodeError('00017', 'code128')).toBe('')
     expect(barcodeError('Élodie', 'code128')).toContain('ASCII')
+    expect(barcodeCaption('00017', 'code128')).toBe('00017')
+    expect(barcodeCaption('590123412345', 'ean13')).toBe('5901234123457')
+    expect(barcodeCaption('5901234123457', 'ean13')).toBe('5901234123457')
   })
 })

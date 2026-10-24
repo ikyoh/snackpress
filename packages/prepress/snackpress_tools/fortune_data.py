@@ -4,6 +4,10 @@ from reportlab.graphics import renderPDF
 from reportlab.graphics.barcode import createBarcodeDrawing
 from reportlab.lib import colors
 from reportlab.lib.units import mm
+from reportlab.pdfbase.pdfmetrics import stringWidth
+
+BARCODE_CAPTION_SIZE = 8
+BARCODE_CAPTION_HEIGHT = BARCODE_CAPTION_SIZE + mm
 
 
 def value_at(params, item, index):
@@ -69,9 +73,23 @@ def draw_repiquage(canvas, item, value):
             draw(0, -line * item.size * 1.2, text.rstrip("\r"))
         return
     drawing, module = barcode_drawing(item, value)
+    label = barcode_value(value, item.rendering)
     shift = {"left": 0, "center": -0.5, "right": -1}[item.align] * item.barcode_width * mm
     canvas.setFillColor(colors.white)
-    canvas.rect(shift, 0, item.barcode_width * mm, item.barcode_height * mm, stroke=0, fill=1)
-    canvas.translate(shift + 10 * module, 0)
+    canvas.rect(
+        shift,
+        0,
+        item.barcode_width * mm,
+        item.barcode_height * mm + BARCODE_CAPTION_HEIGHT,
+        stroke=0,
+        fill=1,
+    )
+    # Draw the caption separately so scaling the bars never distorts the text.
+    text_width = stringWidth(label, "Helvetica", BARCODE_CAPTION_SIZE)
+    font_size = BARCODE_CAPTION_SIZE * min(1, (item.barcode_width - 2) * mm / text_width)
+    canvas.setFillColor(colors.HexColor(item.color))
+    canvas.setFont("Helvetica", font_size)
+    canvas.drawCentredString(shift + item.barcode_width * mm / 2, BARCODE_CAPTION_SIZE / 4, label)
+    canvas.translate(shift + 10 * module, BARCODE_CAPTION_HEIGHT)
     canvas.scale(module, item.barcode_height * mm)
     renderPDF.draw(drawing, canvas, 0, 0)
