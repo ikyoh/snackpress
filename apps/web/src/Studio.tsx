@@ -42,9 +42,9 @@ import {
   FortuneSettings,
   FortuneTemplate,
   FortuneImposition,
-  newNumbering,
-  type Numbering,
+  FortuneData,
 } from './FortuneEditor'
+import { newRepiquage, type Repiquage, type CsvData } from './fortuneData'
 import type { components } from '../../../packages/api-client/schema'
 import { pizzaErrors, pizzaValue, visiblePizzaField } from './pizza'
 import { PizzaSettings } from './PizzaSettings'
@@ -503,7 +503,10 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
   }, [])
   const [burger, setBurger] = useState<BurgerOptions>(burgerDefaults)
   const [kebabProduct, setKebabProduct] = useState<Snapshot | null>(null)
-  const [numberings, setNumberings] = useState<Numbering[]>([newNumbering(55)])
+  const [repiquages, setRepiquages] = useState<Repiquage[]>([newRepiquage(55)])
+  const [fortuneData, setFortuneData] = useState<CsvData | null>(null)
+  const fortuneSerial =
+    String(values.prefix) + String(values.start).padStart(Number(values.digits), '0')
   const [fortuneTemplate, setFortuneTemplate] = useState<Values | null>(null)
   const [fortuneLayer, setFortuneLayer] = useState<Values | null>(null)
   const [ticketsPerBook, setTicketsPerBook] = useState<string | number>(25)
@@ -536,8 +539,8 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
     setResult(null)
     setError('')
   }
-  function changeNumberings(next: Numbering[]) {
-    setNumberings(next)
+  function changeRepiquages(next: Repiquage[]) {
+    setRepiquages(next)
     setResult(null)
     setError('')
   }
@@ -575,7 +578,8 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
     tool.id === 'fortune-cookie'
       ? {
           ...values,
-          numberings,
+          repiquages,
+          csv_data: fortuneData,
           pizza_template: fortuneTemplate,
           layer_template: fortuneLayer,
           tickets_per_book: fortuneLayer ? ticketsPerBook : 25,
@@ -1055,7 +1059,11 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   toolId={tool.id}
                   settings={settings}
                   onLoad={(saved) => {
-                    const { numberings: savedNumberings, ...fields } = saved
+                    const {
+                      repiquages: savedRepiquages,
+                      numberings: legacyNumberings,
+                      ...fields
+                    } = saved
                     if (tool.id === 'burger') {
                       const options = Object.fromEntries(
                         Object.entries(burgerDefaults).map(([key, fallback]) => [
@@ -1089,6 +1097,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                           }
                         : null
                       setFortuneTemplate(template)
+                      setFortuneData((fields.csv_data as CsvData | null) ?? null)
                       setFortuneLayer((fields.layer_template as Values | null) ?? null)
                       setTicketsPerBook((fields.tickets_per_book as number) ?? 25)
                       setValues(
@@ -1103,10 +1112,16 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                       )
                     } else setValues(fields as Values)
                     if (tool.id === 'fortune-cookie')
-                      setNumberings(
-                        (savedNumberings as Numbering[] | null) || [
-                          newNumbering(Number(fields.height)),
-                        ],
+                      setRepiquages(
+                        (
+                          (savedRepiquages ??
+                            legacyNumberings ?? [
+                              newRepiquage(Number(fields.height ?? 55)),
+                            ]) as Repiquage[]
+                        ).map((item) => ({
+                          ...newRepiquage(Number(fields.height ?? 55)),
+                          ...item,
+                        })),
                       )
                     setResult(null)
                     setError('')
@@ -1170,6 +1185,11 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                         visibleField(tool.id, field.key, values) &&
                         !(
                           tool.id === 'fortune-cookie' &&
+                          ['start', 'digits', 'prefix'].includes(field.key) &&
+                          !repiquages.some((item) => item.source === 'sequence')
+                        ) &&
+                        !(
+                          tool.id === 'fortune-cookie' &&
                           ['width', 'height', 'bleed'].includes(field.key)
                         ) &&
                         !(
@@ -1192,15 +1212,33 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                   />
                 )}
                 {tool.id === 'fortune-cookie' && (
-                  <SettingsSection
-                    title="Positions des numéros"
-                    summary={`${numberings.length} position(s)`}
-                  >
+                  <FortuneData
+                    data={fortuneData}
+                    onChange={(data) => {
+                      setFortuneData(data)
+                      if (data) setValues((old) => ({ ...old, count: data.rows.length }))
+                      if (data)
+                        setRepiquages((old) =>
+                          old.map((item) =>
+                            item.source === 'csv' && !item.column
+                              ? { ...item, column: data.columns[0] }
+                              : item,
+                          ),
+                        )
+                      setResult(null)
+                      setError('')
+                    }}
+                  />
+                )}
+                {tool.id === 'fortune-cookie' && (
+                  <SettingsSection title="Repiquages" summary={`${repiquages.length} position(s)`}>
                     <FortuneSettings
-                      items={numberings}
+                      items={repiquages}
                       width={Number(values.width)}
                       height={Number(values.height)}
-                      onChange={changeNumberings}
+                      onChange={changeRepiquages}
+                      data={fortuneData}
+                      serial={fortuneSerial}
                     />
                   </SettingsSection>
                 )}
@@ -1277,25 +1315,25 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
             <>
               {tool.id === 'fortune-cookie' && (
                 <details className="live-placement" open>
-                  <summary>Placement des numérotations</summary>
+                  <summary>Placement des repiquages</summary>
                   <FortunePreview
-                    items={numberings}
+                    items={repiquages}
                     width={Number(values.width) || 85}
                     height={Number(values.height) || 55}
                     bleed={Number(values.bleed) || 0}
-                    serial={
-                      String(values.prefix) +
-                      String(values.start).padStart(Number(values.digits), '0')
-                    }
+                    template={fortuneTemplate}
+                    serial={fortuneSerial}
+                    data={fortuneData}
                     file={files[0]}
                     disabled={busy}
-                    onChange={changeNumberings}
+                    onChange={changeRepiquages}
                   />
                 </details>
               )}
               <LivePreview
                 state={livePreview}
                 scrollable={false}
+                pdfInsetMm={tool.id === 'fortune-cookie' ? Number(values.bleed) || 0 : 0}
                 pdfOverlay={
                   tool.id === 'pizza' && pizzaFocus ? (
                     <PizzaHighlight values={values} field={pizzaFocus} />
@@ -1384,6 +1422,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                         url={assetUrl(result.id, selected.name)}
                         page={page}
                         scrollable={false}
+                        insetMm={tool.id === 'fortune-cookie' ? Number(values.bleed) || 0 : 0}
                       />
                     ) : selected?.media_type === 'image/png' ? (
                       <img src={assetUrl(result.id, selected.name)} alt={selected.label} />

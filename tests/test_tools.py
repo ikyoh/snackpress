@@ -384,7 +384,13 @@ def test_fortune_multiple_numberings_styles_and_sequence(tmp_path):
         fonts = {str(font.BaseFont) for _, font in doc.pages[0].Resources.Font.items()}
         assert "/Courier" in fonts and "/Times-Roman" in fonts
     settings = json.loads((tmp_path / "reglages.json").read_text())["settings"]
-    assert settings["numberings"] == placements
+    assert [
+        {key: item[key] for key in original}
+        for item, original in zip(settings["repiquages"], placements, strict=True)
+    ] == placements
+    assert all(
+        item["align"] == "left" and item["source"] == "sequence" for item in settings["repiquages"]
+    )
 
 
 def test_fortune_numberings_without_fixed_limit_and_empty_list(tmp_path):

@@ -31,7 +31,10 @@ const groups: Record<string, Group[]> = {
     { title: 'Ouvrage', keys: ['pages', 'glue'] },
     { title: 'Papier', keys: ['mode', 'gsm', 'bulk', 'caliper'] },
   ],
-  'fortune-cookie': [{ title: 'Numérotation', keys: ['count', 'start', 'digits', 'prefix'] }],
+  'fortune-cookie': [
+    { title: 'Production', keys: ['count'] },
+    { title: 'Numérotation', keys: ['start', 'digits', 'prefix'] },
+  ],
   poke: [{ title: 'Échantillonnage', keys: ['dpi'] }],
   sushi: [
     { title: 'Format', keys: ['width', 'height', 'shape'] },

@@ -146,6 +146,7 @@ export function LivePreview({
   overlayLabel,
   overlayArtifact,
   faceArtifact,
+  pdfInsetMm,
 }: {
   state: ReturnType<typeof useLivePreview>
   pageNumber?: number
@@ -155,6 +156,7 @@ export function LivePreview({
   overlayLabel?: string
   overlayArtifact?: string
   faceArtifact?: string
+  pdfInsetMm?: number
 }) {
   const { preview, updating, error, stale } = state
   const [artifactName, setArtifactName] = useState('')
@@ -264,6 +266,7 @@ export function LivePreview({
                 url={url}
                 page={currentPage}
                 scrollable={scrollable}
+                insetMm={pdfInsetMm}
                 overlay={showOverlay ? pdfOverlay : undefined}
               />
             ) : (

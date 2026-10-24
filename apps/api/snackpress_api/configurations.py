@@ -49,8 +49,9 @@ def tool_model(tool_id: str):
 
 
 def validated(tool_id: str, settings: dict):
-    if len(json.dumps(settings)) > 65536:
-        raise HTTPException(413, "Configuration trop volumineuse (64 Ko maximum).")
+    limit = 2 * 1024 * 1024 if tool_id == "fortune-cookie" else 65536
+    if len(json.dumps(settings, ensure_ascii=False).encode("utf-8")) > limit:
+        raise HTTPException(413, "Configuration trop volumineuse.")
     try:
         result = tool_model(tool_id).model_validate(settings).model_dump()
     except ValidationError as exc:

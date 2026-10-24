@@ -143,7 +143,7 @@ def test_preview_stays_on_individual_tickets_and_export_contains_imposed_sheets(
         assert "SP-0026" not in pdf[0].get_textpage().get_text_range()
         bitmap = pdf[0].render(scale=2, rev_byteorder=True)
         pixels = bitmap.to_pil().convert("RGB").get_flattened_data()
-        assert any(r > 140 and g > 90 and b < 60 for r, g, b in pixels)
+        assert not any(r > 140 and g > 90 and b < 60 for r, g, b in pixels)
         bitmap.close()
     run(final, "fortune-cookie", [], settings)
     with pdfium.PdfDocument(str(final / "imposition.pdf")) as pdf:

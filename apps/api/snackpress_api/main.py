@@ -114,14 +114,19 @@ async def private_account_responses(request: Request, call_next):
         ("/api/auth", "/api/configurations", "/api/print-catalog")
     )
     if private:
+        limit = (
+            2 * 1024 * 1024 + 16 * 1024
+            if request.url.path.startswith("/api/configurations")
+            else 300 * 1024
+            if request.url.path.startswith("/api/print-catalog")
+            else 80 * 1024
+        )
         size = 0
         chunks = []
         async for chunk in request.stream():
             size += len(chunk)
             chunks.append(chunk)
-            if size > (
-                300 * 1024 if request.url.path.startswith("/api/print-catalog") else 80 * 1024
-            ):
+            if size > limit:
                 return JSONResponse(
                     status_code=413, content={"detail": "Requête trop volumineuse."}
                 )

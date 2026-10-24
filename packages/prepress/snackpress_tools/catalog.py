@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -171,13 +171,41 @@ class Layer(Params):
     flip: Literal["long", "short"] = "long"
 
 
-class Numbering(Params):
+class CsvData(Params):
+    columns: list[Annotated[str, Field(min_length=1, max_length=256)]] = Field(
+        min_length=1, max_length=100
+    )
+    rows: list[list[Annotated[str, Field(max_length=4000)]]] = Field(min_length=1, max_length=1000)
+
+    @model_validator(mode="after")
+    def table(self):
+        if len(set(self.columns)) != len(self.columns) or any(
+            not name.strip() for name in self.columns
+        ):
+            raise ValueError("Chaque colonne CSV doit avoir un nom non vide et unique.")
+        if any(len(row) != len(self.columns) for row in self.rows):
+            raise ValueError("Chaque ligne CSV doit avoir le même nombre de champs que l’en-tête.")
+        if (
+            sum(len(value.encode("utf-8")) for row in [self.columns, *self.rows] for value in row)
+            > 1024 * 1024
+        ):
+            raise ValueError("Les données CSV sont limitées à 1 Mo.")
+        return self
+
+
+class Repiquage(Params):
     x: float = Field(default=6, ge=0, le=500)
     y: float = Field(default=49, ge=0, le=500)
     color: str = Field(default="#183d36", pattern=r"^#[0-9a-fA-F]{6}$")
     size: float = Field(default=8, ge=1, le=300)
     font: Literal["Snack", "SnackBold", "Helvetica", "Times-Roman", "Courier"] = "SnackBold"
     rotation: float = Field(default=0, ge=-360, le=360)
+    align: Literal["left", "center", "right"] = "left"
+    source: Literal["sequence", "csv"] = "sequence"
+    column: str = Field(default="", max_length=256)
+    rendering: Literal["text", "code128", "ean13"] = "text"
+    barcode_width: float = Field(default=40, gt=0, le=500)
+    barcode_height: float = Field(default=12, gt=0, le=500)
 
 
 class Fortune(Params):
@@ -188,7 +216,8 @@ class Fortune(Params):
     digits: int = Field(default=4, ge=1, le=12)
     prefix: str = Field(default="SP-", max_length=30)
     bleed: float = Field(default=3, ge=0, le=20)
-    numberings: list[Numbering] | None = None
+    repiquages: list[Repiquage] | None = None
+    csv_data: CsvData | None = None
     pizza_template: Pizza | None = None
     layer_template: Layer | None = None
     tickets_per_book: int = Field(default=25, ge=1, le=100)
@@ -200,6 +229,9 @@ class Fortune(Params):
             values = dict(values)
             for key in ("text", "code", "payload"):
                 values.pop(key, None)
+            legacy = values.pop("numberings", None)
+            if "repiquages" not in values and legacy is not None:
+                values["repiquages"] = legacy
             template = values.get("pizza_template")
             if isinstance(template, (Pizza, dict)):
                 template = Pizza.model_validate(template)
@@ -214,11 +246,21 @@ class Fortune(Params):
             raise ValueError(
                 "Choisissez une configuration Layer Cake en poses répétées pour les souches."
             )
-        for numbering in self.numberings or []:
-            if numbering.x > self.width or numbering.y > self.height:
+        for item in self.repiquages or []:
+            if item.x > self.width or item.y > self.height:
                 raise ValueError(
-                    "Le point de placement de chaque numérotation doit rester sur le support."
+                    "Le point de placement de chaque repiquage doit rester sur le support."
                 )
+            if item.source == "csv":
+                if not self.csv_data or item.column not in self.csv_data.columns:
+                    raise ValueError(
+                        "Importez un CSV et choisissez une colonne pour chaque repiquage CSV."
+                    )
+                if self.count > len(self.csv_data.rows):
+                    raise ValueError("Le nombre d’exemplaires dépasse le nombre de lignes du CSV.")
+        from .fortune_data import validate_repiquages
+
+        validate_repiquages(self)
         return self
 
 
@@ -524,11 +566,12 @@ DEFINITIONS = [
         min_files=0,
         max_files=1,
         description=(
-            "Générer des billets numérotés, avec fond perdu et imposition en souches facultative."
+            "Créer des repiquages par numérotation ou données CSV, en texte ou code-barres, "
+            "avec imposition en souches facultative."
         ),
         limit=(
             "Jusqu’à 1 000 billets, en pages individuelles ou imposés pour une coupe en souches. "
-            "Fond PDF facultatif d’une page ; contrôler la numérotation et le format fini."
+            "Fond PDF facultatif d’une page ; contrôler les repiquages et le format fini."
         ),
         fields=[
             number("width", "Largeur du support", 85, low=40, high=500),

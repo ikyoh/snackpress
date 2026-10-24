@@ -77,6 +77,8 @@ async def process_tool(tool_id, settings, files, *, example=False):
     if tool_id not in CATALOG:
         raise HTTPException(404, "Outil inconnu.")
     definition = CATALOG[tool_id]
+    if tool_id == "fortune-cookie" and len(settings.encode("utf-8")) > 2 * 1024 * 1024:
+        raise HTTPException(413, "Réglages Fortune Cookie trop volumineux (2 Mo maximum).")
     if not example and not definition.min_files <= len(files) <= definition.max_files:
         raise HTTPException(
             422, f"Importez de {definition.min_files} à {definition.max_files} fichier(s)."

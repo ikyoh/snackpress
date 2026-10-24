@@ -127,7 +127,8 @@ async def render_preview(preview_id: str, data: PreviewSettings, request: Reques
     info = preview_job(preview_id)
     if preview_id in svc.busy:
         raise HTTPException(409, "L’aperçu précédent se termine. Réessayez dans un instant.")
-    if len(json.dumps(data.settings)) > 65536:
+    limit = 2 * 1024 * 1024 if info["tool"] == "fortune-cookie" else 65536
+    if len(json.dumps(data.settings, ensure_ascii=False).encode("utf-8")) > limit:
         raise HTTPException(413, "Réglages trop volumineux.")
     try:
         model = Settings if info["tool"] == "imposition" else MODELS[info["tool"]]
@@ -173,7 +174,8 @@ async def render_preview(preview_id: str, data: PreviewSettings, request: Reques
             ),
             "fortune-cookie": (
                 "Aperçu limité aux deux premiers exemplaires. "
-                "Le fichier final contient toute la série."
+                "Affichage au format fini, sans fonds perdus. "
+                "Le fichier final contient toute la série avec les fonds perdus."
             ),
         }
         notice = notices.get(
@@ -183,7 +185,7 @@ async def render_preview(preview_id: str, data: PreviewSettings, request: Reques
             if params.layer_template:
                 notice += " L’imposition en souches est générée uniquement pour le téléchargement."
             if params.pizza_template:
-                notice += " Le gabarit Pizza est visible uniquement ici et absent du PDF final."
+                notice += " Les repères Pizza sont visibles uniquement dans l’aperçu de placement."
         if info["tool"] in {"donut", "tiramisu", "poke"}:
             notice = (
                 "Aperçu réduit : deux premières pages, 96 dpi maximum. "

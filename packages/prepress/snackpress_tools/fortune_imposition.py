@@ -107,6 +107,10 @@ def impose(folder, source, params, *, preview=False):
     if not preview:
 
         def serial(index):
+            if params.repiquages and not any(
+                item.source == "sequence" for item in params.repiquages
+            ):
+                return f"Ligne CSV {index + 2}"
             return params.prefix + str(params.start + index).zfill(params.digits)
 
         manifest = folder / "plan-souches.json"
@@ -119,6 +123,15 @@ def impose(folder, source, params, *, preview=False):
                 "placements": [pose.model_dump() for pose in placements],
                 "batches": batches,
                 "sheets": [[serial(i) if i is not None else None for i in row] for row in sheets],
+                **(
+                    {
+                        "csv_row_numbers": [
+                            [i + 2 if i is not None else None for i in row] for row in sheets
+                        ]
+                    }
+                    if params.csv_data
+                    else {}
+                ),
             },
         )
         cut_piles = {}

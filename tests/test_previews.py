@@ -128,7 +128,9 @@ def test_light_preview_does_not_change_full_resolution_or_count(api, source):
 
 @pytest.mark.parametrize("shape", ["rectangle", "circle", "ellipse"])
 @pytest.mark.parametrize("with_background", [False, True])
-def test_fortune_pizza_guides_are_only_in_preview(tmp_path, source, shape, with_background):
+def test_fortune_pdf_preview_and_export_have_no_pizza_guides(
+    tmp_path, source, shape, with_background
+):
     settings = {
         "width": 85,
         "height": 85 if shape == "circle" else 55,
@@ -170,7 +172,7 @@ def test_fortune_pizza_guides_are_only_in_preview(tmp_path, source, shape, with_
         assert "SP-0001" in pdf[0].get_textpage().get_text_range()
         image = pdf[0].render(scale=2, rev_byteorder=True).to_pil().convert("RGB")
         pixels = image.get_flattened_data()
-        assert any(r > 140 and g > 90 and b < 60 for r, g, b in pixels)  # Yellow guides.
+        assert not any(r > 140 and g > 90 and b < 60 for r, g, b in pixels)
         if with_background:
             assert "STUDIO PAPIER" in pdf[0].get_textpage().get_text_range()
     with pdfium.PdfDocument(str(final / "serie.pdf")) as pdf:
@@ -188,6 +190,36 @@ def test_fortune_pizza_template_defines_the_format(api):
         assert float(pdf.pages[0].TrimBox[2] - pdf.pages[0].TrimBox[0]) / (
             72 / 25.4
         ) == pytest.approx(100)
+
+
+def test_fortune_csv_preview_accepts_data_above_the_old_settings_limit(api):
+    client, _ = api
+    preview_id = session(client, "fortune-cookie")
+    response = render(
+        client,
+        preview_id,
+        {
+            "count": 100,
+            "csv_data": {"columns": ["nom"], "rows": [["A" * 800]] * 100},
+            "repiquages": [{"source": "csv", "column": "nom", "align": "right", "x": 80}],
+        },
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["artifacts"][0]["pages"] == 2
+    response = render(
+        client,
+        preview_id,
+        {
+            "count": 3,
+            "csv_data": {
+                "columns": ["ean"],
+                "rows": [["5901234123457"], ["5901234123457"], ["5901234123458"]],
+            },
+            "repiquages": [{"source": "csv", "column": "ean", "rendering": "ean13"}],
+        },
+    )
+    assert response.status_code == 422
+    assert "billet 3" in response.text
 
 
 def test_imposition_preview_reuses_source_and_never_exports_final_implicitly(api, source):

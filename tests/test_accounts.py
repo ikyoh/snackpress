@@ -237,12 +237,20 @@ def test_validation_all_tools_and_numbering_roundtrip(account_api):
         tool="fortune-cookie",
         name="Billets",
         settings={
-            "numberings": numberings, "prefix": "B-", "pizza_template": {"shape": "ellipse"},
-            "layer_template": {"sheet_width": 210, "sheet_height": 150}, "tickets_per_book": 20,
+            "numberings": numberings,
+            "prefix": "B-",
+            "pizza_template": {"shape": "ellipse"},
+            "layer_template": {"sheet_width": 210, "sheet_height": 150},
+            "tickets_per_book": 20,
         },
     )
     assert response.status_code == 201, response.text
-    assert response.json()["settings"]["numberings"] == numberings
+    saved = response.json()["settings"]["repiquages"]
+    assert [
+        {key: item[key] for key in original}
+        for item, original in zip(saved, numberings, strict=True)
+    ] == numberings
+    assert saved[0]["align"] == "left"
     assert response.json()["settings"]["pizza_template"]["shape"] == "ellipse"
     assert response.json()["settings"]["layer_template"]["sheet_width"] == 210
     assert response.json()["settings"]["tickets_per_book"] == 20
@@ -267,6 +275,37 @@ def test_rate_limit_and_expired_session(account_api):
         client.post("/api/auth/forgot-password", json={"email": "nobody@example.com"}).status_code
         == 429
     )
+
+
+def test_fortune_configuration_preserves_csv_sources_and_alignments(account_api):
+    client, _, deliveries = account_api
+    activate(client, deliveries)
+    data = {"columns": ["nom", "reference"], "rows": [["Élodie " + "A" * 800, "00017"]] * 100}
+    response = create(
+        client,
+        tool="fortune-cookie",
+        name="Invitations",
+        settings={
+            "count": 100,
+            "csv_data": data,
+            "repiquages": [
+                {"source": "csv", "column": "nom", "align": "center", "x": 42},
+                {
+                    "source": "csv",
+                    "column": "reference",
+                    "rendering": "code128",
+                    "align": "right",
+                    "x": 80,
+                },
+            ],
+        },
+    )
+    assert response.status_code == 201, response.text
+    saved = client.get("/api/configurations?tool_id=fortune-cookie").json()[0]["settings"]
+    assert saved["csv_data"] == data
+    assert saved["repiquages"][0]["align"] == "center"
+    assert saved["repiquages"][1]["rendering"] == "code128"
+    assert saved["repiquages"][1]["column"] == "reference"
 
 
 def test_smtp_unavailable_rolls_back_registration(account_api, monkeypatch):

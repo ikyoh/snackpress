@@ -7,8 +7,9 @@ from reportlab.lib.colors import CMYKColorSep
 from reportlab.lib.units import mm
 
 from .artwork_geometry import validate_page
-from .catalog import Numbering, ToolResult
+from .catalog import Repiquage, ToolResult
 from .common import CORAL, INK, artifact, new_canvas, open_pdf, report
+from .fortune_data import draw_repiquage, value_at
 from .taco_layout import fold_widths as fold_widths
 
 
@@ -558,20 +559,18 @@ def fortune(folder, files, p, *, preview=False):
     full_width, full_height = (p.width + 2 * p.bleed) * mm, (p.height + 2 * p.bleed) * mm
     c = new_canvas(overlay, p.width + 2 * p.bleed, p.height + 2 * p.bleed)
     for index in range(p.count):
-        serial = p.prefix + str(p.start + index).zfill(p.digits)
         c.saveState()
         c.translate(bleed, bleed)
         clip = c.beginPath()
         clip.rect(0, 0, p.width * mm, p.height * mm)
         c.clipPath(clip, stroke=0, fill=0)
-        numberings = p.numberings if p.numberings is not None else [Numbering(y=p.height - 6)]
-        for numbering in numberings:
+        repiquages = p.repiquages if p.repiquages is not None else [Repiquage(y=p.height - 6)]
+        for item in repiquages:
             c.saveState()
-            c.translate(numbering.x * mm, (p.height - numbering.y) * mm)
-            c.rotate(-numbering.rotation)
-            c.setFillColor(colors.HexColor(numbering.color))
-            c.setFont(numbering.font, numbering.size)
-            c.drawString(0, 0, serial)
+            c.translate(item.x * mm, (p.height - item.y) * mm)
+            c.rotate(-item.rotation)
+            c.setFillColor(colors.HexColor(item.color))
+            draw_repiquage(c, item, value_at(p, item, index))
             c.restoreState()
         c.restoreState()
         c.showPage()
@@ -609,18 +608,6 @@ def fortune(folder, files, p, *, preview=False):
             )
             target.BleedBox = target.MediaBox
         out.save(path)
-    if preview and p.pizza_template:
-        work = folder / "gabarit-pizza"
-        work.mkdir()
-        pizza(work, [], p.pizza_template, guides_only=True)
-        with pikepdf.open(work / "gabarit.pdf") as guide, pikepdf.open(
-            path, allow_overwriting_input=True
-        ) as series:
-            guide_form = guide.pages[0].as_form_xobject()
-            guide_form.BBox = pikepdf.Array(guide.pages[0].mediabox)
-            for page in series.pages:
-                page.add_overlay(guide_form, pikepdf.Rectangle(*map(float, page.mediabox)))
-            series.save(path)
     if p.layer_template:
         from .fortune_imposition import impose
 
@@ -634,10 +621,19 @@ def fortune(folder, files, p, *, preview=False):
         )
     return ToolResult(
         tool="fortune-cookie",
-        summary=f"{p.count} exemplaires numérotés générés.",
-        metrics={"Exemplaires": p.count, "Premier numéro": p.prefix + str(p.start).zfill(p.digits)},
+        summary=f"{p.count} exemplaires avec repiquages générés.",
+        metrics={
+            "Exemplaires": p.count,
+            "Repiquages": len(p.repiquages) if p.repiquages is not None else 1,
+            **(
+                {"Premier numéro": p.prefix + str(p.start).zfill(p.digits)}
+                if p.repiquages is None or any(item.source == "sequence" for item in p.repiquages)
+                else {}
+            ),
+        },
         warnings=[
-            "Contrôler la numérotation, le placement et le fond perdu sur une épreuve à 100 %."
+            "Contrôler les repiquages, les codes-barres, le placement et le fond perdu "
+            "sur une épreuve à 100 %."
         ],
         artifacts=[artifact(path, "Série PDF personnalisée")],
     )

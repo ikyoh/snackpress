@@ -81,15 +81,15 @@ test('Fortune Cookie : PDF automatique limité, placement interactif et série c
   page,
 }) => {
   await page.goto('/?tool=fortune-cookie')
-  await openSettings(page, 'Numérotation')
+  await openSettings(page, 'Production')
   await page.getByLabel('Nombre d’exemplaires').fill('12')
   const live = page.getByLabel('Aperçu automatique', { exact: true })
   await expect(live.locator('canvas[data-ready=true]')).toBeVisible({ timeout: 15000 })
   await expect(live).toContainText('deux premiers exemplaires')
-  await expect(page.getByLabel('Déplacer la numérotation 1')).toBeVisible()
-  await openSettings(page, 'Positions des numéros')
+  await expect(page.getByLabel('Déplacer le repiquage 1')).toBeVisible()
+  await openSettings(page, 'Repiquages')
   await page
-    .getByRole('group', { name: 'Numérotation 1', exact: true })
+    .getByRole('group', { name: 'Repiquage 1', exact: true })
     .getByLabel('Position X')
     .fill('20')
   await expect(live.getByRole('status').filter({ hasText: 'Aperçu à jour' })).toBeVisible({
@@ -136,7 +136,7 @@ test('Fortune Cookie : configuration Pizza dans l’aperçu et export sans gabar
     })
   })
   await page.goto('/?tool=fortune-cookie')
-  await openSettings(page, 'Numérotation')
+  await openSettings(page, 'Production')
   await page.getByLabel('Nombre d’exemplaires').fill('3')
   const format = page.getByLabel('Source du format')
   await expect(format).toHaveValue('support')
@@ -147,25 +147,49 @@ test('Fortune Cookie : configuration Pizza dans l’aperçu et export sans gabar
   await page.getByLabel('Charger une configuration').selectOption('pizza-oval')
   await expect(page.getByText('Format fini : 100 × 60 mm')).toBeVisible()
   await expect(page.getByLabel('Hauteur du support')).toHaveCount(0)
+  const placement = page.getByLabel('Placement des repiquages sur le support')
+  const guides = placement.locator('[data-fortune-pizza-guides]')
+  await expect(guides).toBeVisible()
+  await expect(placement).toHaveAttribute('viewBox', '-4 -4 108 68')
+  await expect(guides.locator('g[stroke="#f06e50"] ellipse')).toHaveAttribute('rx', '50')
+  await expect(guides.locator('g[stroke="#183d36"] ellipse')).toHaveAttribute('rx', '45')
+  await expect(guides.locator('g[stroke="#3265c9"] ellipse')).toHaveAttribute('rx', '54')
   const live = page.getByLabel('Aperçu automatique', { exact: true })
-  await expect(live.locator('.pdf-viewer-footer')).toContainText('108 × 68 mm', { timeout: 15000 })
-  await expect(live).toContainText('gabarit Pizza est visible uniquement ici')
+  await expect(live.locator('.pdf-viewer-footer')).toContainText('100 × 60 mm', { timeout: 15000 })
+  await expect(live).toContainText(
+    'repères Pizza sont visibles uniquement dans l’aperçu de placement',
+  )
   await expect(live.locator('canvas[data-ready=true]')).toBeVisible()
+  await openSettings(page, 'Repiquages')
+  const number = page.getByLabel('Déplacer le repiquage 1')
+  await number.scrollIntoViewIfNeeded()
+  const numberBox = (await number.boundingBox())!
+  const sheetBox = (await placement.boundingBox())!
+  await page.mouse.move(numberBox.x + numberBox.width / 2, numberBox.y + numberBox.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(
+    numberBox.x + numberBox.width / 2 + (sheetBox.width * 10) / 108,
+    numberBox.y + numberBox.height / 2 + (sheetBox.height * 5) / 68,
+  )
+  await page.mouse.up()
+  expect(Number(await page.getByLabel('Position X').inputValue())).toBeCloseTo(16, 0)
+  expect(Number(await page.getByLabel('Position Y').inputValue())).toBeCloseTo(54, 0)
   await page.screenshot({ path: 'test-results/fortune-pizza-preview.png', fullPage: true })
   await format.selectOption('support')
+  await expect(guides).toHaveCount(0)
   await expect(page.getByLabel('Largeur du support')).toBeEditable()
   await expect(page.getByLabel('Largeur du support')).toHaveValue('100')
   await expect(page.getByLabel('Hauteur du support')).toHaveValue('60')
   await expect(page.getByLabel('Fond perdu sur chaque côté')).toHaveValue('4')
-  await expect(live.locator('.pdf-viewer-footer')).toContainText('108 × 68 mm', { timeout: 15000 })
+  await expect(live.locator('.pdf-viewer-footer')).toContainText('100 × 60 mm', { timeout: 15000 })
   await format.selectOption('pizza')
   await page.getByLabel('Charger une configuration').selectOption('pizza-oval')
-  await expect(live.locator('.pdf-viewer-footer')).toContainText('108 × 68 mm', { timeout: 15000 })
+  await expect(live.locator('.pdf-viewer-footer')).toContainText('100 × 60 mm', { timeout: 15000 })
   const final = page.waitForResponse((r) => r.url().includes('/api/tools/fortune-cookie/run'))
   await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
   const response = await final
   expect(response.status(), await response.text()).toBe(201)
-  await expect(page.locator('.tool-result .pdf-viewer-footer')).toContainText('108 × 68 mm', {
+  await expect(page.locator('.tool-result .pdf-viewer-footer')).toContainText('100 × 60 mm', {
     timeout: 15000,
   })
   await expect(page.locator('.artifact-downloads')).toContainText('3 pages')
@@ -198,7 +222,8 @@ test('Fortune Cookie : configuration Pizza dans l’aperçu et export sans gabar
   await expect(format).toHaveValue('pizza')
   await expect(page.getByText('Format fini : 100 × 100 mm')).toBeVisible()
   await expect(page.getByLabel('Largeur du support')).toHaveCount(0)
-  await expect(live.locator('.pdf-viewer-footer')).toContainText('108 × 108 mm', { timeout: 15000 })
+  await expect(guides.locator('g[stroke="#f06e50"] ellipse')).toHaveAttribute('ry', '50')
+  await expect(live.locator('.pdf-viewer-footer')).toContainText('100 × 100 mm', { timeout: 15000 })
 })
 
 test('Fortune Cookie : Layer Cake et coupe en souches', async ({ page }) => {
@@ -245,7 +270,7 @@ test('Fortune Cookie : Layer Cake et coupe en souches', async ({ page }) => {
     })
   })
   await page.goto('/?tool=fortune-cookie')
-  await openSettings(page, 'Numérotation')
+  await openSettings(page, 'Production')
   await page.getByLabel('Nombre d’exemplaires').fill('1000')
   await openSettings(page, 'Imposition en souches')
   const enabled = page.getByLabel('Imposer avec un gabarit Layer Cake')
@@ -253,7 +278,7 @@ test('Fortune Cookie : Layer Cake et coupe en souches', async ({ page }) => {
   await page.getByLabel('Charger une configuration').selectOption('four-up')
   await page.getByLabel('Billets par souche', { exact: true }).fill('10')
   const live = page.getByLabel('Aperçu automatique', { exact: true })
-  await expect(live.locator('.pdf-viewer-footer')).toContainText('91 × 61 mm', { timeout: 15000 })
+  await expect(live.locator('.pdf-viewer-footer')).toContainText('85 × 55 mm', { timeout: 15000 })
   await expect(live).toContainText('uniquement pour le téléchargement')
   await expect(live.locator('canvas[data-ready=true]')).toBeVisible()
   await page.screenshot({ path: 'test-results/fortune-souches-preview.png', fullPage: true })

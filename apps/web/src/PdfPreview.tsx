@@ -93,12 +93,14 @@ export function PdfPreview({
   retainPrevious = false,
   scrollable = true,
   overlay,
+  insetMm = 0,
 }: {
   url: string
   page: number
   retainPrevious?: boolean
   scrollable?: boolean
   overlay?: ReactNode
+  insetMm?: number
 }) {
   const viewer = useRef<HTMLDivElement>(null)
   const stage = useRef<HTMLDivElement>(null)
@@ -166,10 +168,11 @@ export function PdfPreview({
         const page = await pdf.getPage(number)
         if (disposed) return
         const natural = page.getViewport({ scale: 1 })
-        const fit = Math.min(
-          (bounds.width - 48) / natural.width,
-          (bounds.height - 48) / natural.height,
-        )
+        const inset = (Math.max(0, insetMm) * 72) / 25.4
+        const width = natural.width - 2 * inset
+        const height = natural.height - 2 * inset
+        if (width <= 0 || height <= 0) throw new Error('Invalid preview crop')
+        const fit = Math.min((bounds.width - 48) / width, (bounds.height - 48) / height)
         const scale = Math.max(scrollable || expanded ? 0.05 : 0.0001, fit) * zoom
         // Render offscreen: rapid page changes never paint over the active page.
         const canvas = document.createElement('canvas')
@@ -184,12 +187,24 @@ export function PdfPreview({
         render = page.render({ canvas, viewport })
         await render.promise
         if (disposed || !ref.current) return
-        ref.current.width = canvas.width
-        ref.current.height = canvas.height
-        ref.current.getContext('2d')!.drawImage(canvas, 0, 0)
-        ref.current.style.width = `${natural.width * scale}px`
-        ref.current.style.height = `${natural.height * scale}px`
-        setDimensions({ width: (natural.width * 25.4) / 72, height: (natural.height * 25.4) / 72 })
+        ref.current.width = Math.ceil(width * renderScale)
+        ref.current.height = Math.ceil(height * renderScale)
+        ref.current
+          .getContext('2d')!
+          .drawImage(
+            canvas,
+            inset * renderScale,
+            inset * renderScale,
+            width * renderScale,
+            height * renderScale,
+            0,
+            0,
+            ref.current.width,
+            ref.current.height,
+          )
+        ref.current.style.width = `${width * scale}px`
+        ref.current.style.height = `${height * scale}px`
+        setDimensions({ width: (width * 25.4) / 72, height: (height * 25.4) / 72 })
         setHasPainted(true)
         setReady(true)
       } catch {
@@ -203,7 +218,7 @@ export function PdfPreview({
       disposed = true
       render?.cancel()
     }
-  }, [pdf, number, bounds, zoom, scrollable, expanded])
+  }, [pdf, number, bounds, zoom, scrollable, expanded, insetMm])
 
   async function toggleFullscreen() {
     setFullscreenError('')
