@@ -56,6 +56,9 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
   await expect(
     page.getByLabel('Ajouter un tracé', { exact: true }).locator('option[value=sushi]'),
   ).toHaveCount(1)
+  await expect(
+    page.getByLabel('Ajouter un tracé', { exact: true }).locator('option[value=perforation]'),
+  ).toHaveCount(0)
   await page
     .getByLabel('Gabarit Pizza', { exact: true })
     .selectOption(`${fixed.id}:${fixed.revision}`)
@@ -108,14 +111,18 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
     .getByLabel('Gabarit Pizza', { exact: true })
     .selectOption(`${fixed.id}:${fixed.revision}`)
   await page.getByRole('button', { name: 'Continuer', exact: true }).click()
-  await page.getByLabel('Ajouter un tracé', { exact: true }).selectOption('perforation')
+  await page.getByLabel('Ajouter un tracé', { exact: true }).selectOption('taco')
   await expect(
     page.getByLabel('Ajouter un tracé', { exact: true }).locator('option[value=sushi]'),
-  ).toHaveText('Sushi — découpe et rainage — remplace Pizza')
+  ).toHaveText('Sushi — découpe et rainage')
   await page.getByLabel('Ajouter un tracé', { exact: true }).selectOption('sushi')
-  await expect(page.getByLabel('Sens des perforations')).toHaveValue('vertical')
-  await page.getByLabel('Contour', { exact: true }).selectOption('rectangle')
-  await page.getByLabel('Rayon des coins (mm)').fill('5')
+  await expect(
+    page.getByRole('group', { name: 'Taco — plis et panneaux', exact: true }),
+  ).toBeVisible()
+  await expect(page.getByLabel('Contour', { exact: true })).toHaveCount(0)
+  await expect(
+    page.getByRole('group', { name: 'Pizza — coupe et sécurité', exact: true }),
+  ).toBeVisible()
   for (const [index, [kind, axis, position]] of [
     ['crease', 'vertical', '20'],
     ['cut', 'horizontal', '15'],
@@ -127,7 +134,7 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
   }
   await page.getByRole('button', { name: 'Continuer', exact: true }).click()
   await expect(page.getByText('85 × 55 mm', { exact: true })).toBeVisible()
-  await expect(page.getByText('Perforations, Sushi', { exact: true })).toBeVisible()
+  await expect(page.getByText('Pizza, Taco, Sushi', { exact: true })).toBeVisible()
   await page.route(
     '**/api/print-catalog',
     (route) =>
@@ -141,9 +148,20 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
   await expect(page.getByRole('status').filter({ hasText: 'Produit enregistré' })).toBeVisible()
   await page.reload()
   await page.getByRole('button', { name: 'Carte Sushi' }).click()
-  await expect(page.getByLabel('Outil de découpe', { exact: true })).toHaveValue('sushi')
-  await expect(page.getByLabel('Rayon des coins (mm)')).toHaveValue('5')
+  await expect(page.getByLabel('Gabarit Pizza', { exact: true })).toHaveValue(
+    `${fixed.id}:${fixed.revision}`,
+  )
+  await expect(page.getByLabel('Contour', { exact: true })).toHaveCount(0)
   await expect(page.getByLabel('Position du tracé 2', { exact: true })).toHaveValue('15')
+  await page
+    .getByLabel('Gabarit Pizza', { exact: true })
+    .selectOption(`${bounded.id}:${bounded.revision}`)
+  await expect(page.getByLabel('Position du tracé 2', { exact: true })).toHaveValue('15')
+  await page
+    .getByLabel('Gabarit Pizza', { exact: true })
+    .selectOption(`${fixed.id}:${fixed.revision}`)
+  await page.getByRole('button', { name: 'Enregistrer le catalogue', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Catalogue enregistré' })).toBeVisible()
   await page.setViewportSize({ width: 390, height: 844 })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   expect((await page.locator('.sushi-lines').boundingBox())!.width).toBeGreaterThan(200)
@@ -163,19 +181,29 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
   const job = await proof.json()
   const settings = await page.request.get(`/api/tool-jobs/${job.id}/files/reglages.json`)
   const component = (await settings.json()).settings.product_snapshot.variant.components[0]
-  expect(component.pizza_template).toBeNull()
-  expect(component.guides.map((g: { tool: string }) => g.tool)).toEqual(['perforation', 'sushi'])
-  expect(component.guides[1].settings).toMatchObject({
-    width: 85,
-    height: 55,
-    bleed: 3,
-    shape: 'rectangle',
-    corner_radius: 5,
-    lines: [
-      { kind: 'crease', axis: 'vertical', position: 20 },
-      { kind: 'cut', axis: 'horizontal', position: 15 },
-    ],
+  expect(component.pizza_template).toMatchObject({
+    id: fixed.id,
+    revision: fixed.revision,
+    name: 'Invitation fixe',
   })
+  expect(component.guides.map((g: { tool: string }) => g.tool).sort()).toEqual([
+    'pizza',
+    'sushi',
+    'taco',
+  ])
+  expect(component.guides.find((g: { tool: string }) => g.tool === 'sushi').settings).toMatchObject(
+    {
+      width: 85,
+      height: 55,
+      bleed: 3,
+      shape: 'none',
+      corner_radius: 0,
+      lines: [
+        { kind: 'crease', axis: 'vertical', position: 20 },
+        { kind: 'cut', axis: 'horizontal', position: 15 },
+      ],
+    },
+  )
   const guide = job.artifacts.find((a: { name: string }) => a.name.includes('traces'))
   expect(guide).toBeDefined()
   expect((await page.request.get(`/api/tool-jobs/${job.id}/files/${guide.name}`)).status()).toBe(

@@ -144,8 +144,6 @@ class Component(Named):
                 raise ValueError("Le fond perdu est fixé par le gabarit Pizza sélectionné.")
         if len(set(tools)) != len(tools):
             raise ValueError("Un seul tracé de chaque outil par composant.")
-        if "pizza" in tools and "sushi" in tools:
-            raise ValueError("Choisissez Pizza ou Sushi comme référence de découpe.")
         for guide in self.guides:
             if guide.tool == "perforation":
                 positions = guide.settings.get("positions", [30])
@@ -168,6 +166,11 @@ class Component(Named):
                 if guide.tool in {"pizza", "sushi"}:
                     settings["bleed"] = self.bleed
                 guide.settings = MODELS[guide.tool].model_validate(settings).model_dump()
+                if guide.tool == "sushi" and "pizza" in tools and guide.settings["shape"] != "none":
+                    raise ValueError(
+                        "Le contour est défini par Pizza ; utilisez Sushi sans contour "
+                        "pour ajouter des coupes et des rainages."
+                    )
                 if abs(guide.settings["height"] - self.height) > 0.01:
                     raise ValueError("Le cercle exige une largeur et une hauteur identiques.")
         if self.tickets:

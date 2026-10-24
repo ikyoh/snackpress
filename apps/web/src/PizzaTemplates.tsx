@@ -76,7 +76,13 @@ export function PizzaTemplatePicker({
                 settings.shape === 'circle' ? Number(settings.width) : Number(settings.height),
               bleed: Number(settings.bleed),
               guides: [
-                ...component.guides.filter((g) => !['pizza', 'sushi'].includes(g.tool)),
+                ...component.guides
+                  .filter((g) => g.tool !== 'pizza')
+                  .map((g) =>
+                    g.tool === 'sushi'
+                      ? { ...g, settings: { ...g.settings, shape: 'none', corner_radius: 0 } }
+                      : g,
+                  ),
                 { tool: 'pizza', settings },
               ],
             })

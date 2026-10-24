@@ -250,7 +250,8 @@ def generate_product(folder, files, params, preview=False):
             legend=legend,
             date=date,
             finished_shape=next(
-                (g.settings for g in component.guides if g.tool in {"pizza", "sushi"}), {}
+                (g.settings for g in component.guides if g.tool == "pizza"),
+                next((g.settings for g in component.guides if g.tool == "sushi"), {}),
             ),
             finish_page_count=sum(s.pages for _, s in visuals),
             finish_styles=[

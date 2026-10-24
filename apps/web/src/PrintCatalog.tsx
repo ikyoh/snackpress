@@ -783,16 +783,6 @@ export function VariantEditor({
       components: variant.components.map((c, i) => (i === index ? { ...c, ...patch } : c)),
     })
   }
-  function selectCuttingTool(index: number, tool: string) {
-    const component = variant.components[index]
-    update(index, {
-      pizza_template: null,
-      guides: [
-        ...component.guides.filter((g) => !['pizza', 'sushi'].includes(g.tool)),
-        ...(tool === 'sushi' ? [{ tool: 'sushi' as const, settings: {} }] : []),
-      ],
-    })
-  }
   return (
     <>
       {!guidesOnly && (
@@ -839,21 +829,11 @@ export function VariantEditor({
                     </option>
                   ))}
                 </Select>
-                {(!choosePizza || c.guides.some((g) => g.tool === 'sushi')) && (
+                {(!choosePizza || !c.pizza_template) && (
                   <ComponentDimensions component={c} onChange={(patch) => update(index, patch)} />
                 )}
               </div>
               {choosePizza && (
-                <Select
-                  label="Outil de découpe"
-                  value={c.guides.some((g) => g.tool === 'sushi') ? 'sushi' : 'pizza'}
-                  onChange={(tool) => selectCuttingTool(index, tool)}
-                >
-                  <option value="pizza">Pizza — gabarit enregistré</option>
-                  <option value="sushi">Sushi — découpe et rainage</option>
-                </Select>
-              )}
-              {choosePizza && !c.guides.some((g) => g.tool === 'sushi') && (
                 <PizzaTemplatePicker
                   component={c}
                   source={pizzaTemplates}
@@ -945,6 +925,12 @@ export function VariantEditor({
           {c.guides.map((g, gi) => (
             <fieldset className="print-block print-guide" key={g.tool}>
               <legend>{guideNames[g.tool]}</legend>
+              {g.tool === 'sushi' && c.guides.some((guide) => guide.tool === 'pizza') && (
+                <p className="field-hint">
+                  Le gabarit Pizza définit le contour. Sushi ajoute vos lignes de coupe et de
+                  rainage.
+                </p>
+              )}
               {g.tool === 'perforation' ? (
                 <>
                   <Select
@@ -981,6 +967,11 @@ export function VariantEditor({
                     ?.fields.filter(
                       (f) =>
                         !['width', 'height', 'bleed'].includes(f.key) &&
+                        !(
+                          g.tool === 'sushi' &&
+                          c.guides.some((guide) => guide.tool === 'pizza') &&
+                          ['shape', 'corner_radius'].includes(f.key)
+                        ) &&
                         (g.tool !== 'taco' || visibleTacoField(f.key, g.settings)) &&
                         (g.tool !== 'sushi' || visibleSushiField(f.key, g.settings)) &&
                         !(g.tool === 'pizza' && /^(width|height)_/.test(f.key)),
@@ -1061,17 +1052,17 @@ export function VariantEditor({
             label="Ajouter un tracé"
             value=""
             onChange={(tool) => {
-              if (tool === 'sushi') selectCuttingTool(index, tool)
-              else if (tool)
+              if (tool)
                 update(index, {
                   guides: [
-                    ...c.guides,
+                    ...c.guides.map((g) =>
+                      tool === 'pizza' && g.tool === 'sushi'
+                        ? { ...g, settings: { ...g.settings, shape: 'none', corner_radius: 0 } }
+                        : g,
+                    ),
                     {
                       tool: tool as Guide['tool'],
-                      settings:
-                        tool === 'perforation'
-                          ? { axis: 'vertical', positions: [Math.min(30, c.width / 3)] }
-                          : {},
+                      settings: {},
                     },
                   ],
                 })
@@ -1081,24 +1072,20 @@ export function VariantEditor({
             {Object.entries(guideNames)
               .filter(
                 ([id]) =>
+                  id !== 'perforation' &&
                   !(choosePizza && id === 'pizza') &&
-                  !c.guides.some((g) => g.tool === id) &&
-                  !(id === 'pizza' && c.guides.some((g) => g.tool === 'sushi')),
+                  !c.guides.some((g) => g.tool === id),
               )
               .map(([id, name]) => (
                 <option key={id} value={id}>
                   {name}
-                  {id === 'sushi' && c.guides.some((g) => g.tool === 'pizza')
-                    ? ' — remplace Pizza'
-                    : ''}
                 </option>
               ))}
           </Select>
           <p className="field-hint">
-            Les tracés partagent les dimensions du composant. Pizza et Sushi sont deux références de
-            découpe alternatives. Les tracés sont téléchargeables séparément à l’échelle 1:1.
-            {c.guides.some((g) => g.tool === 'pizza') &&
-              ' Choisir Sushi remplace Pizza et conserve les autres tracés.'}
+            Les tracés partagent le format du produit. Vous pouvez conserver le gabarit Pizza et
+            ajouter des coupes ou des rainages avec Sushi. Les tracés sont téléchargeables à
+            l’échelle 1:1.
           </p>
           {!guidesOnly && (
             <>

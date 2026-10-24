@@ -64,6 +64,9 @@ test('assistant produit : validation, retours, annulation et création recto ver
   await page.screenshot({ path: 'test-results/product-wizard-format-mobile.png', fullPage: true })
   await page.getByRole('button', { name: 'Continuer', exact: true }).click()
   await page.getByLabel('Fichiers PDF attendus', { exact: true }).selectOption('combined')
+  await expect(
+    page.getByLabel('Ajouter un tracé', { exact: true }).locator('option[value=perforation]'),
+  ).toHaveCount(0)
   await page.getByLabel('Ajouter un tracé', { exact: true }).selectOption('sushi')
   await page.getByLabel('Contour', { exact: true }).selectOption('circle')
   await page.getByRole('button', { name: 'Précédent', exact: true }).click()
@@ -260,7 +263,18 @@ test('billet numéroté : perforation, série, BAT premier et dernier, mode libr
   ).toBeVisible()
   await expect(
     page.getByRole('group', { name: 'Pizza — coupe et sécurité', exact: true }),
-  ).toHaveCount(0)
+  ).toBeVisible()
+  await expect(page.getByLabel('Contour', { exact: true })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Ajouter un tracé', exact: true }).click()
+  await page.getByLabel('Position du tracé 1', { exact: true }).fill('10')
+  await page
+    .getByRole('group', { name: 'Pizza — coupe et sécurité', exact: true })
+    .getByRole('button', { name: 'Retirer ce tracé', exact: true })
+    .click()
+  await page.getByLabel('Contour', { exact: true }).selectOption('rectangle')
+  await page.getByLabel('Ajouter un tracé', { exact: true }).selectOption('pizza')
+  await expect(page.getByLabel('Contour', { exact: true })).toHaveCount(0)
+  await expect(page.getByLabel('Position du tracé 1', { exact: true })).toHaveValue('10')
   await expect(
     page.getByRole('group', { name: 'Taco — plis et panneaux', exact: true }),
   ).toBeVisible()

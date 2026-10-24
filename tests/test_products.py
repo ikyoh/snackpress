@@ -115,6 +115,75 @@ def test_sushi_component_uses_product_bleed_and_exports_both_line_types(tmp_path
     assert "Découpe (CutContour)" in text and "Rainage (Crease)" in text
 
 
+@pytest.mark.parametrize("sushi_first", [False, True])
+def test_sushi_lines_keep_pizza_template_and_native_pdf_layers(tmp_path, sushi_first):
+    snapshot = specification("card").model_dump()
+    component = snapshot["variant"]["components"][0]
+    component["pizza_template"] = {"id": "card-template", "name": "Carte fixe", "revision": 2}
+    component["guides"][0]["settings"]["corner_radius"] = 5
+    sushi = {
+        "tool": "sushi",
+        "settings": {
+            "lines": [
+                {"kind": "cut", "axis": "horizontal", "position": 10},
+                {"kind": "crease", "axis": "vertical", "position": 25},
+            ]
+        },
+    }
+    component["guides"].insert(0 if sushi_first else 1, sushi)
+    snapshot = Snapshot.model_validate(snapshot)
+    files = artwork(tmp_path, snapshot)
+    output = tmp_path / "combined"
+    output.mkdir()
+    result = run(output, "burger", files, {"product_snapshot": snapshot.model_dump()})
+    guide = next(a for a in result.artifacts if "traces" in a.name)
+    with pikepdf.open(output / guide.name) as pdf:
+        page = pdf.pages[0]
+        trim = page.TrimBox
+        assert float(trim[2] - trim[0]) / mm == pytest.approx(85)
+        assert float(trim[3] - trim[1]) / mm == pytest.approx(55)
+        layers = list(dict(page.Resources.XObject).values())
+        assert len(layers) == 2
+        assert all(layer.Subtype == "/Form" for layer in layers)
+        sushi_layer = next(
+            layer
+            for layer in layers
+            if "/ColorSpace" in layer.Resources
+            and any(str(space[1]) == "/Crease" for _, space in layer.Resources.ColorSpace.items())
+        )
+        starts = [
+            [float(v) / mm for v in args]
+            for args, op in pikepdf.parse_content_stream(sushi_layer)
+            if str(op) == "m"
+        ]
+        assert len(starts) == 2
+        assert starts[0] == pytest.approx([3, 48], abs=1e-5)
+        assert starts[1] == pytest.approx([28, 3], abs=1e-5)
+        assert sum(str(op) == "S" for _, op in pikepdf.parse_content_stream(sushi_layer)) == 2
+    frozen = json.loads((output / "reglages.json").read_text())["settings"]["product_snapshot"][
+        "variant"
+    ]["components"][0]
+    assert frozen["pizza_template"] == component["pizza_template"]
+    assert (
+        next(g for g in frozen["guides"] if g["tool"] == "pizza")["settings"]["corner_radius"] == 5
+    )
+    assert next(g for g in frozen["guides"] if g["tool"] == "sushi")["settings"]["shape"] == "none"
+    with pikepdf.open(output / "bat.pdf") as pdf:
+        path_ops = set()
+        curved_clips = 0
+        for _, op in pikepdf.parse_content_stream(pdf.pages[1]):
+            op = str(op)
+            if op in {"m", "l", "c", "re", "h"}:
+                path_ops.add(op)
+            elif op in {"W", "W*"}:
+                curved_clips += "c" in path_ops
+            elif op in {"n", "S", "s", "f", "f*", "B", "B*", "b", "b*"}:
+                path_ops.clear()
+        assert curved_clips > 0, "Le BAT doit conserver les coins arrondis du gabarit Pizza."
+    proof = content(output / "bat.pdf")
+    assert "Zone de sécurité" in proof and "Rainage (Crease)" in proof
+
+
 def test_multiple_guides_share_trim_origin(tmp_path):
     snapshot = specification("leaflet")
     component = snapshot.variant.components[0]
@@ -270,8 +339,9 @@ def test_catalog_references_and_geometry():
     with pytest.raises(ValidationError, match="perforations"):
         Snapshot.model_validate(snapshot)
     snapshot = specification("label").model_dump()
+    snapshot["variant"]["components"][0]["guides"][0]["settings"]["shape"] = "rectangle"
     snapshot["variant"]["components"][0]["guides"].append({"tool": "pizza"})
-    with pytest.raises(ValidationError, match="référence"):
+    with pytest.raises(ValidationError, match="contour est défini par Pizza"):
         Snapshot.model_validate(snapshot)
 
 
