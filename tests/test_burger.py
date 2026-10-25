@@ -119,15 +119,15 @@ def test_registered_template_marks_on_every_page(tmp_path, tool, width, height):
         width, height = width + 6, height + 6
     visual = source(tmp_path, "visual.pdf", width=width, height=height)
     out, result = generate(tmp_path, [visual], {"template_tool": tool})
-    assert result.metrics["Pages du BAT"] == 4
+    assert result.metrics["Pages du BAT"] == 3
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
         first = pdf[0].render(scale=1).to_pil().copy()
         # The artwork is present under the template, including the large-format source.
         assert first.getpixel((297, 390)) != (255, 255, 255)
     with pikepdf.open(out / "bat.pdf") as pdf:
         assert not guide_forms(pdf.pages[0])
-        assert "/Normal" in str(pdf.pages[2].Resources.ExtGState)
-        assert_native_guides(pdf.pages[2])
+        assert "/Normal" in str(pdf.pages[1].Resources.ExtGState)
+        assert_native_guides(pdf.pages[1])
 
 
 @pytest.mark.parametrize(
@@ -146,9 +146,9 @@ def test_import_exported_pdf_template(tmp_path, tool, width, height, settings):
     out, result = generate(
         tmp_path, [visual, template_dir / exported.artifacts[0].name], {"template_tool": "pdf"}
     )
-    assert result.metrics["Pages du BAT"] == 4
+    assert result.metrics["Pages du BAT"] == 3
     with pikepdf.open(out / "bat.pdf") as pdf:
-        assert_native_guides(pdf.pages[2])
+        assert_native_guides(pdf.pages[1])
 
 
 def test_vector_guides_on_every_artwork_and_finish_page(tmp_path):

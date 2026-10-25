@@ -313,10 +313,11 @@ export function BurgerEditor({
                       mm.
                     </strong>{' '}
                     Le BAT présente les visuels avec finitions au format fini, puis avec les repères
-                    de gabarit, puis les éléments séparés avec repères.
+                    de gabarit. Les éléments séparés avec repères sont ajoutés lorsqu’ils apportent
+                    un contrôle complémentaire.
                   </>
                 ) : (
-                  'Le BAT présente les visuels avec finitions au format fini, puis avec les repères de gabarit, puis les éléments séparés avec repères. Le format doit correspondre au format fini ou au gabarit complet, sans déformation.'
+                  'Le BAT présente les visuels avec finitions au format fini, puis avec les repères de gabarit. Les éléments séparés avec repères sont ajoutés lorsqu’ils apportent un contrôle complémentaire. Le format doit correspondre au format fini ou au gabarit complet, sans déformation.'
                 )}
                 {options.template_tool === 'pdf' &&
                   ' Ajoutez le gabarit PDF en dernier : une page commune ou deux pages recto / verso de même format. Ses zones blanches laisseront voir le visuel.'}

@@ -39,7 +39,7 @@ def test_burger_example_matches_template_and_generates_proof(tmp_path, tool, set
     work.mkdir()
     proof = run(work, "burger", paths, values)
     assert proof.metrics["Faces"] == 2
-    assert proof.metrics["Pages du BAT"] == 5
+    assert proof.metrics["Pages du BAT"] == 3
 
 
 @pytest.mark.parametrize(

@@ -65,6 +65,14 @@ def finish_overlay(item, scale):
     )
 
 
+def has_finish_simulation(finishes):
+    return any(
+        finish.appearance.mode != "none"
+        and (finish.appearance.mode != "area" or finish.appearance.alpha > 0)
+        for finish in finishes
+    )
+
+
 def canvas_size(item, clean):
     if clean:
         return item.trim[2:]
@@ -112,10 +120,12 @@ def render_proof(path, items, params, date, *, paginate=True, technical_sheet=No
     artwork = []
     page_index = 0
     visuals = [item for item in items if item.visual]
-    separated = visuals + [item for item in items if not item.visual]
+    # Raw artwork only adds information when the composite simulates a finish.
+    separated = [item for item in visuals if has_finish_simulation(item.finish_styles)]
+    separated += [item for item in items if not item.visual]
     for item in visuals:
         for finish in item.finish_styles:
-            if not finish.mask:
+            if not finish.mask and has_finish_simulation((finish,)):
                 separated.append(
                     replace(
                         item,
@@ -189,9 +199,7 @@ def render_proof(path, items, params, date, *, paginate=True, technical_sheet=No
                     c.doForm(name)
                     c.restoreState()
                     artwork.append((page_index, name, item))
-                if (composite or item.only_finish) and any(
-                    finish.appearance.mode != "none" for finish in item.finish_styles
-                ):
+                if (composite or item.only_finish) and has_finish_simulation(item.finish_styles):
                     c.drawImage(
                         ImageReader(finish_overlay(item, scale)),
                         (x + ix * scale) * mm,

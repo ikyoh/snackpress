@@ -87,7 +87,7 @@ def test_seed_products_generate_proofs_and_public_artifacts(tmp_path, product_id
         assert series.pages == 50
         text = content(output / series.name)
         assert text.count("0001") == 2 and text.count("0050") == 2
-        assert result.metrics["Pages du BAT"] == 5
+        assert result.metrics["Pages du BAT"] == 3
 
 
 def test_sushi_component_uses_product_bleed_and_exports_both_line_types(tmp_path):
@@ -205,23 +205,22 @@ def test_multiple_guides_share_trim_origin(tmp_path):
         assert float(trim[2] - trim[0]) / mm == pytest.approx(297)
         assert len(doc.pages[0].Resources.XObject) == 2
     with pikepdf.open(output / "bat.pdf") as doc:
-        marked = doc.pages[2]
+        marked = doc.pages[1]
         images = [obj for obj in dict(marked.Resources.XObject).values() if obj.Subtype == "/Image"]
-        forms = [obj for obj in dict(marked.Resources.XObject).values() if obj.Subtype == "/Form"]
         assert not images
-        forms = [form for form in forms if form.get("/SnackpressRole") == "/Guide"]
-        assert len(forms) == 1
+        forms = [
+            marked.Resources.XObject[args[0]]
+            for args, op in pikepdf.parse_content_stream(marked)
+            if str(op) == "Do"
+            and marked.Resources.XObject[args[0]].get("/SnackpressRole") == "/Guide"
+        ]
+        assert len(forms) == 2
         # The combined Pizza/Taco template keeps both of its native PDF layers.
         layers = list(dict(forms[0].Resources.XObject).values())
         assert len(layers) == 2
         assert all(layer.Subtype == "/Form" for layer in layers)
         # The combined guide must also carry the mirrored Taco layer on the verso.
-        verso = doc.pages[3]
-        combined = next(
-            obj
-            for obj in dict(verso.Resources.XObject).values()
-            if obj.get("/SnackpressRole") == "/Guide"
-        )
+        combined = forms[1]
         positions = [
             [
                 float(args[0]) / mm - 15

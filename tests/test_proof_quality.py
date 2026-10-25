@@ -52,7 +52,7 @@ def test_original_text_paths_colors_and_image_resolution_survive(tmp_path, with_
     output.mkdir()
     run(output, "burger", [source], {})
     with pikepdf.open(output / "bat.pdf") as pdf:
-        assert len(pdf.pages) == (5 if with_image else 4)
+        assert len(pdf.pages) == 3
         assert sum(obj.get("/Subtype") == "/Image" for obj in pdf.objects) == len(expected)
         for page in proof_body_pages(pdf):
             objects = list(xobjects(page.Resources))

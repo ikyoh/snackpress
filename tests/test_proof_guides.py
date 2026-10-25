@@ -37,23 +37,44 @@ def test_print_guides_visible_and_registered_over_artwork(tmp_path, mode, backgr
     text = content(path)
     for label in ("Coupe / format fini", "Fond perdu", "tranquillité"):
         assert label in text
-    # The 91 x 61 mm canvas fits across the 174 mm proof area. Locate all
-    # three left edges independently from the PDF's own placement operators.
-    scale = 174 / 91
-    bottom = 65 + (174 - 61 * scale) / 2
+    # Locate each guided control from the PDF placement operators, regardless
+    # of how many artwork faces share the page.
+    with pikepdf.open(path) as proof:
+        controls = []
+        for index, page in enumerate(proof.pages):
+            placements = []
+            matrix, stack = pikepdf.Matrix(), []
+            for args, op in pikepdf.parse_content_stream(page):
+                if str(op) == "q":
+                    stack.append(matrix)
+                elif str(op) == "Q":
+                    matrix = stack.pop()
+                elif str(op) == "cm":
+                    matrix = pikepdf.Matrix(*args) @ matrix
+                elif str(op) == "Do":
+                    obj = page.Resources.XObject[args[0]]
+                    if obj.get("/SnackpressRole") == "/Guide":
+                        placements.append(matrix.shorthand)
+            if placements:
+                controls.append((index, placements))
+        assert len(controls) == 1
+        assert len(controls[0][1]) == len(files)
     with pdfium.PdfDocument(str(path)) as pdf:
-        for page in list(pdf)[2 : proof_body_count(path)]:
-            pixels = np.asarray(page.render(scale=2).to_pil().convert("RGB"))
-            for source_x, color in [(0, (50, 101, 201)), (3, (201, 109, 77)), (8, (24, 61, 54))]:
-                x = round((18 + source_x * scale) * mm * 2)
-                top = round((297 - bottom - 40 * scale) * mm * 2)
-                end = round((297 - bottom - 15 * scale) * mm * 2)
-                strip = pixels[top:end, max(0, x - 2) : x + 3].astype(int)
-                assert np.count_nonzero(np.all(abs(strip - color) < 25, axis=2)) > 10, (
-                    mode,
-                    background,
-                    source_x,
-                )
+        for index, placements in controls:
+            pixels = np.asarray(pdf[index].render(scale=2).to_pil().convert("RGB"))
+            for a, b, c, d, e, f in placements:
+                for source_x, color in [
+                    (0, (50, 101, 201)), (3, (201, 109, 77)), (8, (24, 61, 54))
+                ]:
+                    x = round((e + source_x * a * mm) * 2)
+                    top = round((297 * mm - f - 40 * d * mm) * 2)
+                    end = round((297 * mm - f - 15 * d * mm) * 2)
+                    strip = pixels[top:end, max(0, x - 2) : x + 3].astype(int)
+                    assert np.count_nonzero(np.all(abs(strip - color) < 25, axis=2)) > 10, (
+                        mode,
+                        background,
+                        source_x,
+                    )
     if mode != "classic":
         with pikepdf.open(out / "composant-1/visuel-0.pdf") as pdf:
             page = pdf.pages[0]

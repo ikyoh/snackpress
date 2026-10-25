@@ -40,7 +40,7 @@ def test_technical_sheet_is_appended_and_not_offered_separately(
         == 1
     )
     body = proof_body_count(output / "bat.pdf")
-    assert body == (6 if mode == "catalog" else 3)
+    assert body == (6 if mode == "catalog" else 2)
     with pikepdf.open(output / "bat.pdf") as pdf:
         total = len(pdf.pages)
         assert result.metrics["Pages du BAT"] == total
