@@ -96,10 +96,45 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
   await expect(page.getByLabel('Hauteur finie (mm)', { exact: true })).toHaveCount(0)
   await page.getByLabel('Mode du BAT').selectOption('free')
   await page.getByLabel('Nom du produit pour ce BAT').fill('Libre sauvegardé')
+  const selectedFinishes = page.getByRole('group', { name: 'Options et finitions sélectionnées' })
+  await selectedFinishes.getByLabel('Perforation', { exact: true }).check()
+  await selectedFinishes.getByLabel('Agrafage', { exact: true }).check()
+  const appearance = page.getByRole('region', { name: 'Apparence des finitions sur le BAT' })
+  await appearance.getByRole('button', { name: 'Perforation — Aucun effet' }).click()
+  await appearance.getByLabel('Représentation sur le BAT').selectOption('circle')
+  await appearance.getByLabel('Diamètre (mm)').fill('6')
+  await appearance.getByRole('button', { name: 'Perforation — Forme ronde' }).click()
+  await appearance.getByRole('button', { name: 'Agrafage — Aucun effet' }).click()
+  await appearance.getByLabel('Représentation sur le BAT').selectOption('rectangle')
+  await appearance.getByLabel('Largeur (mm)').fill('12')
+  await appearance.getByLabel('Hauteur (mm)').fill('3')
+  const positions = page.getByRole('region', { name: 'Positions des façonnages' })
+  await positions
+    .getByRole('group', { name: 'Perforation — occurrence 1', exact: true })
+    .getByRole('button', { name: 'Dupliquer cette occurrence' })
+    .click()
   await page.getByRole('button', { name: 'Enregistrer comme nouveau produit' }).click()
   await expect(page.locator('.print-selector').getByRole('status')).toContainText(
     'Produit enregistré',
   )
+  const savedLibrary = await (await page.request.get('/api/print-catalog')).json()
+  const savedProduct = savedLibrary.catalog.products.find(
+    (p: { name: string }) => p.name === 'Libre sauvegardé',
+  )
+  expect(savedProduct.variants[0].finish_placements).toHaveLength(3)
+  for (const placement of savedProduct.variants[0].finish_placements) {
+    const finish = savedLibrary.catalog.finishes.find(
+      (f: { id: string }) => f.id === placement.finish_id,
+    )
+    expect(['circle', 'rectangle']).toContain(finish.appearance.mode)
+  }
+  expect(
+    savedLibrary.catalog.finishes.find((f: { id: string }) => f.id === 'perforation').appearance
+      .mode,
+  ).toBe('none')
+  expect(
+    savedLibrary.catalog.finishes.find((f: { id: string }) => f.id === 'staple').appearance.mode,
+  ).toBe('none')
   await page.goto('/?view=products')
   await expect(page.getByRole('button', { name: 'Libre sauvegardé' })).toBeVisible()
   await page.getByRole('button', { name: 'Ajouter un produit', exact: true }).click()
@@ -214,7 +249,9 @@ test('catalogue personnel : création, matières, déclinaison, rechargement et 
   page.on('pageerror', (e) => errors.push(e.message))
   await page.getByRole('button', { name: 'Façonnages et finitions', exact: true }).click()
   await page.getByRole('button', { name: 'Ajouter une finition' }).click()
-  await expect(page.locator('.accordion-trigger')).toHaveCount(7)
+  await expect(page.locator('.accordion-trigger')).toHaveCount(
+    savedLibrary.catalog.finishes.length + 1,
+  )
   await expect(page.getByLabel('Nom de la finition')).toHaveValue('Nouvelle finition')
   await expect(page.locator('.accordion-trigger[aria-expanded="true"]')).toHaveCount(1)
   await page.getByLabel('Nom de la finition').fill('Finition modifiée')

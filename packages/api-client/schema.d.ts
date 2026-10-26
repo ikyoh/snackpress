@@ -679,7 +679,22 @@ export interface components {
              * @default none
              * @enum {string}
              */
-            mode: "none" | "area" | "path";
+            mode: "none" | "area" | "path" | "circle" | "rectangle";
+            /**
+             * Diameter
+             * @default 5
+             */
+            diameter: number;
+            /**
+             * Width
+             * @default 10
+             */
+            width: number;
+            /**
+             * Height
+             * @default 2
+             */
+            height: number;
             /**
              * Color
              * @default #e6007e
@@ -712,6 +727,19 @@ export interface components {
              * @default 0
              */
             angle: number;
+        };
+        /** FinishPlacement */
+        FinishPlacement: {
+            /** Finish Id */
+            finish_id: string;
+            /** Component Id */
+            component_id: string;
+            /** X */
+            x: number;
+            /** Y */
+            y: number;
+            /** Page */
+            page?: number | null;
         };
         /** GradientStop */
         GradientStop: {
@@ -1257,6 +1285,8 @@ export interface components {
             components: components["schemas"]["Component"][];
             /** Finish Ids */
             finish_ids?: string[];
+            /** Finish Placements */
+            finish_placements?: components["schemas"]["FinishPlacement"][];
         };
     };
     responses: never;

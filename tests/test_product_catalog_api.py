@@ -32,6 +32,9 @@ def test_catalog_auth_isolation_revision_validation_and_persistence(account_api,
     changed["catalog"]["products"][0]["name"] = "Carte atelier Alice"
     changed["catalog"]["finishes"][0]["appearance"] = {
         "mode": "path",
+        "diameter": 5,
+        "width": 10,
+        "height": 2,
         "color": "#123456",
         "dash_color": "#654321",
         "alpha": 0.25,
@@ -91,3 +94,28 @@ def test_catalog_request_size_bound(account_api):
     activate(client, deliveries)
     response = client.put("/api/print-catalog", content="x" * 310000)
     assert response.status_code == 413
+
+
+@pytest.mark.parametrize("mode", ["circle", "rectangle"])
+def test_shape_occurrences_are_persisted_and_invalid_positions_rejected(account_api, mode):
+    client, _, deliveries = account_api
+    activate(client, deliveries)
+    library = client.get("/api/print-catalog").json()
+    finish = next(f for f in library["catalog"]["finishes"] if f["id"] == "perforation")
+    finish["appearance"].update(mode=mode, diameter=6, width=8, height=4)
+    # The seeded ticket already selects this finish; give it two occurrences.
+    product = next(p for p in library["catalog"]["products"] if p["id"] == "ticket")
+    product["variants"][0]["finish_placements"] = [
+        {"finish_id": "perforation", "component_id": "ticket", "x": x, "y": 10, "page": 1}
+        for x in (5, 100)
+    ]
+    response = client.put("/api/print-catalog", json=library)
+    assert response.status_code == 200, response.text
+    saved = response.json()
+    assert client.get("/api/print-catalog").json() == saved
+    frozen = next(p for p in saved["catalog"]["products"] if p["id"] == "ticket")
+    assert frozen["variants"][0]["finish_placements"] == product["variants"][0]["finish_placements"]
+    frozen["variants"][0]["finish_placements"][1]["x"] = 149
+    assert client.put("/api/print-catalog", json=saved).status_code == 422
+    persisted = client.get("/api/print-catalog").json()
+    assert persisted["revision"] == 1

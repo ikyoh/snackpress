@@ -10,6 +10,7 @@ from .artwork_geometry import validate_page
 from .catalog import Repiquage, ToolResult
 from .common import CORAL, INK, artifact, new_canvas, open_pdf, report
 from .fortune_data import draw_repiquage, value_at
+from .products import finish_placement_rows
 from .taco_layout import fold_widths as fold_widths
 
 
@@ -522,6 +523,7 @@ def kebab(folder, files, p):
         if component.pizza_template:
             template = component.pizza_template
             rows.append(("Gabarit", f"{template.name} · révision {template.revision}"))
+        rows.extend(finish_placement_rows(snapshot, component))
         for guide in component.guides:
             s = guide.settings
             if guide.tool == "pizza":

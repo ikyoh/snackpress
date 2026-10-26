@@ -31,7 +31,10 @@ class GradientStop(Spec):
 
 
 class FinishAppearance(Spec):
-    mode: Literal["none", "area", "path"] = "none"
+    mode: Literal["none", "area", "path", "circle", "rectangle"] = "none"
+    diameter: float = Field(default=5, gt=0, le=5000)
+    width: float = Field(default=10, gt=0, le=5000)
+    height: float = Field(default=2, gt=0, le=5000)
     color: str = Field(default="#e6007e", pattern=r"^#[0-9a-fA-F]{6}$")
     dash_color: str = Field(default="#ffffff", pattern=r"^#[0-9a-fA-F]{6}$")
     alpha: float = Field(default=0.4, ge=0, le=1)
@@ -193,9 +196,19 @@ class Component(Named):
         return self
 
 
+class FinishPlacement(Spec):
+    finish_id: str
+    component_id: str
+    # Top-left corner of the shape, measured from the finished format's top-left.
+    x: float = Field(ge=0, le=5000)
+    y: float = Field(ge=0, le=5000)
+    page: int | None = Field(default=None, ge=1, le=200)
+
+
 class Variant(Named):
     components: list[Component] = Field(min_length=1, max_length=12)
     finish_ids: list[str] = Field(default_factory=list, max_length=20)
+    finish_placements: list[FinishPlacement] = Field(default_factory=list, max_length=200)
 
     @model_validator(mode="after")
     def components_valid(self):
@@ -242,6 +255,31 @@ class Snapshot(Spec):
                     raise ValueError(
                         f"Finition {finish.name} incompatible avec le support de {component.name}."
                     )
+        components = {c.id: c for c in self.variant.components}
+        positioned = set()
+        for placement in self.variant.finish_placements:
+            if placement.finish_id not in selected or placement.component_id not in components:
+                raise ValueError("Occurrence de façonnage : finition ou composant non sélectionné.")
+            style = finishes[placement.finish_id].appearance
+            if style.mode not in {"circle", "rectangle"}:
+                raise ValueError("Seules les formes rondes et rectangulaires ont des occurrences.")
+            component = components[placement.component_id]
+            width = style.diameter if style.mode == "circle" else style.width
+            height = style.diameter if style.mode == "circle" else style.height
+            if (
+                placement.x + width > component.width + 1e-6
+                or placement.y + height > component.height + 1e-6
+            ):
+                raise ValueError("Chaque forme de façonnage doit rester dans le format fini.")
+            pages = sum(s.pages for s in component.slots if s.role == "visual")
+            if placement.page is not None and placement.page > pages:
+                raise ValueError("La page du façonnage doit exister dans le composant.")
+            positioned.add(placement.finish_id)
+        if any(
+            finishes[fid].appearance.mode in {"circle", "rectangle"} and fid not in positioned
+            for fid in selected
+        ):
+            raise ValueError("Définissez au moins une position pour chaque forme de façonnage.")
         slots = snapshot_slots(self)
         if len(slots) > 80:
             raise ValueError("Le BAT accepte au maximum 80 fichiers.")
@@ -470,6 +508,31 @@ def seed_catalog():
     return PrintCatalog(
         categories=categories, materials=materials, finishes=finishes, products=products
     )
+
+
+def finish_placement_rows(snapshot, component):
+    """Human-readable dimensions and positions for BAT and manufacturing sheets."""
+    finishes = {f.id: f for f in snapshot.finishes}
+    rows = []
+    for placement in snapshot.variant.finish_placements:
+        if placement.component_id != component.id:
+            continue
+        finish = finishes[placement.finish_id]
+        style = finish.appearance
+        dimensions = (
+            f"diamètre {style.diameter:g} mm"
+            if style.mode == "circle"
+            else f"{style.width:g} × {style.height:g} mm"
+        )
+        page = f"page {placement.page}" if placement.page else "toutes les pages"
+        rows.append(
+            (
+                f"{component.name} — {finish.name}",
+                f"{dimensions} ; X {placement.x:g}, Y {placement.y:g} mm "
+                f"depuis le coin supérieur gauche ; {page}",
+            )
+        )
+    return rows
 
 
 def snapshot_slots(snapshot):

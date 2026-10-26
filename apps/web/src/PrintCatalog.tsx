@@ -15,6 +15,7 @@ import type { components } from '../../../packages/api-client/schema'
 import { PizzaTemplatePicker, usePizzaTemplates } from './PizzaTemplates'
 import { visibleTacoField } from './taco'
 import { ProductCreationWizard } from './ProductCreationWizard'
+import { FinishPlacements, syncFinishPlacements, type FinishPlacement } from './FinishPlacements'
 import './print-catalog.css'
 
 type Tool = components['schemas']['ToolDefinition']
@@ -36,7 +37,10 @@ export type Finish = {
   appearance?: FinishAppearance
 }
 type FinishAppearance = {
-  mode: 'none' | 'area' | 'path'
+  mode: 'none' | 'area' | 'path' | 'circle' | 'rectangle'
+  diameter?: number
+  width?: number
+  height?: number
   color: string
   dash_color: string
   alpha: number
@@ -48,6 +52,9 @@ type FinishAppearance = {
 type GradientStop = { color: string; position: number }
 const defaultFinishAppearance: FinishAppearance = {
   mode: 'none',
+  diameter: 5,
+  width: 10,
+  height: 2,
   color: '#e6007e',
   dash_color: '#ffffff',
   alpha: 0.4,
@@ -101,22 +108,50 @@ function FinishAppearanceEditor({
         <option value="none">Aucune représentation</option>
         <option value="area">Zone</option>
         <option value="path">Tracé</option>
+        <option value="circle">Forme ronde</option>
+        <option value="rectangle">Forme rectangulaire</option>
       </Select>
       {style.mode !== 'none' && (
         <>
           <p className="field-help">
-            {finish.mask
-              ? 'Le noir du PDF de masque définit la zone ; le blanc reste transparent.'
-              : 'Sans PDF de masque, la représentation suit le format fini entier.'}
+            {style.mode === 'circle' || style.mode === 'rectangle'
+              ? 'Les dimensions définissent la forme. Positionnez chaque occurrence dans le produit ou dans l’outil BAT.'
+              : finish.mask
+                ? 'Le noir du PDF de masque définit la zone ; le blanc reste transparent.'
+                : 'Sans PDF de masque, la représentation suit le format fini entier.'}
             {style.mode === 'path' &&
               ' Le pointillé se superpose au tracé continu et suit les mêmes contours.'}
           </p>
           <div className="finish-appearance-fields">
+            {style.mode === 'circle' && (
+              <Num
+                label="Diamètre (mm)"
+                value={style.diameter ?? 5}
+                min={0.01}
+                onChange={(diameter) => update({ diameter })}
+              />
+            )}
+            {style.mode === 'rectangle' && (
+              <>
+                <Num
+                  label="Largeur (mm)"
+                  value={style.width ?? 10}
+                  min={0.01}
+                  onChange={(width) => update({ width })}
+                />
+                <Num
+                  label="Hauteur (mm)"
+                  value={style.height ?? 2}
+                  min={0.01}
+                  onChange={(height) => update({ height })}
+                />
+              </>
+            )}
             <label className="field">
               <span>
                 {style.mode === 'path'
                   ? 'Couleur du tracé'
-                  : style.gradient
+                  : style.mode === 'area' && style.gradient
                     ? 'Couleur de départ · 0 %'
                     : 'Couleur'}
               </span>
@@ -214,6 +249,7 @@ function FinishAppearanceEditor({
           )}
           <div
             className="finish-appearance-preview"
+            data-shape={style.mode === 'circle' || style.mode === 'rectangle'}
             role="img"
             aria-label={`Aperçu de la finition ${finish.name}`}
           >
@@ -223,10 +259,25 @@ function FinishAppearanceEditor({
                 style.mode === 'path'
                   ? undefined
                   : {
-                      opacity: style.alpha,
-                      background: style.gradient
-                        ? `linear-gradient(${90 - style.angle}deg, ${gradientColors})`
-                        : style.color,
+                      ...(style.mode === 'circle' || style.mode === 'rectangle'
+                        ? {
+                            inset: 'auto',
+                            width:
+                              style.mode === 'circle'
+                                ? '60px'
+                                : `${(60 * (style.width ?? 10)) / Math.max(style.width ?? 10, style.height ?? 2, 0.01)}px`,
+                            height:
+                              style.mode === 'circle'
+                                ? '60px'
+                                : `${(60 * (style.height ?? 2)) / Math.max(style.width ?? 10, style.height ?? 2, 0.01)}px`,
+                            borderRadius: style.mode === 'circle' ? '50%' : 0,
+                          }
+                        : {}),
+                      opacity: style.mode === 'area' ? style.alpha : 1,
+                      background:
+                        style.mode === 'area' && style.gradient
+                          ? `linear-gradient(${90 - style.angle}deg, ${gradientColors})`
+                          : style.color,
                     }
               }
             >
@@ -303,7 +354,13 @@ export type Component = {
   guides: Guide[]
   tickets: Tickets | null
 }
-export type Variant = { id: string; name: string; components: Component[]; finish_ids: string[] }
+export type Variant = {
+  id: string
+  name: string
+  components: Component[]
+  finish_ids: string[]
+  finish_placements?: FinishPlacement[]
+}
 export type Product = {
   id: string
   name: string
@@ -779,8 +836,11 @@ export function VariantEditor({
             title="Options et finitions sélectionnées"
             rows={finishes}
             selected={variant.finish_ids}
-            onChange={(finish_ids) => onChange({ ...variant, finish_ids })}
+            onChange={(finish_ids) =>
+              onChange(syncFinishPlacements({ ...variant, finish_ids }, finishes))
+            }
           />
+          <FinishPlacements variant={variant} finishes={finishes} onChange={onChange} />
         </>
       )}
       {variant.components.map((c, index) => (
@@ -1087,6 +1147,9 @@ export function VariantEditor({
                   onChange({
                     ...variant,
                     components: variant.components.filter((_, i) => i !== index),
+                    finish_placements: (variant.finish_placements ?? []).filter(
+                      (p) => p.component_id !== c.id,
+                    ),
                   })
                 }
               >
@@ -1771,6 +1834,17 @@ function CatalogManager({
                                   finishes: draft.finishes.map((row, n) =>
                                     n === i ? { ...row, appearance } : row,
                                   ),
+                                  products: draft.products.map((p) => ({
+                                    ...p,
+                                    variants: p.variants.map((v) =>
+                                      syncFinishPlacements(
+                                        v,
+                                        draft.finishes.map((row, n) =>
+                                          n === i ? { ...row, appearance } : row,
+                                        ),
+                                      ),
+                                    ),
+                                  })),
                                 })
                               }
                             />
@@ -1969,20 +2043,71 @@ function PersonalProductSelector({
       setError('Créez une catégorie dans le catalogue avant d’enregistrer.')
       return
     }
+    // Keep BAT-specific appearances as separate catalogue definitions, so saving
+    // a new product preserves its shapes without changing existing products.
+    const copiedIds = new Map<string, string>()
+    for (const finish of snapshot.finishes) {
+      if (
+        JSON.stringify(catalog.finishes.find((f) => f.id === finish.id)) !== JSON.stringify(finish)
+      ) {
+        copiedIds.set(finish.id, newId())
+      }
+    }
+    let changed = true
+    while (changed) {
+      changed = false
+      for (const finish of snapshot.finishes) {
+        if (!copiedIds.has(finish.id) && finish.excludes.some((id) => copiedIds.has(id))) {
+          copiedIds.set(finish.id, newId())
+          changed = true
+        }
+      }
+    }
+    const finishId = (id: string) => copiedIds.get(id) ?? id
+    const savedSnapshot: Snapshot = {
+      ...snapshot,
+      finishes: snapshot.finishes.map((finish) =>
+        copiedIds.has(finish.id)
+          ? {
+              ...clone(finish),
+              id: finishId(finish.id),
+              name: `${finish.name} — ${snapshot.product_name}`.slice(0, 120),
+              excludes: finish.excludes.map(finishId),
+            }
+          : finish,
+      ),
+      variant: {
+        ...clone(snapshot.variant),
+        finish_ids: snapshot.variant.finish_ids.map(finishId),
+        finish_placements: (snapshot.variant.finish_placements ?? []).map((placement) => ({
+          ...placement,
+          finish_id: finishId(placement.finish_id),
+        })),
+      },
+    }
     const p: Product = {
       id: newId(),
       name: snapshot.product_name,
       category_id: category.id,
       description: '',
       material_ids: snapshot.materials.map((m) => m.id),
-      finish_ids: snapshot.finishes.map((f) => f.id),
-      variants: [clone(snapshot.variant)],
+      finish_ids: savedSnapshot.finishes.map((f) => f.id),
+      variants: [savedSnapshot.variant],
     }
     try {
-      await source.save({ ...catalog, products: [...catalog.products, p] })
+      await source.save({
+        ...catalog,
+        finishes: [
+          ...catalog.finishes,
+          ...savedSnapshot.finishes.filter(
+            (f) => !catalog.finishes.some((original) => original.id === f.id),
+          ),
+        ],
+        products: [...catalog.products, p],
+      })
       setProductId(p.id)
       setCategoryId(category.id)
-      onChange(snapshot, 'catalog')
+      onChange(savedSnapshot, 'catalog')
       setNotice('Produit enregistré dans votre catalogue.')
     } catch (e) {
       setError((e as Error).message)
@@ -2144,7 +2269,13 @@ function PersonalProductSelector({
               rows={snapshot.finishes}
               selected={snapshot.variant.finish_ids}
               onChange={(finish_ids) =>
-                onChange({ ...snapshot, variant: { ...snapshot.variant, finish_ids } })
+                onChange({
+                  ...snapshot,
+                  variant: syncFinishPlacements(
+                    { ...snapshot.variant, finish_ids },
+                    snapshot.finishes,
+                  ),
+                })
               }
             />
           )}
@@ -2183,12 +2314,19 @@ function PersonalProductSelector({
               </Button>
             </>
           )}
+          {mode === 'catalog' && !customize && (
+            <FinishPlacements
+              variant={snapshot.variant}
+              finishes={snapshot.finishes}
+              onChange={(variant) => onChange({ ...snapshot, variant })}
+            />
+          )}
           {!catalogOnly && snapshot.variant.finish_ids.length > 0 && (
             <section aria-label="Apparence des finitions sur le BAT">
               <h3>Apparence des finitions sur le BAT</h3>
               <p className="field-hint">
-                Ouvrez une finition pour choisir une zone ou un tracé, sa couleur et ses effets. Ces
-                réglages s’appliquent à ce BAT.
+                Ouvrez une finition pour choisir une zone, un tracé ou une forme, ses dimensions et
+                sa couleur. Ces réglages s’appliquent à ce BAT.
               </p>
               <Accordion type="multiple">
                 {snapshot.finishes
@@ -2201,7 +2339,11 @@ function PersonalProductSelector({
                           ? 'Zone'
                           : finish.appearance?.mode === 'path'
                             ? 'Tracé'
-                            : 'Aucun effet'}
+                            : finish.appearance?.mode === 'circle'
+                              ? 'Forme ronde'
+                              : finish.appearance?.mode === 'rectangle'
+                                ? 'Forme rectangulaire'
+                                : 'Aucun effet'}
                       </AccordionTrigger>
                       <AccordionContent>
                         <FinishAppearanceEditor
@@ -2211,6 +2353,12 @@ function PersonalProductSelector({
                               ...snapshot,
                               finishes: snapshot.finishes.map((row) =>
                                 row.id === finish.id ? { ...row, appearance } : row,
+                              ),
+                              variant: syncFinishPlacements(
+                                snapshot.variant,
+                                snapshot.finishes.map((row) =>
+                                  row.id === finish.id ? { ...row, appearance } : row,
+                                ),
                               ),
                             })
                           }

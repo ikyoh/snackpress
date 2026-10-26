@@ -1679,10 +1679,33 @@
             "enum": [
               "none",
               "area",
-              "path"
+              "path",
+              "circle",
+              "rectangle"
             ],
             "title": "Mode",
             "default": "none"
+          },
+          "diameter": {
+            "type": "number",
+            "maximum": 5000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Diameter",
+            "default": 5
+          },
+          "width": {
+            "type": "number",
+            "maximum": 5000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Width",
+            "default": 10
+          },
+          "height": {
+            "type": "number",
+            "maximum": 5000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Height",
+            "default": 2
           },
           "color": {
             "type": "string",
@@ -1741,6 +1764,52 @@
         "additionalProperties": false,
         "type": "object",
         "title": "FinishAppearance"
+      },
+      "FinishPlacement": {
+        "properties": {
+          "finish_id": {
+            "type": "string",
+            "title": "Finish Id"
+          },
+          "component_id": {
+            "type": "string",
+            "title": "Component Id"
+          },
+          "x": {
+            "type": "number",
+            "maximum": 5000.0,
+            "minimum": 0.0,
+            "title": "X"
+          },
+          "y": {
+            "type": "number",
+            "maximum": 5000.0,
+            "minimum": 0.0,
+            "title": "Y"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 200.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "finish_id",
+          "component_id",
+          "x",
+          "y"
+        ],
+        "title": "FinishPlacement"
       },
       "GradientStop": {
         "properties": {
@@ -2964,6 +3033,14 @@
             "type": "array",
             "maxItems": 20,
             "title": "Finish Ids"
+          },
+          "finish_placements": {
+            "items": {
+              "$ref": "#/components/schemas/FinishPlacement"
+            },
+            "type": "array",
+            "maxItems": 200,
+            "title": "Finish Placements"
           }
         },
         "additionalProperties": false,

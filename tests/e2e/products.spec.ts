@@ -1,5 +1,110 @@
 import { expect, test } from '@playwright/test'
 
+test('formes de façonnage : dimensions et occurrences dans les produits', async ({ page }) => {
+  await page.goto('/?view=products')
+  await page.getByRole('button', { name: 'Façonnages et finitions', exact: true }).click()
+  await page.getByRole('button', { name: 'Perforation', exact: true }).click()
+  await page.getByLabel('Représentation sur le BAT').selectOption('circle')
+  await page.getByLabel('Diamètre (mm)', { exact: true }).fill('6')
+  await expect(page.locator('.finish-appearance-sample')).toHaveCSS('border-radius', '50%')
+  await page.getByRole('button', { name: 'Agrafage', exact: true }).click()
+  await page.getByLabel('Représentation sur le BAT').selectOption('rectangle')
+  await page.getByLabel('Largeur (mm)', { exact: true }).fill('12')
+  await page.getByLabel('Hauteur (mm)', { exact: true }).fill('3')
+  await page.getByRole('button', { name: 'Produits', exact: true }).click()
+  await page.getByRole('button', { name: /Billet détachable numéroté/ }).click()
+  const positions = page.getByRole('region', { name: 'Positions des façonnages' })
+  const first = positions.getByRole('group', { name: 'Perforation — occurrence 1', exact: true })
+  await first.getByLabel('X depuis la gauche (mm)').fill('5')
+  await first.getByLabel('Y depuis le haut (mm)').fill('10')
+  await first.getByRole('button', { name: 'Dupliquer cette occurrence' }).click()
+  const second = positions.getByRole('group', { name: 'Perforation — occurrence 2', exact: true })
+  await expect(second.getByLabel('X depuis la gauche (mm)')).toHaveValue('5')
+  await second.getByLabel('X depuis la gauche (mm)').fill('100')
+  await second.getByLabel('Page d’application').selectOption('1')
+  await positions.getByRole('button', { name: 'Ajouter une occurrence de Perforation' }).click()
+  await positions
+    .getByRole('group', { name: 'Perforation — occurrence 3', exact: true })
+    .getByRole('button', { name: 'Retirer cette occurrence' })
+    .click()
+  await expect(positions.getByRole('group')).toHaveCount(2)
+  await page
+    .getByRole('group', { name: 'Options et finitions sélectionnées' })
+    .getByLabel('Agrafage', { exact: true })
+    .check()
+  await expect(positions.getByRole('heading', { name: 'Agrafage — 12 × 3 mm' })).toBeVisible()
+  await page.getByRole('button', { name: /Carte recto verso/ }).click()
+  await page.getByRole('button', { name: /Billet détachable numéroté/ }).click()
+  await expect(second.getByLabel('X depuis la gauche (mm)')).toHaveValue('100')
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await positions.screenshot({ path: 'test-results/finish-shapes-product-mobile.png' })
+})
+
+test('formes de façonnage : occurrences dans l’outil BAT et réglages figés', async ({ page }) => {
+  await page.route('**/api/print-catalog/starter', async (route) => {
+    const response = await route.fetch()
+    const library = await response.json()
+    for (const finish of library.catalog.finishes) {
+      if (finish.id === 'perforation')
+        Object.assign(finish.appearance, { mode: 'circle', diameter: 6 })
+      if (finish.id === 'staple')
+        Object.assign(finish.appearance, { mode: 'rectangle', width: 12, height: 3 })
+    }
+    library.catalog.products[0].finish_ids = ['perforation', 'staple']
+    library.catalog.products = [library.catalog.products[0]]
+    await route.fulfill({ response, json: library })
+  })
+  await page.goto('/?tool=burger')
+  await page.getByLabel('Mode du BAT').selectOption('catalog')
+  await page.getByLabel('Perforation', { exact: true }).check()
+  await page.getByLabel('Agrafage', { exact: true }).check()
+  const positions = page.getByRole('region', { name: 'Positions des façonnages' })
+  const first = positions.getByRole('group', { name: 'Perforation — occurrence 1', exact: true })
+  await first.getByLabel('X depuis la gauche (mm)').fill('5')
+  await first.getByLabel('Y depuis le haut (mm)').fill('7')
+  await first.getByLabel('Page d’application').selectOption('1')
+  await first.getByRole('button', { name: 'Dupliquer cette occurrence' }).click()
+  await positions
+    .getByRole('group', { name: 'Perforation — occurrence 2', exact: true })
+    .getByLabel('X depuis la gauche (mm)')
+    .fill('65')
+  const staple = positions.getByRole('group', { name: 'Agrafage — occurrence 1', exact: true })
+  await staple.getByLabel('X depuis la gauche (mm)').fill('30')
+  await staple.getByLabel('Y depuis le haut (mm)').fill('20')
+  await staple.getByLabel('Page d’application').selectOption('2')
+  const appearance = page.getByRole('region', { name: 'Apparence des finitions sur le BAT' })
+  await appearance.getByRole('button', { name: 'Perforation — Forme ronde' }).click()
+  await expect(appearance.getByLabel('Diamètre (mm)')).toHaveValue('6')
+  await appearance.getByLabel('Diamètre (mm)').fill('8')
+  await appearance.getByRole('button', { name: 'Agrafage — Forme rectangulaire' }).click()
+  await expect(appearance.getByLabel('Largeur (mm)')).toHaveValue('12')
+  await page.setViewportSize({ width: 390, height: 844 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await positions.screenshot({ path: 'test-results/finish-shapes-bat-mobile.png' })
+  await page.setViewportSize({ width: 1280, height: 900 })
+  await positions.screenshot({ path: 'test-results/finish-shapes-bat-desktop.png' })
+  await expect(page.locator('.print-selector ol li')).toHaveCount(2)
+  for (let i = 0; i < 2; i++) {
+    await page.getByLabel('Choisir les fichiers').setInputFiles('apps/web/public/exemple-fond.pdf')
+  }
+  const response = page.waitForResponse((r) => r.url().includes('/api/tools/burger/run'))
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
+  const result = await response
+  expect(result.status(), await result.text()).toBe(201)
+  const job = await result.json()
+  const settings = await page.request.get(`/api/tool-jobs/${job.id}/files/reglages.json`)
+  const snapshot = (await settings.json()).settings.product_snapshot
+  expect(snapshot.variant.finish_placements).toEqual([
+    { finish_id: 'perforation', component_id: 'card', x: 5, y: 7, page: 1 },
+    { finish_id: 'staple', component_id: 'card', x: 30, y: 20, page: 2 },
+    { finish_id: 'perforation', component_id: 'card', x: 65, y: 7, page: 1 },
+  ])
+  expect(
+    snapshot.finishes.find((f: { id: string }) => f.id === 'perforation').appearance.diameter,
+  ).toBe(8)
+})
+
 test('assistant produit : validation, retours, annulation et création recto verso', async ({
   page,
 }) => {

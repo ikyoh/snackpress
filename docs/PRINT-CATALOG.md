@@ -10,7 +10,7 @@ Les boutons Précédent et Modifier conservent les saisies. Annuler revient au c
 
 - Catégories et sous-catégories modifiables ; suppression refusée tant qu’une catégorie est utilisée.
 - Supports matières réutilisables : famille, grammage et épaisseur facultatifs.
-- Façonnages et finitions : supports compatibles, exclusions entre finitions et PDF de masque facultatif. Une finition sans masque reste une instruction de fabrication.
+- Façonnages et finitions : supports compatibles, exclusions entre finitions, PDF de masque facultatif et représentation sur le BAT (zone, tracé, forme ronde ou rectangulaire).
 - Produits : catégorie, description, supports et finitions autorisés, une ou plusieurs déclinaisons. Duplication et retrait des produits et des déclinaisons.
 - Composants : nom, format fini, fond perdu, matière, règle de pagination, emplacements PDF et tracés. Par exemple, une brochure distingue couverture et intérieur.
 
@@ -23,6 +23,14 @@ Dans les produits, les gabarits sont enregistrés sous forme de paramètres. Piz
 Pour compléter un gabarit Pizza, choisir **Sushi — découpe et rainage** dans **Ajouter un tracé**, dans les produits, l’assistant ou le mode libre du BAT. Le gabarit Pizza, ses dimensions, son fond perdu et son contour sont conservés. Sushi ajoute des lignes de coupe et de rainage dans ce même format ; il ne crée pas de second contour. Changer de gabarit Pizza conserve les lignes Sushi, dont les positions doivent rester dans le nouveau format. Le PDF des tracés et le BAT comprennent les deux couches vectorielles. Le contour du BAT reste celui de Pizza, quel que soit l’ordre d’ajout des tracés.
 
 Sans Pizza, Sushi peut aussi définir un contour facultatif (rectangle avec coins arrondis ou cercle), les tons directs et les tracés de coupe ou de rainage. Le cercle conserve un format carré quand son diamètre change. Choisir ensuite un gabarit Pizza conserve les lignes Sushi et confie le contour à Pizza. Les réglages sont enregistrés avec la déclinaison et repris dans le BAT.
+
+## Formes et positions des façonnages
+
+Dans **Façonnages et finitions**, choisir **Forme ronde** pour définir un diamètre en millimètres (par exemple une perforation), ou **Forme rectangulaire** pour définir une largeur et une hauteur (par exemple une agrafe). La couleur de la forme est réglable.
+
+Lorsqu’une de ces finitions est sélectionnée dans une déclinaison de produit ou dans Burger (catalogue ou mode libre), **Positions des façonnages** permet d’ajouter, dupliquer et retirer ses occurrences. Chaque occurrence désigne un composant et une page, ou toutes les pages visuelles du composant. Les pages suivent l’ordre des emplacements visuels, à partir de 1. X et Y placent le coin supérieur gauche de la forme depuis le coin supérieur gauche du format fini, hors fond perdu. La première occurrence est centrée par défaut ; ses coordonnées restent modifiables. Plusieurs occurrences d’une même finition peuvent coexister, dans la limite de 200 occurrences par déclinaison.
+
+Les dimensions doivent être strictement positives, la forme doit rester dans le format fini et chaque finition de forme sélectionnée doit avoir au moins une occurrence. Les formes figurent sur les pages de présentation et de contrôle du BAT, ainsi que dans les éléments séparés. Leurs dimensions et leurs positions apparaissent sur la fiche technique. Le catalogue et `reglages.json` conservent les occurrences dans `variant.finish_placements`, indépendamment des définitions réutilisables des finitions. Les anciens catalogues et BAT sans formes restent compatibles.
 
 ## Création du BAT
 

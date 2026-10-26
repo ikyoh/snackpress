@@ -3,7 +3,7 @@
 import math
 
 import numpy as np
-from PIL import Image, ImageChops, ImageFilter, ImageOps
+from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageOps
 
 from .common import render_page
 
@@ -47,7 +47,15 @@ def dashed_contours(coverage, dpi):
 
 
 def simulate_finishes(
-    image, finishes, masks, page_index, dpi, *, region=None, mask_page_counts=None
+    image,
+    finishes,
+    masks,
+    page_index,
+    dpi,
+    *,
+    region=None,
+    mask_page_counts=None,
+    finish_placements=(),
 ):
     """Preserve RGBA for transparent proof overlays; RGB callers stay flattened."""
     full_image = image
@@ -59,7 +67,28 @@ def simulate_finishes(
         style = finish.appearance
         if style.mode == "none":
             continue
-        if finish.mask:
+        if style.mode in {"circle", "rectangle"}:
+            coverage = Image.new("L", image.size)
+            draw = ImageDraw.Draw(coverage)
+            factor = dpi / 25.4
+            w = style.diameter if style.mode == "circle" else style.width
+            h = style.diameter if style.mode == "circle" else style.height
+            for placement in finish_placements:
+                if placement.finish_id != finish.id or placement.page not in {None, page_index + 1}:
+                    continue
+                bounds = (
+                    round(placement.x * factor),
+                    round(placement.y * factor),
+                    round((placement.x + w) * factor) - 1,
+                    round((placement.y + h) * factor) - 1,
+                )
+                if bounds[2] < bounds[0] or bounds[3] < bounds[1]:
+                    continue
+                if style.mode == "circle":
+                    draw.ellipse(bounds, fill=255)
+                else:
+                    draw.rectangle(bounds, fill=255)
+        elif finish.mask:
             count = (mask_page_counts or {}).get(finish.id)
             mask_page = page_index % count if count else page_index
             mask_image, _ = render_page(masks[finish.id], mask_page, dpi=dpi)

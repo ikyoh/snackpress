@@ -397,6 +397,21 @@
   height: 100%;
 }
 
+.finish-appearance-preview[data-shape='true'] {
+  min-height: 110px;
+}
+
+.finish-appearance-preview[data-shape='true'] .finish-appearance-sample {
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.finish-appearance-preview[data-shape='true'] > span:last-child {
+  position: absolute;
+  bottom: 6px;
+}
+
 .finish-appearance-preview > span:last-child {
   background: white;
   color: #30203d;

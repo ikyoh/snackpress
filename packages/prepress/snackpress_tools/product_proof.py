@@ -7,7 +7,7 @@ from reportlab.lib.units import mm
 
 from .artwork_geometry import validate_page
 from .common import CORAL, INK, artifact, full_page_form, new_canvas, open_pdf
-from .products import snapshot_slots
+from .products import finish_placement_rows, snapshot_slots
 from .proof_layout import BLEED_COLOR, guide_key, print_key, proof_date
 
 
@@ -266,6 +266,20 @@ def generate_product(folder, files, params, preview=False):
             if masks
             else {},
         )
+        placements = tuple(
+            p for p in snapshot.variant.finish_placements if p.component_id == component.id
+        )
+        for item in items:
+            item.finish_placements = placements
+            item.finish_styles = [
+                f
+                for f in item.finish_styles
+                if f.appearance.mode not in {"circle", "rectangle"}
+                or any(
+                    p.finish_id == f.id and p.page in {None, item.finish_page + 1}
+                    for p in placements
+                )
+            ]
         proof_items.extend(items)
         if guide:
             extras.append(publish(guide[0], f"{component.name} — tracés 1:1", component.id))
@@ -281,6 +295,7 @@ def generate_product(folder, files, params, preview=False):
             (f"{component.name} — {slot.name}", f"{slot.pages} page(s), PDF") for _, slot in entries
         ]
         specs += [(f"{component.name} — tracé {g.tool}", str(g.settings)) for g in component.guides]
+        specs += finish_placement_rows(snapshot, component)
     path = folder / "bat.pdf"
     render_proof(
         path,

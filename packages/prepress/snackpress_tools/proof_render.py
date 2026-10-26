@@ -36,6 +36,7 @@ class ProofItem:
     finish_masks: dict = field(default_factory=dict)
     mask_page_counts: dict = field(default_factory=dict)
     finish_page: int = 0
+    finish_placements: tuple = ()
     only_finish: bool = False
 
 
@@ -62,6 +63,7 @@ def finish_overlay(item, scale):
         dpi,
         region=trim_pixels(item, image),
         mask_page_counts=item.mask_page_counts,
+        finish_placements=item.finish_placements,
     )
 
 
