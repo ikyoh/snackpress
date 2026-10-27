@@ -411,6 +411,7 @@ def poke(folder, files, p):
             "calcul ne mesure ni les plaques, ni le TAC réel, ni la "
             "consommation d’encre."
         ),
+        branded_header=True,
     )
     write_json(
         raw, {"method": "RGB screen estimate; K=1-max(R,G,B)", "dpi": p.dpi, "pages": estimates}
