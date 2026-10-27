@@ -23,6 +23,69 @@ def xobjects(resources):
             yield from xobjects(obj.get("/Resources", {}))
 
 
+def artwork_scales(path):
+    scales = []
+    with pikepdf.open(path) as pdf:
+        for page in proof_body_pages(pdf):
+            matrix, stack = pikepdf.Matrix(), []
+            for args, op in pikepdf.parse_content_stream(page):
+                if str(op) == "q":
+                    stack.append(matrix)
+                elif str(op) == "Q":
+                    matrix = stack.pop()
+                elif str(op) == "cm":
+                    matrix = pikepdf.Matrix(*args) @ matrix
+                elif str(op) == "Do":
+                    obj = page.Resources.XObject[args[0]]
+                    if obj.get("/SnackpressRole") == "/Artwork":
+                        a, b, c, d, _, _ = matrix.shorthand
+                        assert b == c == 0
+                        assert a == pytest.approx(d)
+                        scales.append(a)
+    return scales
+
+
+@pytest.mark.parametrize("preview", [False, True])
+def test_all_views_use_one_scale_across_bleed_masks_and_partial_batches(tmp_path, preview):
+    from conftest import make_pdf
+    from snackpress_tools.preview import render
+
+    # Seven faces create both a full grid and a final page containing one face.
+    visual, mask = tmp_path / "visual.pdf", tmp_path / "mask.pdf"
+    make_pdf(visual, pages=7)
+    make_pdf(mask, pages=7)
+    output = tmp_path / "out"
+    output.mkdir()
+    (render if preview else run)(
+        output,
+        "burger",
+        [visual, mask],
+        {"finishes": ["Vernis"], "template_tool": "pizza"},
+    )
+    scales = artwork_scales(output / "bat.pdf")
+    assert len(scales) == 14
+    assert scales == pytest.approx([scales[0]] * len(scales), abs=1e-6)
+    # Each face must fit the shared proof area at this scale.
+    assert 0 < scales[0] < 1
+
+
+def test_components_of_different_sizes_keep_their_relative_dimensions(tmp_path):
+    from snackpress_tools.products import Snapshot
+
+    snapshot = specification()
+    small = snapshot.variant.components[0]
+    large = small.model_copy(deep=True, update={"id": "large", "width": 170, "height": 110})
+    snapshot.variant.components.append(large)
+    snapshot = Snapshot.model_validate(snapshot.model_dump())
+    files = artwork(tmp_path, snapshot)
+    output = tmp_path / "out"
+    output.mkdir()
+    run(output, "burger", files, {"product_snapshot": snapshot.model_dump()})
+    scales = artwork_scales(output / "bat.pdf")
+    assert len(scales) == 8
+    assert scales == pytest.approx([scales[0]] * len(scales), abs=1e-6)
+
+
 @pytest.mark.parametrize("with_image", [False, True])
 def test_original_text_paths_colors_and_image_resolution_survive(tmp_path, with_image):
     source = tmp_path / "native.pdf"

@@ -70,7 +70,7 @@ def test_no_finish_omits_duplicate_separated_artwork(tmp_path, preview, catalog)
 
 @pytest.mark.parametrize("masked", [False, True])
 @pytest.mark.parametrize("appearance", [{"mode": "none"}, {"mode": "area", "alpha": 0}])
-def test_invisible_finish_keeps_only_its_production_mask(tmp_path, masked, appearance):
+def test_invisible_finish_does_not_add_separate_views(tmp_path, masked, appearance):
     snapshot = specification()
     finish_id = "varnish" if masked else "lamination"
     snapshot.variant.finish_ids = [finish_id]
@@ -80,21 +80,18 @@ def test_invisible_finish_keeps_only_its_production_mask(tmp_path, masked, appea
     out = tmp_path / "out"
     out.mkdir()
     run(out, "burger", files, {"product_snapshot": snapshot.model_dump()})
-    assert proof_body_count(out / "bat.pdf") == (4 if masked else 2)
+    assert proof_body_count(out / "bat.pdf") == 2
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
         texts = [
             pdf[i].get_textpage().get_text_range()
             for i in range(proof_body_count(out / "bat.pdf"))
         ]
     assert "Contrôle" in texts[1] and "Recto" in texts[1] and "Verso" in texts[1]
-    if masked:
-        assert all("Éléments séparés" in text and "Vernis sélectif" in text for text in texts[2:])
-    else:
-        assert not any("Éléments séparés" in text for text in texts)
+    assert not any("Éléments séparés" in text for text in texts)
 
 
 @pytest.mark.parametrize("preview", [False, True])
-def test_card_composites_then_separated_elements_with_real_bleed_hidden(tmp_path, preview):
+def test_card_only_composites_with_real_bleed_and_finish_masks(tmp_path, preview):
     snapshot = specification()
     snapshot.variant.finish_ids = ["varnish"]
     snapshot.finishes[0].appearance = FinishAppearance(mode="area", color="#ff0000", alpha=1)
@@ -112,7 +109,7 @@ def test_card_composites_then_separated_elements_with_real_bleed_hidden(tmp_path
     result = (render if preview else run)(
         out, "burger", files, {"product_snapshot": snapshot.model_dump()}
     )
-    assert result.metrics["Pages du BAT"] == 7
+    assert result.metrics["Pages du BAT"] == 3
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
         texts = [page.get_textpage().get_text_range() for page in pdf][
             : proof_body_count(out / "bat.pdf")
@@ -120,20 +117,18 @@ def test_card_composites_then_separated_elements_with_real_bleed_hidden(tmp_path
     assert "Présentation" in texts[0] and "Recto" in texts[0] and "Verso" in texts[0]
     assert "Légende des repères" not in texts[0]
     assert "Contrôle" in texts[1] and "Recto" in texts[1] and "Verso" in texts[1]
-    assert all("Éléments séparés" in text for text in texts[2:])
-    assert "Recto" in texts[2] and "Verso" in texts[3]
-    assert "Vernis sélectif" in texts[4] and "Vernis sélectif" in texts[5]
+    assert len(texts) == 2
+    assert not any("Éléments séparés" in text for text in texts)
+    assert all("Vernis sélectif" in text for text in texts)
     with pikepdf.open(out / "bat.pdf") as pdf:
         assert not guide_forms(pdf.pages[0])
         assert all(guide_forms(page) for page in proof_body_pages(pdf)[1:])
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
-        clean, guided, raw = [np.array(pdf[i].render(scale=2).to_pil()) for i in (0, 1, 2)]
+        clean, guided = [np.array(pdf[i].render(scale=2).to_pil()) for i in (0, 1)]
         assert not np.any(np.all(clean[:, :, :3] == (0, 0, 255), axis=2))
         assert np.any(np.all(guided[:, :, :3] == (0, 0, 255), axis=2))
         for pixels in (clean, guided):
             assert np.count_nonzero(np.all(pixels[:, :, :3] == (255, 0, 0), axis=2)) > 10_000
-        # The separated artwork must not contain the red finishing simulation.
-        assert not np.any(np.all(raw[:, :, :3] == (255, 0, 0), axis=2))
     assert [file.read_bytes() for file in files] == originals
 
 
@@ -156,7 +151,7 @@ def test_sections_span_all_components_and_paginate_long_documents(tmp_path):
     assert all("Légende des repères" in text for text in texts[2:])
 
 
-def test_finish_without_mask_has_a_separated_control(tmp_path):
+def test_finish_without_mask_appears_only_on_composites(tmp_path):
     snapshot = specification()
     snapshot.variant.finish_ids = ["lamination"]
     finish = next(f for f in snapshot.finishes if f.id == "lamination")
@@ -166,13 +161,19 @@ def test_finish_without_mask_has_a_separated_control(tmp_path):
     out.mkdir()
     run(out, "burger", files, {"product_snapshot": snapshot.model_dump()})
     with pikepdf.open(out / "bat.pdf") as pdf:
-        assert len(proof_body_pages(pdf)) == 6
-        for page in proof_body_pages(pdf)[-2:]:
-            image = images(page)[0]
-            assert image.getpixel((image.width // 2, image.height // 2)) == (255, 255, 255)
-            pixels = np.array(image)
-            assert np.any(np.all(pixels == (255, 0, 0), axis=2))
-            assert np.any(np.all(pixels == (0, 0, 255), axis=2))
+        pages = proof_body_pages(pdf)
+        assert len(pages) == 2
+        assert not guide_forms(pages[0])
+        assert guide_forms(pages[1])
+        for page in pages:
+            overlays = images(page)
+            assert overlays
+            for image in overlays:
+                pixels = np.array(image)
+                assert np.any(np.all(pixels == (255, 0, 0), axis=2))
+                assert np.any(np.all(pixels == (0, 0, 255), axis=2))
+    with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
+        assert all("Éléments séparés" not in page.get_textpage().get_text_range() for page in pdf)
 
 
 @pytest.mark.parametrize("rotation", [0, 90, 180, 270])

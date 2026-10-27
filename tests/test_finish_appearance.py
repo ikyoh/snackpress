@@ -270,7 +270,7 @@ def test_simulation_in_proof_and_frozen_settings(tmp_path, product_id, mode):
     assert text.count("Contrôle — visuels avec finitions") == 1
     assert "Visuel seul" not in text
     with pikepdf.open(output / "bat.pdf") as pdf:
-        for page in proof_body_pages(pdf)[2:]:
+        for page in proof_body_pages(pdf)[1:]:
             assert_native_guides(page)
         # Finishes are transparent overlays. Their alpha is zero in the bleed;
         # the unmodified native PDF underneath supplies the original artwork.
@@ -283,7 +283,7 @@ def test_simulation_in_proof_and_frozen_settings(tmp_path, product_id, mode):
             assert alpha.getpixel((1, alpha.height // 2)) == 0
         assert any(
             obj.get("/SnackpressRole") == "/Artwork"
-            for obj in dict(pdf.pages[2].Resources.XObject).values()
+            for obj in dict(pdf.pages[1].Resources.XObject).values()
         )
     frozen = json.loads((output / "reglages.json").read_text())["settings"]["product_snapshot"]
     saved = next(f for f in frozen["finishes"] if f["id"] == finish.id)

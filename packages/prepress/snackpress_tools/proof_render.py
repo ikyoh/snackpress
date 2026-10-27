@@ -1,7 +1,7 @@
-"""One ordered proof: finished presentation, guided composite, separated elements."""
+"""Finished and guided composites at one scale, without separated technical views."""
 
 from contextlib import ExitStack
-from dataclasses import dataclass, field, replace
+from dataclasses import dataclass, field
 from math import ceil
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -37,7 +37,6 @@ class ProofItem:
     mask_page_counts: dict = field(default_factory=dict)
     finish_page: int = 0
     finish_placements: tuple = ()
-    only_finish: bool = False
 
 
 def trim_pixels(item, image):
@@ -95,6 +94,18 @@ def grid(items, width, height, clean):
     return max(candidates)[1:]
 
 
+def proof_batches(entries, clean, composite):
+    chunk_size = 6 if composite else 1
+    for offset in range(0, len(entries), chunk_size):
+        batch = entries[offset : offset + chunk_size]
+        legends = list(dict.fromkeys(entry for item in batch for entry in item.legend))
+        guided = not clean and any(item.guide for item in batch)
+        if not guided:
+            legends = []
+        bottom = 65 + max(0, (len(legends) + 1) // 2 - 2) * 5
+        yield batch, legends, guided, bottom, grid(batch, 174, 249 - bottom, clean)
+
+
 def caption(c, text, x, y, width):
     size = 8
     while c.stringWidth(text, "Snack", size) > width * mm and len(text) > 4:
@@ -122,38 +133,26 @@ def render_proof(path, items, params, date, *, paginate=True, technical_sheet=No
     artwork = []
     page_index = 0
     visuals = [item for item in items if item.visual]
-    # Raw artwork only adds information when the composite simulates a finish.
-    separated = [item for item in visuals if has_finish_simulation(item.finish_styles)]
-    separated += [item for item in items if not item.visual]
-    for item in visuals:
-        for finish in item.finish_styles:
-            if not finish.mask and has_finish_simulation((finish,)):
-                separated.append(
-                    replace(
-                        item,
-                        visual=False,
-                        only_finish=True,
-                        finish_styles=(finish,),
-                        label=f"Finition : {finish.name} — {item.label}",
-                    )
-                )
-    # Group every component globally, so separated elements never interrupt the
-    # presentation or the composite controls of a product with several components.
+    # Masks only drive finishing simulations; they are not standalone proof views.
     sections = [
         ("Présentation — visuels avec finitions", True, True, visuals),
         ("Contrôle — visuels avec finitions", False, True, visuals),
-        ("Éléments séparés", False, False, separated),
     ]
-    for section, clean, composite, entries in sections:
-        chunk_size = 6 if composite else 1
-        for offset in range(0, len(entries), chunk_size):
-            batch = entries[offset : offset + chunk_size]
-            legends = list(dict.fromkeys(entry for item in batch for entry in item.legend))
-            guided = not clean and any(item.guide for item in batch)
-            if not guided:
-                legends = []
-            bottom = 65 + max(0, (len(legends) + 1) // 2 - 2) * 5
-            cols, cw, ch = grid(batch, 174, 249 - bottom, clean)
+    layouts = [
+        list(proof_batches(entries, clean, composite)) for _, clean, composite, entries in sections
+    ]
+    # The most constrained view sets one physical scale for the entire proof.
+    scale = min(
+        (
+            min(cw / bw, (ch - 10) / bh)
+            for (_, clean, _, _), batches in zip(sections, layouts, strict=True)
+            for batch, _, _, _, (_, cw, ch) in batches
+            for bw, bh in (canvas_size(item, clean) for item in batch)
+        ),
+        default=1,
+    )
+    for (section, clean, composite, _), batches in zip(sections, layouts, strict=True):
+        for batch, legends, guided, bottom, (cols, cw, ch) in batches:
             header_footer(c, date)
             c.setFillColor(colors.black)
             c.setFont("SnackDisplay", 18)
@@ -175,7 +174,6 @@ def render_proof(path, items, params, date, *, paginate=True, technical_sheet=No
                             label += " — " + ("Recto" if item.guide_face == 0 else "Verso")
                 caption(c, label, left, top - 3, cw)
                 bw, bh = canvas_size(item, clean)
-                scale = min(cw / bw, (ch - 10) / bh)
                 x = left + (cw - bw * scale) / 2
                 y = top - ch + (ch - 10 - bh * scale) / 2
                 ix = iy = 0
@@ -189,19 +187,18 @@ def render_proof(path, items, params, date, *, paginate=True, technical_sheet=No
                 c.saveState()
                 if clean:
                     clip_finished(c, item, x, y, bw * scale, bh * scale)
-                if not item.only_finish:
-                    # A public ReportLab form reserves the resource name. Its empty
-                    # contents are replaced with the native PDF after layout.
-                    name = f"Artwork{len(artwork)}"
-                    c.beginForm(name, 0, 0, iw * mm, ih * mm)
-                    c.endForm()
-                    c.saveState()
-                    c.translate((x + ix * scale) * mm, (y + iy * scale) * mm)
-                    c.scale(scale, scale)
-                    c.doForm(name)
-                    c.restoreState()
-                    artwork.append((page_index, name, item))
-                if (composite or item.only_finish) and has_finish_simulation(item.finish_styles):
+                # A public ReportLab form reserves the resource name. Its empty
+                # contents are replaced with the native PDF after layout.
+                name = f"Artwork{len(artwork)}"
+                c.beginForm(name, 0, 0, iw * mm, ih * mm)
+                c.endForm()
+                c.saveState()
+                c.translate((x + ix * scale) * mm, (y + iy * scale) * mm)
+                c.scale(scale, scale)
+                c.doForm(name)
+                c.restoreState()
+                artwork.append((page_index, name, item))
+                if composite and has_finish_simulation(item.finish_styles):
                     c.drawImage(
                         ImageReader(finish_overlay(item, scale)),
                         (x + ix * scale) * mm,

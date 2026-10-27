@@ -65,7 +65,7 @@ def assert_native_guides(page):
     )
 
 
-def test_card_and_separate_finishes(tmp_path):
+def test_card_with_finish_masks_only_shows_composites(tmp_path):
     recto = source(tmp_path, "recto.pdf")
     verso = source(tmp_path, "verso.pdf")
     varnish = source(tmp_path, "vernis.pdf", pages=2)
@@ -78,7 +78,7 @@ def test_card_and_separate_finishes(tmp_path):
             "finishes": ["Vernis"],
         },
     )
-    assert result.metrics["Pages du BAT"] == 7
+    assert result.metrics["Pages du BAT"] == 3
     content = text(out / "bat.pdf")
     assert "Recto" in content and "Verso" in content and "Finition : Vernis" in content
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
@@ -163,7 +163,7 @@ def test_vector_guides_on_every_artwork_and_finish_page(tmp_path):
             "template_settings": {"unusable_top": 7, "safety_left": 5},
         },
     )
-    assert result.metrics["Pages du BAT"] == 6
+    assert result.metrics["Pages du BAT"] == 3
     with pdfium.PdfDocument(str(out / "bat.pdf")) as pdf:
         assert "Légende des repères" not in pdf[0].get_textpage().get_text_range()
         for page in list(pdf)[1 : proof_body_count(out / "bat.pdf")]:
@@ -172,7 +172,7 @@ def test_vector_guides_on_every_artwork_and_finish_page(tmp_path):
             for label in ("Coupe / format fini", "Zone de sécurité", "Zone inexploitable"):
                 assert label in content
     with pikepdf.open(out / "bat.pdf") as pdf:
-        for page in proof_body_pages(pdf)[2:]:
+        for page in proof_body_pages(pdf)[1:]:
             assert_native_guides(page)
             assert any(
                 str(op) == "W*"
