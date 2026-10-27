@@ -6,6 +6,7 @@ import { SushiLines } from './SushiLines'
 import { sushiField, visibleSushiField } from './sushi'
 import { ProductSelector, snapshotFiles, type FileRequirement, type Snapshot } from './PrintCatalog'
 import type { components } from '../../../packages/api-client/schema'
+import './burger-settings.css'
 
 type Tool = components['schemas']['ToolDefinition']
 type Fields = Record<string, string | number>
@@ -93,7 +94,7 @@ export function BurgerEditor({
     onChange({ ...options, ...patch })
   }
   return (
-    <>
+    <div className="burger-settings">
       <ProductSelector
         sourceMode={options.source_mode}
         snapshot={options.product_snapshot}
@@ -340,6 +341,6 @@ export function BurgerEditor({
           </ol>
         </section>
       )}
-    </>
+    </div>
   )
 }

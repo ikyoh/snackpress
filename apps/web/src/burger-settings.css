@@ -1,0 +1,52 @@
+.burger-settings {
+  --burger-field-gap: 16px;
+  --burger-section-gap: 24px;
+}
+
+.burger-settings :is(.print-selector, .settings-section-body, .print-block) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--burger-field-gap);
+}
+
+.burger-settings :is(.print-selector, .settings-section-body, .print-block) > * {
+  margin-block: 0;
+}
+
+.burger-settings .tool-fields {
+  row-gap: var(--burger-field-gap);
+}
+
+.burger-settings :is(.tool-fields, .print-selector) .field {
+  margin-block: 0;
+}
+
+.burger-settings .print-block > legend {
+  margin-bottom: var(--burger-field-gap);
+}
+
+.burger-settings .print-block > h4 {
+  margin-top: calc(var(--burger-section-gap) - var(--burger-field-gap));
+}
+
+.burger-settings .print-slot {
+  row-gap: 12px;
+  margin-bottom: 0;
+}
+
+.burger-settings .print-selector > section[aria-label] {
+  display: grid;
+  gap: 12px;
+}
+
+.burger-settings .print-selector > section[aria-label] > :is(h3, p) {
+  margin-block: 0;
+}
+
+.burger-settings .settings-section-body > .compact-configurations {
+  padding-bottom: var(--burger-field-gap);
+}
+
+.burger-settings .sectioned-settings > .privacy-note {
+  margin-top: var(--burger-section-gap);
+}
