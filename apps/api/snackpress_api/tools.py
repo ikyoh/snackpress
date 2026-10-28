@@ -44,15 +44,15 @@ async def stage_files(folder, files, tool_id):
             head = source.read(1024).lstrip()
         if head.startswith(b"%PDF-"):
             suffix = ".pdf"
-        elif tool_id == "donut" and head.startswith(b"\x89PNG\r\n\x1a\n"):
+        elif tool_id in {"donut", "granola"} and head.startswith(b"\x89PNG\r\n\x1a\n"):
             suffix = ".png"
-        elif tool_id == "donut" and head.startswith(b"\xff\xd8\xff"):
+        elif tool_id in {"donut", "granola"} and head.startswith(b"\xff\xd8\xff"):
             suffix = ".jpg"
         else:
             raise HTTPException(
                 422,
                 "Fichier non reconnu. Importez un PDF"
-                + (", PNG ou JPEG." if tool_id == "donut" else "."),
+                + (", PNG ou JPEG." if tool_id in {"donut", "granola"} else "."),
             )
         target = folder / f"input-{index}{suffix}"
         tmp.replace(target)

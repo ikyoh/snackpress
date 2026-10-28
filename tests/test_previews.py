@@ -286,3 +286,32 @@ def test_disconnected_preview_cancels_worker(api, monkeypatch, tmp_path):
         asyncio.run(disconnected_worker(Disconnected(), "tool-preview", tmp_path))
     assert exc.value.status_code == 499
     assert stopped == [True]
+
+
+def test_completed_preview_stops_watcher_even_if_receive_swallows_cancellation(api, monkeypatch):
+    import asyncio
+
+    from snackpress_api.previews import disconnected_worker
+
+    _, module = api
+
+    async def scenario():
+        entered = asyncio.Event()
+
+        async def completed_worker(*_):
+            await entered.wait()
+            return {"ok": True}
+
+        class Request:
+            async def is_disconnected(self):
+                entered.set()
+                try:
+                    await asyncio.sleep(60)
+                except asyncio.CancelledError:
+                    # Match the cancellation swallowed by Starlette's receive scope.
+                    return False
+
+        monkeypatch.setattr(module, "worker", completed_worker)
+        return await asyncio.wait_for(disconnected_worker(Request(), "tool-preview", None), 1)
+
+    assert asyncio.run(scenario()) == {"ok": True}

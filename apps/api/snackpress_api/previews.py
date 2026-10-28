@@ -71,9 +71,12 @@ def preview_job(preview_id: str):
 async def disconnected_worker(request: Request, action: str, folder):
     svc = service()
     task = asyncio.create_task(svc.worker(action, folder))
+    finished = False
 
     async def watch():
-        while not await request.is_disconnected():
+        while not finished:
+            if await request.is_disconnected():
+                return
             await asyncio.sleep(0.15)
 
     watcher = asyncio.create_task(watch())
@@ -83,6 +86,9 @@ async def disconnected_worker(request: Request, action: str, folder):
             return task.result()
         raise HTTPException(499, "Actualisation de l’aperçu annulée.")
     finally:
+        # is_disconnected uses an AnyIO cancellation scope that can swallow the
+        # watcher's cancellation. Also signal completion so it cannot loop forever.
+        finished = True
         for pending in (task, watcher):
             if not pending.done():
                 pending.cancel()
@@ -190,6 +196,10 @@ async def render_preview(preview_id: str, data: PreviewSettings, request: Reques
             db.get(Job, preview_id).created_at = datetime.now()
             db.commit()
         notices = {
+            "granola": (
+                "Aperçu des deux premières planches au maximum, avec le placement final. "
+                "L’export contient toutes les planches et les quantités exactes."
+            ),
             "imposition": (
                 "Aperçu PDF de contrôle ; le format reste à confirmer avant l’export final."
             ),

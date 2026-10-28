@@ -4,6 +4,7 @@ from . import documents as d
 from . import generators as g
 from .catalog import CATALOG, MODELS
 from .common import artifact, write_json
+from .granola import impose as granola
 
 HANDLERS = dict(
     zip(
@@ -23,6 +24,7 @@ HANDLERS = dict(
             g.kebab,
             d.layer,
             d.bento,
+            granola,
         ],
         strict=True,
     )
@@ -37,7 +39,7 @@ def run(folder: Path, tool: str, files: list[Path], values: dict, *, preview=Fal
         raise ValueError(
             f"Cet outil accepte {definition.min_files} à {definition.max_files} fichier(s)."
         )
-    if any(f.suffix != ".pdf" for f in files) and tool != "donut":
+    if any(f.suffix != ".pdf" for f in files) and tool not in {"donut", "granola"}:
         raise ValueError("Cet outil accepte uniquement les PDF.")
     params = MODELS[tool].model_validate(values)
     if tool == "burger" and params.product_snapshot is not None:
@@ -46,6 +48,8 @@ def run(folder: Path, tool: str, files: list[Path], values: dict, *, preview=Fal
         result = generate_product(folder, files, params, preview=preview)
     elif tool == "fortune-cookie":
         result = g.fortune(folder, files, params, preview=preview)
+    elif tool == "granola":
+        result = granola(folder, files, params, preview=preview)
     else:
         result = HANDLERS[tool](folder, files, params)
     result.warnings.insert(0, definition.limit)

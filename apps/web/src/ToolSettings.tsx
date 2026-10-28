@@ -1,10 +1,15 @@
 import type { ReactNode } from 'react'
+import { useState } from 'react'
 import { SettingsSection } from './SettingsSection'
 import type { components } from '../../../packages/api-client/schema'
 
 type Field = components['schemas']['ToolField']
 type Group = { title: string; keys: string[] }
 const groups: Record<string, Group[]> = {
+  granola: [
+    { title: 'Planche d’impression', keys: ['sheet_width', 'sheet_height', 'margin'] },
+    { title: 'Placement', keys: ['gap', 'rotation'] },
+  ],
   burger: [
     { title: 'Projet', keys: ['title', 'client', 'paper'] },
     { title: 'Consignes', keys: ['notes'] },
@@ -66,12 +71,15 @@ export function ToolSettings({
   fields,
   values,
   renderField,
+  onChange,
 }: {
   toolId: string
   fields: Field[]
   values: Record<string, string | number>
   renderField: (field: Field) => ReactNode
+  onChange?: (patch: Record<string, string | number>) => void
 }) {
+  const [manualSheet, setManualSheet] = useState(false)
   const definitions = groups[toolId] ?? [
     { title: 'Réglages', keys: fields.map((field) => field.key) },
   ]
@@ -118,9 +126,40 @@ export function ToolSettings({
             defaultOpen={
               index === 0 ||
               (toolId === 'taco' && group.title === 'Recto / Verso') ||
-              (toolId === 'sushi' && group.title === 'Tracés')
+              (toolId === 'sushi' && group.title === 'Tracés') ||
+              toolId === 'granola'
             }
           >
+            {toolId === 'granola' && group.title === 'Planche d’impression' && (
+              <label className="field">
+                <span>Format de la planche</span>
+                <select
+                  aria-label="Format de la planche"
+                  value={
+                    manualSheet
+                      ? 'custom'
+                      : (Object.entries({ A4: [210, 297], A3: [297, 420], SRA3: [320, 450] }).find(
+                          ([, [w, h]]) => values.sheet_width === w && values.sheet_height === h,
+                        )?.[0] ?? 'custom')
+                  }
+                  onChange={(event) => {
+                    setManualSheet(event.target.value === 'custom')
+                    const size = (
+                      { A4: [210, 297], A3: [297, 420], SRA3: [320, 450] } as Record<
+                        string,
+                        number[]
+                      >
+                    )[event.target.value]
+                    if (size) onChange?.({ sheet_width: size[0], sheet_height: size[1] })
+                  }}
+                >
+                  <option value="custom">Personnalisé</option>
+                  <option value="A4">A4 · 210 × 297 mm</option>
+                  <option value="A3">A3 · 297 × 420 mm</option>
+                  <option value="SRA3">SRA3 · 320 × 450 mm</option>
+                </select>
+              </label>
+            )}
             {toolId === 'taco' && group.title === 'Recto / Verso' && (
               <p className="field-hint taco-face-help">
                 Chaque face est vue de face. Gauche-droite échange les bords gauche et droit ;

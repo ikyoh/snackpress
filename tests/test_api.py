@@ -74,7 +74,7 @@ def test_tools_catalog_validation_generation_and_delete(api):
     client, module = api
     response = client.get("/api/tools")
     assert response.status_code == 200
-    assert len(response.json()) == 14
+    assert len(response.json()) == 15
     result = client.post("/api/tools/pizza/run", data={"settings": '{"width":85,"height":55}'})
     assert result.status_code == 201, result.text
     data = result.json()

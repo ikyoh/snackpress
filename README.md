@@ -1,6 +1,6 @@
 # Snackpress
 
-Atelier web local réunissant **14 outils prépresse** : Burger, Chili Dog, Donut, Tiramisu, Taco, Pizza, Burrito, Club Sandwich, Fortune Cookie, Poké, Sushi, Kebab, Layer Cake et Bento.
+Atelier web local réunissant **15 outils prépresse** : Burger, Chili Dog, Donut, Tiramisu, Taco, Pizza, Burrito, Club Sandwich, Fortune Cookie, Poké, Sushi, Kebab, Layer Cake, Bento et Granola.
 
 La page d’accueil présente le catalogue avec recherche et filtres. Chaque outil dispose de ses réglages, d’un aperçu PDF/image actualisé automatiquement, d’un traitement final et de fichiers téléchargeables. Les fonctions et limites sont détaillées dans [TOOLS.md](TOOLS.md).
 
@@ -19,6 +19,14 @@ pnpm dev
 Atelier : http://127.0.0.1:5173. API : http://127.0.0.1:8000/docs. Les services écoutent uniquement sur l’interface locale ; Vite relaie `/api` vers FastAPI.
 
 L’atelier d’imposition détaillé reste accessible depuis Layer Cake ou directement à http://127.0.0.1:5173/?tool=imposition. Réglages et aperçu côte à côte, grille manuelle, fonds perdus, repères et configurations personnelles y sont disponibles.
+
+## Granola : imposition multiformat
+
+Ouvrez `/?tool=granola` pour réunir jusqu’à 20 PDF, PNG ou JPEG sur des planches mixtes. Choisissez A4, A3, SRA3 ou des dimensions personnalisées, une marge extérieure et l’espacement minimal entre les fichiers. Chaque fichier a sa propre quantité ; chaque PDF propose une page à imposer, chaque image une largeur en millimètres avec proportions conservées et résolution affichée.
+
+Les PDF gardent leur taille réelle et leur contenu natif dans leur zone visible (CropBox limitée à la MediaBox), fonds perdus inclus. Granola compare plusieurs placements MaxRects avec rotation facultative à 90° et génère le nombre de planches nécessaire sans surproduction. L’aperçu montre les deux premières planches au maximum ; l’export contient toute la série et un plan JSON des positions en millimètres, origine en bas à gauche. Les configurations sauvegardent les réglages de planche ; les quantités restent associées aux fichiers courants.
+
+Limites : recto uniquement, 2 000 poses et 200 planches par travail, dimensions jusqu’à 1 200 mm, 25 Mo par fichier et 50 Mo cumulés. Images incorporées en RVB. Formulaires, signatures et annotations PDF à aplatir avant import. Aucun repère ajouté ; la coupe au massicot et l’optimum absolu ne sont pas garantis. L’espacement est mesuré entre les bords complets des fichiers, fonds perdus inclus.
 
 ## Sushi : découpe et rainage
 

@@ -1,0 +1,34 @@
+.tool-file.granola-file {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: start;
+}
+.granola-file .granola-file-settings {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+.granola-file strong {
+  max-width: 100%;
+}
+.granola-file-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+.granola-file-fields .field {
+  min-width: 0;
+  margin: 0;
+}
+.granola-file-fields input {
+  min-width: 0;
+  width: 100%;
+}
+.granola-file-settings .field-hint {
+  margin: 10px 0 0;
+  color: #693474;
+}
+.granola-summary {
+  margin: 0;
+  color: #693474;
+  font-variant-numeric: tabular-nums;
+}

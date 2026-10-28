@@ -20,6 +20,7 @@ import {
   Trash2,
   Upload,
   X,
+  Wheat,
 } from 'lucide-react'
 import App from './App'
 import { PrintCatalogPage, ProductSelector, type Snapshot } from './PrintCatalog'
@@ -49,6 +50,7 @@ import { SushiLines } from './SushiLines'
 import { sushiField, visibleSushiField } from './sushi'
 import { ClubEstimate } from './ClubEstimate'
 import { SettingsSection } from './SettingsSection'
+import { GranolaFile, granolaDefaults, type GranolaItem } from './GranolaFile'
 import './studio.css'
 
 type Tool = components['schemas']['ToolDefinition']
@@ -128,7 +130,9 @@ function ToolIcon({ tool, size = 22 }: { tool: Tool; size?: number }) {
       data-snack={tool.id}
       aria-hidden="true"
     >
-      {index >= 0 ? (
+      {tool.id === 'granola' ? (
+        <Wheat size={size} />
+      ) : index >= 0 ? (
         <span
           className="food-sprite"
           style={{
@@ -347,7 +351,7 @@ function Catalog({ tools }: { tools: Tool[] }) {
               key={tool.id}
               href={toolUrl(tool.id)}
               className="tool-card"
-              data-flavour={flavours[foodIds.indexOf(tool.id)]}
+              data-flavour={tool.id === 'granola' ? 'orange' : flavours[foodIds.indexOf(tool.id)]}
             >
               <div className="tool-card-top">
                 <ToolIcon tool={tool} />
@@ -356,13 +360,15 @@ function Catalog({ tools }: { tools: Tool[] }) {
               <h2>{tool.name}</h2>
               <p>{tool.description}</p>
               <span className="tool-input-hint">
-                {tool.id === 'sushi'
-                  ? 'À partir d’un PDF ou de vos réglages'
-                  : tool.min_files > 0
-                    ? tool.min_files === 2
-                      ? 'Deux PDF à comparer'
-                      : 'À partir de votre fichier'
-                    : 'Depuis vos réglages'}
+                {tool.id === 'granola'
+                  ? 'Plusieurs PDF, PNG ou JPEG'
+                  : tool.id === 'sushi'
+                    ? 'À partir d’un PDF ou de vos réglages'
+                    : tool.min_files > 0
+                      ? tool.min_files === 2
+                        ? 'Deux PDF à comparer'
+                        : 'À partir de votre fichier'
+                      : 'Depuis vos réglages'}
               </span>
               <div className="tool-card-bottom">
                 <span>C’est parti !</span>
@@ -619,6 +625,11 @@ function ToolWorkspace({
     setError('')
   }
   const [files, setFiles] = useState<File[]>([])
+  const [granolaItems, setGranolaItems] = useState<Map<File, GranolaItem>>(new Map())
+  const granolaTotal = files.reduce(
+    (total, file) => total + Number((granolaItems.get(file) ?? granolaDefaults).quantity),
+    0,
+  )
   const [result, setResult] = useState<Result | null>(null)
   const [activeArtifact, setActiveArtifact] = useState('')
   const [page, setPage] = useState(1)
@@ -665,7 +676,9 @@ function ToolWorkspace({
         ? { ...values, ...burger }
         : tool.id === 'kebab'
           ? { ...values, product_snapshot: kebabProduct }
-          : values
+          : tool.id === 'granola'
+            ? { ...values, items: files.map((file) => granolaItems.get(file) ?? granolaDefaults) }
+            : values
   function changeBurger(next: BurgerOptions) {
     // Keep only the populated prefix whose files retain the same production roles.
     if (
@@ -742,6 +755,10 @@ function ToolWorkspace({
       return
     }
     setFiles(next)
+    if (tool.id === 'granola')
+      setGranolaItems(
+        (old) => new Map(next.map((file) => [file, old.get(file) ?? granolaDefaults])),
+      )
     setResult(null)
     setError('')
     if (testingPizza) setMobileView('preview')
@@ -799,6 +816,20 @@ function ToolWorkspace({
         )
       }
       setFiles(demo)
+      if (tool.id === 'granola') {
+        const second = await fetch('/exemple-livret.pdf')
+        if (!second.ok) throw new Error('Second exemple indisponible.')
+        const large = new File([await second.blob()], 'exemple-grand-format.pdf', {
+          type: 'application/pdf',
+        })
+        setFiles([first, large])
+        setGranolaItems(
+          new Map([
+            [first, { ...granolaDefaults, quantity: 6 }],
+            [large, { ...granolaDefaults, quantity: 2 }],
+          ]),
+        )
+      }
       setResult(null)
     } catch (e) {
       setError((e as Error).message)
@@ -842,6 +873,7 @@ function ToolWorkspace({
       await request(`/api/tool-jobs/${result.id}`, { method: 'DELETE' })
       setResult(null)
       setFiles([])
+      setGranolaItems(new Map())
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -1083,7 +1115,10 @@ function ToolWorkspace({
                       }}
                     />
                     {files.map((file, i) => (
-                      <div className="tool-file" key={`${i}-${file.name}`}>
+                      <div
+                        className={`tool-file ${tool.id === 'granola' ? 'granola-file' : ''}`}
+                        key={`${i}-${file.name}`}
+                      >
                         <FileText size={19} />
                         <div>
                           <small>
@@ -1129,13 +1164,38 @@ function ToolWorkspace({
                                   : files.filter((_, n) => n !== i),
                               )
                               setResult(null)
+                              if (tool.id === 'granola')
+                                setGranolaItems((old) => {
+                                  const next = new Map(old)
+                                  next.delete(file)
+                                  return next
+                                })
                             }}
                           >
                             <X size={15} />
                           </button>
                         </div>
+                        {tool.id === 'granola' && (
+                          <GranolaFile
+                            file={file}
+                            index={i}
+                            value={granolaItems.get(file) ?? granolaDefaults}
+                            onChange={(value) => {
+                              setGranolaItems((old) => new Map(old).set(file, value))
+                              setResult(null)
+                              setError('')
+                            }}
+                          />
+                        )}
                       </div>
                     ))}
+                    {tool.id === 'granola' && files.length > 0 && (
+                      <p className="granola-summary" role="status">
+                        {files.length} fichier(s) · {granolaTotal.toLocaleString('fr-FR')}{' '}
+                        exemplaire(s)
+                        {granolaTotal > 2000 && ' — maximum 2 000, réduisez les quantités.'}
+                      </p>
+                    )}
                     {(files.length < maxFiles || maxFiles === 1) && (
                       <button
                         type="button"
@@ -1191,7 +1251,7 @@ function ToolWorkspace({
                     compact
                     toolId={tool.id}
                     autoLoadDefault={!(tool.id === 'pizza' && initialPizza)}
-                    settings={settings}
+                    settings={tool.id === 'granola' ? values : settings}
                     onLoad={(saved) => {
                       const {
                         repiquages: savedRepiquages,
@@ -1238,6 +1298,15 @@ function ToolWorkspace({
                               (['width', 'height', 'bleed'].includes(f.key)
                                 ? component[f.key as 'width' | 'height' | 'bleed']
                                 : fields[f.key]) ?? f.default,
+                            ]),
+                          ) as Values,
+                        )
+                      } else if (tool.id === 'granola') {
+                        setValues(
+                          Object.fromEntries(
+                            tool.fields.map((field) => [
+                              field.key,
+                              fields[field.key] ?? field.default,
                             ]),
                           ) as Values,
                         )
@@ -1290,6 +1359,11 @@ function ToolWorkspace({
                 )}
                 {tool.id !== 'pizza' && !testingPizza && tool.fields.length > 0 && (
                   <ToolSettings
+                    onChange={(patch) => {
+                      setValues((old) => ({ ...old, ...patch }))
+                      setResult(null)
+                      setError('')
+                    }}
                     toolId={tool.id}
                     fields={tool.fields.filter(
                       (field) =>
@@ -1323,6 +1397,7 @@ function ToolWorkspace({
                         />
                       ) : (
                         <Setting
+                          required={tool.id === 'granola'}
                           field={tool.id === 'sushi' ? sushiField(field, values) : field}
                           value={values[field.key] ?? field.default}
                           update={(value) => change(field.key, value)}

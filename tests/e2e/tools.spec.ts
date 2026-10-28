@@ -16,6 +16,7 @@ const tools = [
   ['kebab', 'Kebab', false],
   ['layer-cake', 'Layer Cake', true],
   ['bento', 'Bento', true],
+  ['granola', 'Granola', true],
 ] as const
 
 test('pizza : forme ronde et coins arrondis', async ({ page }) => {
@@ -180,6 +181,7 @@ test('pizza : réglages compacts, aperçu sticky et onglets mobiles', async ({ p
 
 for (const [id, name, needsFile] of tools) {
   test(`${name} : réglages, traitement, aperçu et téléchargement`, async ({ page }) => {
+    if (id === 'granola') test.setTimeout(60000)
     const errors: string[] = []
     page.on('pageerror', (e) => errors.push(e.message))
     await page.goto(`/?tool=${id}`)
@@ -238,7 +240,7 @@ test('aperçu PDF : grand format entièrement ajusté sans défilement', async (
 
 test('catalogue : tous les outils, recherche et filtre', async ({ page }) => {
   await page.goto('/')
-  await expect(page.locator('.tool-card')).toHaveCount(14)
+  await expect(page.locator('.tool-card')).toHaveCount(15)
   await page.screenshot({ path: 'test-results/catalogue-desktop.png', fullPage: true })
   await page.getByLabel('Rechercher un outil').fill('fusion')
   await expect(page.locator('.tool-card')).toHaveCount(1)
@@ -251,6 +253,7 @@ test('catalogue : tous les outils, recherche et filtre', async ({ page }) => {
 })
 
 test('tous les ateliers : onglets mobiles et paramètres conservés', async ({ page }) => {
+  test.setTimeout(90000)
   await page.setViewportSize({ width: 390, height: 844 })
   for (const [id, name] of tools) {
     await page.goto(`/?tool=${id}`)
@@ -274,7 +277,7 @@ test('tous les ateliers : onglets mobiles et paramètres conservés', async ({ p
 test('mobile : catalogue et calcul de dos', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
-  await expect(page.locator('.tool-card')).toHaveCount(14)
+  await expect(page.locator('.tool-card')).toHaveCount(15)
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/catalogue-mobile.png', fullPage: true })
   await page.getByRole('link', { name: /Club Sandwich/ }).click()

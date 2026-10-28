@@ -173,6 +173,29 @@ class Layer(Params):
     flip: Literal["long", "short"] = "long"
 
 
+class GranolaItem(Params):
+    quantity: int = Field(default=1, ge=1, le=2000)
+    page: int = Field(default=1, ge=1, le=80)
+    image_width: float = Field(default=85, gt=0, le=1200)
+
+
+class Granola(Params):
+    sheet_width: float = Field(default=320, ge=10, le=1200)
+    sheet_height: float = Field(default=450, ge=10, le=1200)
+    margin: float = Field(default=10, ge=0, le=100)
+    gap: float = Field(default=3, ge=0, le=100)
+    rotation: Literal["auto", "none"] = "auto"
+    items: list[GranolaItem] = Field(default_factory=list, max_length=20)
+
+    @model_validator(mode="after")
+    def bounds(self):
+        if self.margin * 2 >= min(self.sheet_width, self.sheet_height):
+            raise ValueError("Les marges doivent laisser une surface imprimable sur la planche.")
+        if sum(item.quantity for item in self.items) > 2000:
+            raise ValueError("Granola accepte au maximum 2 000 poses au total.")
+        return self
+
+
 class CsvData(Params):
     columns: list[Annotated[str, Field(min_length=1, max_length=256)]] = Field(
         min_length=1, max_length=100
@@ -835,6 +858,38 @@ DEFINITIONS = [
             ),
         ],
     ),
+    ToolDefinition(
+        id="granola",
+        name="Granola",
+        category="Assembler",
+        min_files=1,
+        max_files=20,
+        accept=".pdf,.png,.jpg,.jpeg",
+        description="Mélanger formats et fichiers sur des planches optimisées, avec vos quantités.",
+        limit=(
+            "Recto uniquement : une page au choix par PDF, à taille réelle, fonds perdus inclus. "
+            "Images proportionnelles à la largeur choisie. Placement optimisé sans garantie "
+            "d’optimum absolu ni contrainte de coupe au massicot. "
+            "2 000 poses, 200 planches maximum."
+        ),
+        fields=[
+            number("sheet_width", "Largeur de la planche", 320, low=10, high=1200),
+            number("sheet_height", "Hauteur de la planche", 450, low=10, high=1200),
+            number("margin", "Marge extérieure", 10, high=100),
+            number(
+                "gap",
+                "Espacement entre les poses",
+                3,
+                high=100,
+                help="Distance minimale entre les bords des fichiers, fonds perdus inclus.",
+            ),
+            choice(
+                "rotation",
+                "Rotation des poses",
+                [("auto", "Automatique · 0° ou 90°"), ("none", "Conserver l’orientation")],
+            ),
+        ],
+    ),
 ]
 MODELS = dict(
     zip(
@@ -854,6 +909,7 @@ MODELS = dict(
             Kebab,
             Layer,
             Bento,
+            Granola,
         ],
         strict=True,
     )
