@@ -4,10 +4,17 @@ Création le 15 octobre 2026 avec l’outil intégré `image_gen.imagegen`, en m
 
 Fichiers utilisés dans l’application :
 
+- `granola.webp` : illustration du nouvel outil Granola, créée le 28 octobre 2026 avec `image_gen.imagegen` en mode création, sur fond transparent. Bol rose, céréales dorées, amandes et fruits, assortis au style en volume des autres snacks. PNG source conservé dans les images générées Codex, converti en WebP 512 × 512 pixels, qualité 92, alpha préservé. Utilisé dans le catalogue et le titre de l’atelier.
 - `hero-printshop.webp` : nouveau visuel du bandeau, « La fabrique à PDF », choisi le 17 octobre 2026 ; presse rose et violette, planche de snacks et repères de coupe. Généré avec `image_gen.imagegen`, PNG de 1536 × 1024 pixels converti en WebP qualité 88 avec alpha préservé.
 - `hero.webp` : ancienne illustration du bandeau, conservée comme variante ; WebP qualité 88 avec alpha préservé.
 - `snacks.webp` : planche de sprites originale 4 × 4, conservée comme source ; les dessins dépassent parfois de leurs cellules.
 - `snacks-spaced.webp` : planche utilisée dans l’application, réorganisée le 17 octobre 2026 avec l’outil intégré `image_gen.imagegen`, puis convertie en WebP qualité 92 avec alpha préservé (1254 × 1254 pixels). Les 16 snacks gardent leur ordre et disposent de marges transparentes. Le CSS agrandit la planche à 600 % et cadre le centre de chaque cellule avec des positions à 5 %, 35 %, 65 % et 95 %. Aucun masque propre à un snack n’est nécessaire.
+
+## Prompt de Granola
+
+Génération intégrée `image_gen.imagegen`, `transparent_background: true`, sans image à modifier. Prompt final :
+
+> Use case: stylized-concept. Asset type: one square transparent food illustration for the French print-tools app Snackpress, matching a collection of glossy chunky 3D food game icons (burger, pink sprinkle donut, pizza, sushi, rainbow cake). Primary request: illustrate the Granola tool with a delicious small bowl of granola. Subject: a round raspberry-pink ceramic bowl brimming with golden toasted oat clusters, plump almonds, a few red dried cranberries and purple blueberries, with a little creamy yogurt visible between the granola. The assorted ingredients read as a rich varied mix. Style: premium casual candy puzzle game collectible art, original, beautifully modeled rounded edible shapes, appetizing honey-gold glossy highlights, rich saturated candy colors, soft purple-pink studio lighting, subtle soft shadow right beneath the object. Clearly illustrated 3D game art, not a photograph and not flat vector. Camera: front three-quarter slightly elevated view, consistent with a food sprite collection. Composition: one compact centered object, clear readable silhouette at 80 to 110 pixels, whole bowl entirely in frame, object fills about 82 percent of the square canvas, generous transparent margin all around; no scattered ingredients outside the bowl. Background: genuinely transparent alpha, including all corners and surroundings, no solid background, no checkerboard painted into the image. Constraints: only the granola bowl, no spoon, no tray, no text, letters, logo, watermark, face, character, frame, sparkle ornaments, scene or UI.
 
 ## Correction de l’espacement des snacks
 

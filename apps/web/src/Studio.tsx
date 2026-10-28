@@ -20,7 +20,6 @@ import {
   Trash2,
   Upload,
   X,
-  Wheat,
 } from 'lucide-react'
 import App from './App'
 import { PrintCatalogPage, ProductSelector, type Snapshot } from './PrintCatalog'
@@ -131,7 +130,14 @@ function ToolIcon({ tool, size = 22 }: { tool: Tool; size?: number }) {
       aria-hidden="true"
     >
       {tool.id === 'granola' ? (
-        <Wheat size={size} />
+        <img
+          className="food-illustration"
+          src="/candy/granola.webp"
+          width="110"
+          height="110"
+          alt=""
+          decoding="async"
+        />
       ) : index >= 0 ? (
         <span
           className="food-sprite"
