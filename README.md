@@ -66,6 +66,8 @@ Les fichiers sont importés une fois dans une session d’aperçu, puis les requ
 
 ## Produits d’impression et BAT
 
+Dans Pizza, **Tester un fichier avec ce gabarit** ouvre une vue simplifiée de Burger avec les réglages courants, sans devoir enregistrer le gabarit. Déposer un PDF lance le contrôle du format et du fond perdu déclaré, puis affiche le visuel avec les tracés. Les textes et les zones de sécurité restent à vérifier visuellement. Le BAT est facultatif ; **Revenir au gabarit Pizza** retrouve les réglages, également conservés après une actualisation de la page de test. Les fichiers doivent être réimportés après actualisation.
+
 Le lien **Produits d’impression** ouvre le catalogue personnel : catégories, supports matières, façonnages et finitions, produits et déclinaisons. Six produits pilotes sont fournis, dont les billets détachables numérotés. Dans Burger, choisir le catalogue ou un mode libre configurable ; la composition classique reste disponible. Les composants définissent leurs formats, fichiers PDF, pagination et tracés Pizza, Taco, Burrito, Sushi ou perforations. Les billets proposent des numéros répétés, un recto verso facultatif, les codes et un manifeste des carnets ; l’aperçu montre le premier et le dernier, l’export final génère la série (100 billets maximum).
 
 Le catalogue est enregistré dans le compte avec contrôle des modifications concurrentes. Chaque BAT conserve une copie de ses spécifications dans les réglages, indépendamment des changements ultérieurs du catalogue. Documentation et limites : [catalogue des produits](docs/PRINT-CATALOG.md).

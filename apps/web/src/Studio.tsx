@@ -104,6 +104,22 @@ const normalize = (value: string) =>
 const toolUrl = (id: string) => `/?tool=${encodeURIComponent(id)}`
 const assetUrl = (id: string, name: string) =>
   `/api/tool-jobs/${id}/files/${encodeURIComponent(name)}`
+function workspaceLocation() {
+  const id = new URLSearchParams(window.location.search).get('tool')
+  const saved = window.history.state?.snackpressPizza
+  const pizzaSettings: Values | undefined =
+    saved &&
+    typeof saved === 'object' &&
+    !Array.isArray(saved) &&
+    Object.values(saved).every((value) => typeof value === 'string' || typeof value === 'number')
+      ? saved
+      : undefined
+  return {
+    id,
+    pizzaSettings,
+    testingPizza: id === 'burger' && !!pizzaSettings && !!window.history.state?.testingPizza,
+  }
+}
 function ToolIcon({ tool, size = 22 }: { tool: Tool; size?: number }) {
   const index = foodIds.indexOf(tool.id)
   return (
@@ -144,9 +160,26 @@ function Header() {
 }
 
 export default function Studio() {
-  const id = new URLSearchParams(window.location.search).get('tool')
+  const [location, setLocation] = useState(workspaceLocation)
+  const { id } = location
   const [tools, setTools] = useState<Tool[]>([])
   const [error, setError] = useState('')
+  useEffect(() => {
+    const update = () => setLocation(workspaceLocation())
+    window.addEventListener('popstate', update)
+    return () => window.removeEventListener('popstate', update)
+  }, [])
+  function testPizza(settings: Values) {
+    // Keep the unsaved gabarit on both entries, including across a page reload.
+    window.history.replaceState({ ...window.history.state, snackpressPizza: settings }, '')
+    window.history.pushState(
+      { snackpressPizza: settings, testingPizza: true },
+      '',
+      toolUrl('burger'),
+    )
+    setLocation(workspaceLocation())
+    window.scrollTo(0, 0)
+  }
   useEffect(() => {
     const controller = new AbortController()
     request<Tool[]>('/api/tools', { signal: controller.signal })
@@ -181,7 +214,14 @@ export default function Studio() {
           <a href="/">Revenir à tous les outils</a>
         </main>
       ) : selected ? (
-        <ToolWorkspace key={selected.id} tool={selected} tools={tools} />
+        <ToolWorkspace
+          key={`${selected.id}:${location.testingPizza}`}
+          tool={selected}
+          tools={tools}
+          initialPizza={location.pizzaSettings}
+          testingPizza={location.testingPizza}
+          onTestPizza={testPizza}
+        />
       ) : (
         <Catalog tools={tools} />
       )}
@@ -483,9 +523,26 @@ function KebabShare({ result }: { result: Result }) {
   )
 }
 
-function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
+function ToolWorkspace({
+  tool,
+  tools,
+  initialPizza,
+  testingPizza,
+  onTestPizza,
+}: {
+  tool: Tool
+  tools: Tool[]
+  initialPizza?: Values
+  testingPizza: boolean
+  onTestPizza: (settings: Values) => void
+}) {
   const [values, setValues] = useState<Values>(() =>
-    Object.fromEntries(tool.fields.map((f) => [f.key, f.default])),
+    Object.fromEntries(
+      tool.fields.map((f) => [
+        f.key,
+        (tool.id === 'pizza' ? initialPizza?.[f.key] : undefined) ?? f.default,
+      ]),
+    ),
   )
   const [pizzaSections, setPizzaSections] = useState(['format'])
   const [pizzaFocus, setPizzaFocus] = useState('')
@@ -494,12 +551,25 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
   const [isMobile, setIsMobile] = useState(() => window.matchMedia('(max-width: 760px)').matches)
   const workspaceId = useId()
   useEffect(() => {
+    if (testingPizza && isMobile && mobileView === 'preview')
+      document.getElementById(`${workspaceId}-preview-tab`)?.focus({ preventScroll: true })
+  }, [testingPizza, isMobile, mobileView, workspaceId])
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  useEffect(() => {
+    if (testingPizza || (tool.id === 'pizza' && initialPizza))
+      titleRef.current?.focus({ preventScroll: true })
+  }, [tool.id, initialPizza, testingPizza])
+  useEffect(() => {
     const query = window.matchMedia('(max-width: 760px)')
     const update = () => setIsMobile(query.matches)
     query.addEventListener('change', update)
     return () => query.removeEventListener('change', update)
   }, [])
-  const [burger, setBurger] = useState<BurgerOptions>(burgerDefaults)
+  const [burger, setBurger] = useState<BurgerOptions>(() =>
+    testingPizza && initialPizza
+      ? { ...burgerDefaults, template_tool: 'pizza', template_settings: initialPizza }
+      : burgerDefaults,
+  )
   const [kebabProduct, setKebabProduct] = useState<Snapshot | null>(null)
   const [repiquages, setRepiquages] = useState<Repiquage[]>([newRepiquage(55)])
   const [fortuneData, setFortuneData] = useState<CsvData | null>(null)
@@ -619,6 +689,12 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
     valid: () =>
       Object.keys(pizzaValidation).length === 0 && (formRef.current?.matches(':valid') ?? false),
   })
+  useEffect(() => {
+    if (testingPizza && livePreview.preview) {
+      // Burger groups six faces per page; start on the first page with guides.
+      setPage(Math.ceil(Number(livePreview.preview.metrics.Faces) / 6) + 1)
+    }
+  }, [testingPizza, livePreview.preview])
   function changePizza(patch: Values) {
     setValues((old) => ({ ...old, ...patch }))
     setResult(null)
@@ -658,6 +734,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
     setFiles(next)
     setResult(null)
     setError('')
+    if (testingPizza) setMobileView('preview')
   }
   async function example() {
     setError('')
@@ -741,7 +818,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
             (tool.id !== 'fortune-cookie' || a.name === 'serie.pdf'),
         )?.name || '',
       )
-      setPage(1)
+      setPage(testingPizza ? Math.ceil(Number(response.metrics?.Faces) / 6) + 1 : 1)
     } catch (e) {
       setError((e as Error).message)
     } finally {
@@ -798,16 +875,24 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
         <ToolIcon tool={tool} size={27} />
         <div>
           <span className="tool-category-label">{tool.category}</span>
-          <h1>
-            {tool.name}
+          <h1 ref={titleRef} tabIndex={-1}>
+            {testingPizza ? 'Tester un fichier' : tool.name}
             <span>.</span>
           </h1>
-          <p>{tool.description}</p>
+          <p>
+            {testingPizza
+              ? 'Vérifiez votre PDF avec le gabarit Pizza courant, dans Burger.'
+              : tool.description}
+          </p>
         </div>
       </div>
       <div className="tool-limit">
         <FileCheck2 size={17} />
-        <span>{tool.limit}</span>
+        <span>
+          {testingPizza
+            ? 'Le format et le fond perdu déclaré sont contrôlés. Vérifiez visuellement les textes, les zones de sécurité et les zones inexploitables.'
+            : tool.limit}
+        </span>
       </div>
       {error && (
         <div className="alert error" role="alert">
@@ -903,7 +988,38 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
           <fieldset disabled={busy}>
             <div className="tool-controls-layout">
               <div className="tool-controls-scroll">
-                {tool.id === 'burger' && (
+                {testingPizza && initialPizza && (
+                  <section className="pizza-test-summary" aria-label="Gabarit à tester">
+                    <h2>Votre gabarit Pizza</h2>
+                    <p>
+                      Format fini : {Number(initialPizza.width).toLocaleString('fr-FR')} ×{' '}
+                      {Number(
+                        initialPizza.shape === 'circle' ? initialPizza.width : initialPizza.height,
+                      ).toLocaleString('fr-FR')}{' '}
+                      mm · Fond perdu : {Number(initialPizza.bleed).toLocaleString('fr-FR')} mm.
+                    </p>
+                    <p className="field-hint">
+                      Fichier attendu :{' '}
+                      {(Number(initialPizza.width) + 2 * Number(initialPizza.bleed)).toLocaleString(
+                        'fr-FR',
+                      )}{' '}
+                      ×{' '}
+                      {(
+                        Number(
+                          initialPizza.shape === 'circle'
+                            ? initialPizza.width
+                            : initialPizza.height,
+                        ) +
+                        2 * Number(initialPizza.bleed)
+                      ).toLocaleString('fr-FR')}{' '}
+                      mm. Déposez un PDF, l’aperçu avec les tracés s’affiche automatiquement.
+                    </p>
+                    <Button type="button" variant="outline" onClick={() => window.history.back()}>
+                      <ArrowLeft size={16} /> Revenir au gabarit Pizza
+                    </Button>
+                  </section>
+                )}
+                {tool.id === 'burger' && !testingPizza && (
                   <BurgerEditor
                     options={burger}
                     tools={tools}
@@ -965,7 +1081,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                           <small>{(file.size / 1024 / 1024).toFixed(2)} Mo</small>
                         </div>
                         <div className="file-actions">
-                          {['bento', 'burger'].includes(tool.id) && (
+                          {['bento', 'burger'].includes(tool.id) && !testingPizza && (
                             <>
                               <button
                                 type="button"
@@ -1052,75 +1168,79 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                     )}
                   </section>
                 )}
-                <Configurations
-                  compact
-                  toolId={tool.id}
-                  settings={settings}
-                  onLoad={(saved) => {
-                    const {
-                      repiquages: savedRepiquages,
-                      numberings: legacyNumberings,
-                      ...fields
-                    } = saved
-                    if (tool.id === 'burger') {
-                      const options = Object.fromEntries(
-                        Object.entries(burgerDefaults).map(([key, fallback]) => [
-                          key,
-                          fields[key] ?? fallback,
-                        ]),
-                      ) as BurgerOptions
-                      changeBurger(options)
-                      setValues(
-                        Object.fromEntries(
-                          tool.fields.map((f) => [f.key, fields[f.key] ?? f.default]),
-                        ) as Values,
-                      )
-                    } else if (tool.id === 'kebab') {
-                      setKebabProduct((fields.product_snapshot as Snapshot | null) ?? null)
-                      setValues(
-                        Object.fromEntries(
-                          tool.fields.map((f) => [f.key, fields[f.key] ?? f.default]),
-                        ) as Values,
-                      )
-                    } else if (tool.id === 'fortune-cookie') {
-                      const snapshot =
-                        (fields.product_snapshot as Snapshot | null) ?? legacyFortuneProduct(fields)
-                      const component = fortuneComponent(
-                        snapshot,
-                        String(fields.product_component_id ?? ''),
-                      )!
-                      setFortuneProduct(snapshot)
-                      setFortuneComponentId(component.id)
-                      setFortuneData((fields.csv_data as CsvData | null) ?? null)
-                      setFortuneLayer((fields.layer_template as Values | null) ?? null)
-                      setTicketsPerBook((fields.tickets_per_book as number) ?? 25)
-                      setValues(
-                        Object.fromEntries(
-                          tool.fields.map((f) => [
-                            f.key,
-                            (['width', 'height', 'bleed'].includes(f.key)
-                              ? component[f.key as 'width' | 'height' | 'bleed']
-                              : fields[f.key]) ?? f.default,
+                {!testingPizza && (
+                  <Configurations
+                    compact
+                    toolId={tool.id}
+                    autoLoadDefault={!(tool.id === 'pizza' && initialPizza)}
+                    settings={settings}
+                    onLoad={(saved) => {
+                      const {
+                        repiquages: savedRepiquages,
+                        numberings: legacyNumberings,
+                        ...fields
+                      } = saved
+                      if (tool.id === 'burger') {
+                        const options = Object.fromEntries(
+                          Object.entries(burgerDefaults).map(([key, fallback]) => [
+                            key,
+                            fields[key] ?? fallback,
                           ]),
-                        ) as Values,
-                      )
-                    } else setValues(fields as Values)
-                    if (tool.id === 'fortune-cookie')
-                      setRepiquages(
-                        (
-                          (savedRepiquages ??
-                            legacyNumberings ?? [
-                              newRepiquage(Number(fields.height ?? 55)),
-                            ]) as Repiquage[]
-                        ).map((item) => ({
-                          ...newRepiquage(Number(fields.height ?? 55)),
-                          ...item,
-                        })),
-                      )
-                    setResult(null)
-                    setError('')
-                  }}
-                />
+                        ) as BurgerOptions
+                        changeBurger(options)
+                        setValues(
+                          Object.fromEntries(
+                            tool.fields.map((f) => [f.key, fields[f.key] ?? f.default]),
+                          ) as Values,
+                        )
+                      } else if (tool.id === 'kebab') {
+                        setKebabProduct((fields.product_snapshot as Snapshot | null) ?? null)
+                        setValues(
+                          Object.fromEntries(
+                            tool.fields.map((f) => [f.key, fields[f.key] ?? f.default]),
+                          ) as Values,
+                        )
+                      } else if (tool.id === 'fortune-cookie') {
+                        const snapshot =
+                          (fields.product_snapshot as Snapshot | null) ??
+                          legacyFortuneProduct(fields)
+                        const component = fortuneComponent(
+                          snapshot,
+                          String(fields.product_component_id ?? ''),
+                        )!
+                        setFortuneProduct(snapshot)
+                        setFortuneComponentId(component.id)
+                        setFortuneData((fields.csv_data as CsvData | null) ?? null)
+                        setFortuneLayer((fields.layer_template as Values | null) ?? null)
+                        setTicketsPerBook((fields.tickets_per_book as number) ?? 25)
+                        setValues(
+                          Object.fromEntries(
+                            tool.fields.map((f) => [
+                              f.key,
+                              (['width', 'height', 'bleed'].includes(f.key)
+                                ? component[f.key as 'width' | 'height' | 'bleed']
+                                : fields[f.key]) ?? f.default,
+                            ]),
+                          ) as Values,
+                        )
+                      } else setValues(fields as Values)
+                      if (tool.id === 'fortune-cookie')
+                        setRepiquages(
+                          (
+                            (savedRepiquages ??
+                              legacyNumberings ?? [
+                                newRepiquage(Number(fields.height ?? 55)),
+                              ]) as Repiquage[]
+                          ).map((item) => ({
+                            ...newRepiquage(Number(fields.height ?? 55)),
+                            ...item,
+                          })),
+                        )
+                      setResult(null)
+                      setError('')
+                    }}
+                  />
+                )}
                 {tool.id === 'pizza' && (
                   <PizzaSettings
                     fields={tool.fields}
@@ -1149,7 +1269,7 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                     onChange={changeFortuneProduct}
                   />
                 )}
-                {tool.id !== 'pizza' && tool.fields.length > 0 && (
+                {tool.id !== 'pizza' && !testingPizza && tool.fields.length > 0 && (
                   <ToolSettings
                     toolId={tool.id}
                     fields={tool.fields.filter(
@@ -1258,12 +1378,34 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                 )}
               </div>
               <div className="tool-run">
+                {tool.id === 'pizza' && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => {
+                      if (!formRef.current?.reportValidity()) return
+                      if (Object.keys(pizzaValidation).length > 0) return
+                      onTestPizza(
+                        Object.fromEntries(
+                          tool.fields.map((field) => [field.key, pizzaValue(field, values)]),
+                        ),
+                      )
+                    }}
+                  >
+                    <FileCheck2 size={16} /> Tester un fichier avec ce gabarit
+                  </Button>
+                )}
                 {tool.id === 'club-sandwich' && (
                   <ClubEstimate fields={tool.fields} values={values} />
                 )}
                 <Button type="submit" disabled={busy || !ready}>
                   {busy ? <LoaderCircle size={16} className="spin" /> : <ArrowRight size={16} />}
-                  {busy ? 'Traitement en cours…' : 'Générer le fichier final'}
+                  {busy
+                    ? 'Traitement en cours…'
+                    : testingPizza
+                      ? 'Générer le BAT'
+                      : 'Générer le fichier final'}
                 </Button>
                 <p>
                   {tool.id === 'kebab' && !ready
@@ -1274,7 +1416,9 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
                         : `Importez ${tool.min_files === 2 ? 'les deux fichiers' : 'votre fichier'} pour commencer.`
                       : tool.id === 'club-sandwich'
                         ? 'Le PDF reprend cette estimation.'
-                        : 'L’aperçu est automatique. Générez ensuite le fichier complet.'}
+                        : testingPizza
+                          ? 'Le contrôle est automatique. Le BAT est facultatif.'
+                          : 'L’aperçu est automatique. Générez ensuite le fichier complet.'}
                 </p>
               </div>
             </div>
@@ -1298,6 +1442,18 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
               </button>
             )}
           </div>
+          {testingPizza &&
+            ready &&
+            (result ||
+              (livePreview.preview &&
+                !livePreview.updating &&
+                !livePreview.stale &&
+                !livePreview.error)) && (
+              <div className="tool-success" role="status">
+                <Check size={18} />
+                <span>Format et fond perdu du PDF conformes au gabarit.</span>
+              </div>
+            )}
           {!result ? (
             <>
               {tool.id === 'fortune-cookie' && (
@@ -1319,6 +1475,8 @@ function ToolWorkspace({ tool, tools }: { tool: Tool; tools: Tool[] }) {
               )}
               <LivePreview
                 state={livePreview}
+                pageNumber={testingPizza ? page : undefined}
+                onPageChange={testingPizza ? setPage : undefined}
                 scrollable={false}
                 pdfInsetMm={tool.id === 'fortune-cookie' ? Number(values.bleed) || 0 : 0}
                 pdfOverlay={
