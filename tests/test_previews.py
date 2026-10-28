@@ -1,6 +1,7 @@
 import importlib
 import json
 from datetime import datetime, timedelta
+from io import BytesIO
 
 import pikepdf
 import pypdfium2 as pdfium
@@ -33,6 +34,30 @@ def session(client, tool, source=None):
 
 def render(client, preview_id, settings=None):
     return client.post(f"/api/tool-previews/{preview_id}/render", json={"settings": settings or {}})
+
+
+def test_sushi_import_preview_and_final_export(api, source):
+    client, _ = api
+    settings = {"cut_name": "DecoupeAtelier", "pdf_inset": 2}
+    preview_id = session(client, "sushi", source)
+    response = render(client, preview_id, settings)
+    assert response.status_code == 200, response.text
+    assert response.json()["metrics"]["Rectangles de découpe"] == 2
+    response = client.post(
+        "/api/tools/sushi/run",
+        files=[("files", ("source.pdf", source.read_bytes()))],
+        data={"settings": json.dumps(settings)},
+    )
+    assert response.status_code == 201, response.text
+    result = response.json()
+    download = client.get(f"/api/tool-jobs/{result['id']}/files/contours.pdf")
+    assert download.status_code == 200
+    with pikepdf.open(BytesIO(download.content)) as pdf:
+        assert len(pdf.pages) == 2
+        assert any(
+            str(space[1]) == "/DecoupeAtelier"
+            for _, space in pdf.pages[0].Resources.ColorSpace.items()
+        )
 
 
 @pytest.mark.parametrize("tool", list(CATALOG))

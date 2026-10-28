@@ -37,9 +37,10 @@ const groups: Record<string, Group[]> = {
   ],
   poke: [{ title: 'Échantillonnage', keys: ['dpi'] }],
   sushi: [
+    { title: 'Rectangle sur le PDF', keys: ['pdf_box', 'pdf_inset'] },
     { title: 'Format', keys: ['width', 'height', 'bleed', 'shape', 'corner_radius'] },
     { title: 'Tracés', keys: ['lines'] },
-    { title: 'Tons directs', keys: ['cut_name', 'crease_name'] },
+    { title: 'Tons directs', keys: ['cut_name', 'cut_width', 'crease_name'] },
   ],
   kebab: [
     { title: 'Projet', keys: ['title', 'client'] },
@@ -75,9 +76,12 @@ export function ToolSettings({
   const sections = remaining.length
     ? [...definitions, { title: 'Autres réglages', keys: remaining.map((field) => field.key) }]
     : definitions
+  const visibleSections = sections.filter((group) =>
+    fields.some((field) => group.keys.includes(field.key)),
+  )
   return (
     <div className="grouped-tool-settings">
-      {sections.map((group, index) => {
+      {visibleSections.map((group, index) => {
         const members = fields.filter((field) => group.keys.includes(field.key))
         if (!members.length) return null
         const summary = members

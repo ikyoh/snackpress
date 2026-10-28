@@ -301,6 +301,9 @@ class Sushi(Params):
     lines: list[SushiLine] = Field(default_factory=list)
     cut_name: str = Field(default="CutContour", min_length=1, max_length=40)
     crease_name: str = Field(default="Crease", min_length=1, max_length=40)
+    pdf_box: Literal["trim", "page"] = "trim"
+    pdf_inset: float = Field(default=0, ge=0, le=1000)
+    cut_width: float = Field(default=0.1, ge=0.01, le=5)
 
     @model_validator(mode="before")
     @classmethod
@@ -332,6 +335,10 @@ class Sushi(Params):
 
     @model_validator(mode="after")
     def names(self):
+        if not self.cut_name.strip() or not self.crease_name.strip():
+            raise ValueError("Renseignez un nom de ton direct non vide.")
+        if self.cut_name in {"All", "None"}:
+            raise ValueError("Ce nom de ton direct est réservé par le format PDF.")
         if self.cut_name == self.crease_name:
             raise ValueError("Les deux tons directs doivent avoir des noms différents.")
         if self.shape == "circle" and abs(self.width - self.height) > 0.001:
@@ -668,12 +675,26 @@ DEFINITIONS = [
         id="sushi",
         name="Sushi",
         category="Tracer",
-        description="Tracer des contours de découpe et des rainages vectoriels.",
+        max_files=1,
+        description="Ajouter une découpe rectangulaire à un PDF ou créer un gabarit de tracés.",
         limit=(
-            "Deux tons directs nommés ; convention, surimpression et "
-            "orientation à confirmer à l’atelier."
+            "PDF importé : un rectangle par page, jusqu’à 80 pages, sans rasterisation. "
+            "Tracés en tons directs et en surimpression ; convention à confirmer à l’atelier."
         ),
         fields=[
+            choice(
+                "pdf_box",
+                "Placer le rectangle sur",
+                [("trim", "Format fini (TrimBox, sinon bord de page)"), ("page", "Bord de page")],
+            ),
+            number(
+                "pdf_inset",
+                "Retrait intérieur",
+                0,
+                high=1000,
+                step=0.1,
+                help="Retrait identique sur les quatre côtés du rectangle, sur chaque page.",
+            ),
             number("width", "Largeur", 85, low=6),
             number("height", "Hauteur (égale à la largeur pour un cercle)", 55, low=6),
             number(
@@ -699,6 +720,7 @@ DEFINITIONS = [
                 key="lines", label="Tracés de coupe et de rainage", type="lines", default="[]"
             ),
             text("cut_name", "Ton direct de découpe", "CutContour"),
+            number("cut_width", "Épaisseur du trait", 0.1, low=0.01, high=5, step=0.01),
             text("crease_name", "Ton direct de rainage", "Crease"),
         ],
     ),

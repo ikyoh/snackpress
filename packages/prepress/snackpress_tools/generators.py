@@ -392,10 +392,14 @@ def club(folder, files, p):
 
 
 def sushi(folder, files, p):
+    if files:
+        from .sushi_overlay import add_contours
+
+        return add_contours(folder, files[0], p)
     path = folder / "contours.pdf"
     pad = p.bleed
     c = new_canvas(path, p.width + 2 * pad, p.height + 2 * pad)
-    c.setLineWidth(0.1 * mm)
+    c.setLineWidth(p.cut_width * mm)
     c.setStrokeOverprint(True)
     c.setStrokeColor(CMYKColorSep(0, 100, 0, 0, spotName=p.cut_name))
     if p.shape == "circle":
@@ -450,7 +454,7 @@ def sushi(folder, files, p):
                 )
                 for index, line in enumerate(p.lines, 1)
             ],
-            ("Trait", "Vectoriel 0,1 mm, sans remplissage, surimpression activée"),
+            ("Trait", f"Vectoriel {p.cut_width:g} mm, sans remplissage, surimpression activée"),
             ("Origine du format fini", f"{pad:g} mm depuis les bords de la page"),
         ],
         (

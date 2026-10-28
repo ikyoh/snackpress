@@ -356,11 +356,13 @@ function Catalog({ tools }: { tools: Tool[] }) {
               <h2>{tool.name}</h2>
               <p>{tool.description}</p>
               <span className="tool-input-hint">
-                {tool.min_files > 0
-                  ? tool.min_files === 2
-                    ? 'Deux PDF à comparer'
-                    : 'À partir de votre fichier'
-                  : 'Depuis vos réglages'}
+                {tool.id === 'sushi'
+                  ? 'À partir d’un PDF ou de vos réglages'
+                  : tool.min_files > 0
+                    ? tool.min_files === 2
+                      ? 'Deux PDF à comparer'
+                      : 'À partir de votre fichier'
+                    : 'Depuis vos réglages'}
               </span>
               <div className="tool-card-bottom">
                 <span>C’est parti !</span>
@@ -1046,12 +1048,20 @@ function ToolWorkspace({
                   <section className="tool-upload-section">
                     <h2>
                       <span className="section-number">01</span>
-                      {tool.min_files === 2
-                        ? 'Les deux versions'
-                        : tool.min_files === 0
-                          ? 'Fond PDF facultatif'
-                          : 'Vos fichiers'}
+                      {tool.id === 'sushi'
+                        ? 'Votre PDF à découper (facultatif)'
+                        : tool.min_files === 2
+                          ? 'Les deux versions'
+                          : tool.min_files === 0
+                            ? 'Fond PDF facultatif'
+                            : 'Vos fichiers'}
                     </h2>
+                    {tool.id === 'sushi' && (
+                      <p className="field-hint">
+                        Importez un PDF pour ajouter un rectangle de découpe sur chaque page, en ton
+                        direct nommé et en surimpression. Sans fichier, créez un gabarit.
+                      </p>
+                    )}
                     <input
                       type="file"
                       ref={fileRef}
@@ -1274,7 +1284,9 @@ function ToolWorkspace({
                     toolId={tool.id}
                     fields={tool.fields.filter(
                       (field) =>
-                        visibleField(tool.id, field.key, values) &&
+                        (tool.id === 'sushi'
+                          ? visibleSushiField(field.key, values, files.length > 0)
+                          : visibleField(tool.id, field.key, values)) &&
                         !(
                           tool.id === 'fortune-cookie' &&
                           ['start', 'digits', 'prefix'].includes(field.key) &&
