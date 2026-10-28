@@ -84,6 +84,7 @@ class Taco(Params):
 
 
 class Pizza(Params):
+    notes: str = Field(default="", max_length=3000)
     shape: Literal["rectangle", "circle", "ellipse"] = "rectangle"
     corner_radius: float = Field(default=0, ge=0, le=1000)
     width: float = Field(default=85, gt=0, le=2000)
@@ -588,6 +589,15 @@ DEFINITIONS = [
             number("unusable_bottom", "Zone inexploitable — bas", 0, high=2000),
             number("unusable_left", "Zone inexploitable — gauche", 0, high=2000),
             number("unusable_right", "Zone inexploitable — droite", 0, high=2000),
+            text(
+                "notes",
+                "Commentaires",
+                area=True,
+                help=(
+                    "Facultatif, 3 000 caractères maximum. "
+                    "Ces notes sont conservées avec la configuration."
+                ),
+            ),
         ],
     ),
     ToolDefinition(

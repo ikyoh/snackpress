@@ -8,6 +8,8 @@ for (const mobile of [false, true]) {
   }) => {
     if (mobile) await page.setViewportSize({ width: 390, height: 844 })
     await page.goto('/?tool=pizza')
+    const notes = 'Vérifier le sens de pose.\nRéserver la zone de collage.'
+    await page.getByLabel('Commentaires', { exact: true }).fill(notes)
     await expect(page.getByLabel('Réglage de la largeur', { exact: true })).toBeHidden()
     await page.getByRole('button', { name: 'Zone de sécurité', exact: true }).click()
     await expect(page.getByRole('button', { name: 'Format', exact: true })).toHaveAttribute(
@@ -53,6 +55,7 @@ for (const mobile of [false, true]) {
       await page.request.get(`/api/tool-jobs/${data.id}/files/reglages.json`)
     ).json()
     expect(saved.settings.safety_right).toBe(7)
+    expect(saved.settings.notes).toBe(notes)
     expect(saved.settings.safety_left).toBe(5)
     for (const side of ['top', 'bottom', 'left', 'right'])
       expect(saved.settings[`unusable_${side}`]).toBe(2)
@@ -121,6 +124,7 @@ test('Pizza : une configuration asymétrique et bornée conserve toutes ses vale
           name: 'Gabarit asymétrique',
           is_default: true,
           settings: {
+            notes: 'Gabarit pour la presse numérique.',
             shape: 'rectangle',
             width: 100,
             height: 60,
@@ -145,6 +149,9 @@ test('Pizza : une configuration asymétrique et bornée conserve toutes ses vale
   )
   await page.goto('/?tool=pizza')
   await expect(page.getByLabel('Largeur finie', { exact: true })).toHaveValue('100')
+  await expect(page.getByLabel('Commentaires', { exact: true })).toHaveValue(
+    'Gabarit pour la presse numérique.',
+  )
   await expect(page.getByLabel('Largeur minimale', { exact: true })).toBeVisible()
   await expect(page.getByLabel('Largeur minimale', { exact: true })).toHaveValue('90')
   await page.getByRole('button', { name: 'Zone de sécurité', exact: true }).click()

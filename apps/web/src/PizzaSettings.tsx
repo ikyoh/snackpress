@@ -14,6 +14,7 @@ type FieldOptions = {
   value?: string | number
   update?: (value: string | number) => void
   error?: string
+  maxLength?: number
 }
 
 export function PizzaSettings({
@@ -84,7 +85,7 @@ export function PizzaSettings({
     <div
       className={`pizza-setting ${field.type === 'number' ? 'pizza-setting-number' : ''} ${field.key.endsWith('_all') ? 'pizza-setting-common' : ''}`}
       key={field.key}
-      onFocusCapture={() => onFocusField(field.key)}
+      onFocusCapture={() => onFocusField(field.key === 'notes' ? '' : field.key)}
     >
       {renderField(pizzaField(field, values), { error: errors[field.key], ...options })}
     </div>
@@ -119,7 +120,10 @@ export function PizzaSettings({
                   <div className="tool-fields pizza-fields-format">
                     {visible
                       .filter(
-                        (field) => !/^(safety|unusable)_/.test(field.key) && !isAdvanced(field),
+                        (field) =>
+                          field.key !== 'notes' &&
+                          !/^(safety|unusable)_/.test(field.key) &&
+                          !isAdvanced(field),
                       )
                       .map((field) => render(field))}
                   </div>
@@ -205,6 +209,11 @@ export function PizzaSettings({
           </AccordionItem>
         )
       })}
+      <div className="tool-fields pizza-comments">
+        {visible
+          .filter((field) => field.key === 'notes')
+          .map((field) => render(field, { maxLength: 3000 }))}
+      </div>
     </Accordion>
   )
 }

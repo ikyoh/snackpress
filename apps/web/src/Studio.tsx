@@ -419,6 +419,7 @@ function Setting({
   displayLabel,
   validationError,
   required = false,
+  maxLength,
 }: {
   field: ToolField
   value: string | number
@@ -427,6 +428,7 @@ function Setting({
   displayLabel?: string
   validationError?: string
   required?: boolean
+  maxLength?: number
 }) {
   const id = useId()
   const inputRef = useRef<HTMLInputElement>(null)
@@ -458,7 +460,13 @@ function Setting({
           <ChevronDown size={14} />
         </span>
       ) : field.type === 'textarea' ? (
-        <textarea {...labelProps} rows={4} value={value} onChange={(e) => update(e.target.value)} />
+        <textarea
+          {...labelProps}
+          rows={4}
+          maxLength={maxLength}
+          value={value}
+          onChange={(e) => update(e.target.value)}
+        />
       ) : field.type === 'number' ? (
         <span className="input-wrap">
           <input
@@ -1267,6 +1275,7 @@ function ToolWorkspace({
                         value={options.value ?? pizzaValue(field, values)}
                         update={options.update ?? ((value) => change(field.key, value))}
                         validationError={options.error}
+                        maxLength={options.maxLength}
                         required
                       />
                     )}

@@ -190,6 +190,25 @@ def test_sushi_configurations_preserve_lines_and_convert_legacy_creases(account_
     assert saved["lines"] == [{"kind": "cut", "axis": "horizontal", "position": 15}]
 
 
+def test_pizza_configuration_comments_are_saved_updated_and_optional(account_api):
+    client, _, deliveries = account_api
+    activate(client, deliveries)
+    notes = "Vérifier le sens de pose.\nRéserver la zone de collage."
+    response = create(client, settings={"notes": notes})
+    assert response.status_code == 201, response.text
+    original = response.json()
+    assert original["settings"]["notes"] == notes
+    assert client.get("/api/configurations?tool_id=pizza").json()[0]["settings"]["notes"] == notes
+    response = client.put(
+        f"/api/configurations/{original['id']}",
+        json=body(original, settings={**original["settings"], "notes": ""}),
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["settings"]["notes"] == ""
+    assert create(client, name="Sans commentaire").json()["settings"]["notes"] == ""
+    assert create(client, name="Trop long", settings={"notes": "a" * 3001}).status_code == 422
+
+
 def test_configurations_ownership_defaults_conflicts_and_persistence(account_api):
     client, module, deliveries = account_api
     assert create(client).status_code == 401
