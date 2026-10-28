@@ -38,7 +38,7 @@ def render(client, preview_id, settings=None):
 
 def test_sushi_import_preview_and_final_export(api, source):
     client, _ = api
-    settings = {"cut_name": "DecoupeAtelier", "pdf_inset": 2}
+    settings = {"cut_name": "DecoupeAtelier", "pdf_inset": 2, "cut_cyan": 100, "cut_magenta": 0}
     preview_id = session(client, "sushi", source)
     response = render(client, preview_id, settings)
     assert response.status_code == 200, response.text
@@ -58,6 +58,8 @@ def test_sushi_import_preview_and_final_export(api, source):
             str(space[1]) == "/DecoupeAtelier"
             for _, space in pdf.pages[0].Resources.ColorSpace.items()
         )
+        space = next(value for _, value in pdf.pages[0].Resources.ColorSpace.items())
+        assert list(space[3].C1) == [1, 0, 0, 0]
 
 
 @pytest.mark.parametrize("tool", list(CATALOG))

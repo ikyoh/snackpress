@@ -401,7 +401,8 @@ def sushi(folder, files, p):
     c = new_canvas(path, p.width + 2 * pad, p.height + 2 * pad)
     c.setLineWidth(p.cut_width * mm)
     c.setStrokeOverprint(True)
-    c.setStrokeColor(CMYKColorSep(0, 100, 0, 0, spotName=p.cut_name))
+    cut_colour = CMYKColorSep(*p.cut_cmyk, spotName=p.cut_name)
+    c.setStrokeColor(cut_colour)
     if p.shape == "circle":
         c.circle((pad + p.width / 2) * mm, (pad + p.height / 2) * mm, p.width / 2 * mm)
     elif p.shape == "rectangle":
@@ -411,7 +412,7 @@ def sushi(folder, files, p):
             c.rect(pad * mm, pad * mm, p.width * mm, p.height * mm)
     for line in p.lines:
         c.setStrokeColor(
-            CMYKColorSep(0, 100, 0, 0, spotName=p.cut_name)
+            cut_colour
             if line.kind == "cut"
             else CMYKColorSep(100, 0, 0, 0, spotName=p.crease_name)
         )
@@ -443,6 +444,11 @@ def sushi(folder, files, p):
             ),
             ("Fond perdu", f"{p.bleed:g} mm sur chaque côté, défini par la BleedBox"),
             ("Découpe", p.cut_name),
+            (
+                "Couleur de découpe (CMJN)",
+                f"C {p.cut_cyan:g} % · M {p.cut_magenta:g} % · "
+                f"J {p.cut_yellow:g} % · N {p.cut_black:g} %",
+            ),
             ("Rainage", p.crease_name),
             *[
                 (

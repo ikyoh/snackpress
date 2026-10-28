@@ -180,6 +180,10 @@ def test_sushi_configurations_preserve_lines_and_convert_legacy_creases(account_
         "bleed": 3,
         "shape": "none",
         "lines": '[{"kind":"cut","axis":"horizontal","position":15}]',
+        "cut_cyan": 12.5,
+        "cut_magenta": 40,
+        "cut_yellow": 65,
+        "cut_black": 20,
     }
     response = client.put(
         f"/api/configurations/{original['id']}", json=body(original, settings=settings)
@@ -188,6 +192,12 @@ def test_sushi_configurations_preserve_lines_and_convert_legacy_creases(account_
     saved = client.get("/api/configurations?tool_id=sushi").json()[0]["settings"]
     assert saved["bleed"] == 3 and saved["shape"] == "none"
     assert saved["lines"] == [{"kind": "cut", "axis": "horizontal", "position": 15}]
+    assert [saved[key] for key in ("cut_cyan", "cut_magenta", "cut_yellow", "cut_black")] == [
+        12.5,
+        40,
+        65,
+        20,
+    ]
 
 
 def test_pizza_configuration_comments_are_saved_updated_and_optional(account_api):

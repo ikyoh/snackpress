@@ -13,6 +13,16 @@ test('Sushi : ajouter un rectangle en teinte nommée au PDF importé', async ({ 
   await openSettings(page, 'Tons directs')
   await page.getByLabel('Ton direct de découpe', { exact: true }).fill('DecoupeAtelier')
   await page.getByLabel('Épaisseur du trait', { exact: true }).fill('0.2')
+  await openSettings(page, 'Couleur de découpe (CMJN)')
+  const cyan = page.getByLabel('Cyan', { exact: true })
+  await expect(cyan).toHaveValue('0')
+  await expect(page.getByLabel('Magenta', { exact: true })).toHaveValue('100')
+  await cyan.fill('101')
+  expect(await cyan.evaluate((input: HTMLInputElement) => input.validity.rangeOverflow)).toBe(true)
+  await cyan.fill('12.5')
+  await page.getByLabel('Magenta', { exact: true }).fill('40')
+  await page.getByLabel('Jaune', { exact: true }).fill('65')
+  await page.getByLabel('Noir', { exact: true }).fill('20')
   await expect(page.getByLabel('Ton direct de rainage', { exact: true })).toHaveCount(0)
   await expect(page.locator('canvas[data-ready=true]')).toBeVisible({ timeout: 20000 })
   const response = page.waitForResponse((r) => r.url().includes('/api/tools/sushi/run'))
@@ -27,6 +37,12 @@ test('Sushi : ajouter un rectangle en teinte nommée au PDF importé', async ({ 
   ).json()
   expect(saved.settings.pdf_inset).toBe(2)
   expect(saved.settings.cut_width).toBe(0.2)
+  expect(saved.settings).toMatchObject({
+    cut_cyan: 12.5,
+    cut_magenta: 40,
+    cut_yellow: 65,
+    cut_black: 20,
+  })
   await expect(page.locator('canvas[data-ready=true]')).toBeVisible()
   const download = page.waitForEvent('download')
   await page.getByRole('link', { name: /PDF avec contours de découpe/ }).click()
@@ -34,6 +50,7 @@ test('Sushi : ajouter un rectangle en teinte nommée au PDF importé', async ({ 
   await page.screenshot({ path: 'test-results/sushi-overlay-desktop.png', fullPage: true })
   await page.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('tab', { name: 'Réglages', exact: true }).click()
+  await expect(cyan).toHaveValue('12.5')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.screenshot({ path: 'test-results/sushi-overlay-mobile.png', fullPage: true })
   await page.getByRole('button', { name: 'Retirer le fichier 1', exact: true }).click()

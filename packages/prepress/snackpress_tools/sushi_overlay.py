@@ -18,7 +18,7 @@ def add_contours(folder, source, settings):
                 FunctionType=2,
                 Domain=[0, 1],
                 C0=[0, 0, 0, 0],
-                C1=[0, 1, 0, 0],
+                C1=list(settings.cut_cmyk),
                 N=1,
             )
         )

@@ -41,6 +41,10 @@ const groups: Record<string, Group[]> = {
     { title: 'Format', keys: ['width', 'height', 'bleed', 'shape', 'corner_radius'] },
     { title: 'Tracés', keys: ['lines'] },
     { title: 'Tons directs', keys: ['cut_name', 'cut_width', 'crease_name'] },
+    {
+      title: 'Couleur de découpe (CMJN)',
+      keys: ['cut_cyan', 'cut_magenta', 'cut_yellow', 'cut_black'],
+    },
   ],
   kebab: [
     { title: 'Projet', keys: ['title', 'client'] },

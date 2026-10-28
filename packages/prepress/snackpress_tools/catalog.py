@@ -305,6 +305,22 @@ class Sushi(Params):
     pdf_box: Literal["trim", "page"] = "trim"
     pdf_inset: float = Field(default=0, ge=0, le=1000)
     cut_width: float = Field(default=0.1, ge=0.01, le=5)
+    cut_cyan: float = Field(default=0, ge=0, le=100)
+    cut_magenta: float = Field(default=100, ge=0, le=100)
+    cut_yellow: float = Field(default=0, ge=0, le=100)
+    cut_black: float = Field(default=0, ge=0, le=100)
+
+    @property
+    def cut_cmyk(self):
+        return tuple(
+            value / 100
+            for value in (
+                self.cut_cyan,
+                self.cut_magenta,
+                self.cut_yellow,
+                self.cut_black,
+            )
+        )
 
     @model_validator(mode="before")
     @classmethod
@@ -731,6 +747,10 @@ DEFINITIONS = [
             ),
             text("cut_name", "Ton direct de découpe", "CutContour"),
             number("cut_width", "Épaisseur du trait", 0.1, low=0.01, high=5, step=0.01),
+            number("cut_cyan", "Cyan", 0, "%", high=100, step=0.1),
+            number("cut_magenta", "Magenta", 100, "%", high=100, step=0.1),
+            number("cut_yellow", "Jaune", 0, "%", high=100, step=0.1),
+            number("cut_black", "Noir", 0, "%", high=100, step=0.1),
             text("crease_name", "Ton direct de rainage", "Crease"),
         ],
     ),
