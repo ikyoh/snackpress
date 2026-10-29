@@ -1,8 +1,8 @@
 """Mixed-size native PDF imposition using several bounded MaxRects searches."""
 
 from contextlib import ExitStack
-from dataclasses import asdict, dataclass
-from math import isfinite
+from dataclasses import asdict, dataclass, replace
+from math import ceil, isfinite, sqrt
 
 import pikepdf
 from reportlab.lib.units import mm
@@ -77,7 +77,38 @@ def split_free(free, used):
     ]
 
 
-def pack(sizes, items, params):
+def sheet_bounds(poses):
+    return (
+        min(p.x for p in poses),
+        min(p.y for p in poses),
+        max(p.x + p.width for p in poses),
+        max(p.y + p.height for p in poses),
+    )
+
+
+def tight_size(sheets, margin):
+    bounds = [sheet_bounds(sheet) for sheet in sheets]
+    # Round outward so the displayed dimensions never clip fractional-size artwork.
+    # pikepdf requires at least 3 points per page side.
+    return tuple(
+        max(ceil((max(b[end] - b[start] for b in bounds) + 2 * margin - EPS) * 100) / 100, 1.06)
+        for start, end in ((0, 2), (1, 3))
+    )
+
+
+def layout_score(sheets, margin):
+    width, height = tight_size(sheets, margin)
+    return (
+        len(sheets),
+        width * height,
+        sum((b[2] - b[0]) * (b[3] - b[1]) for b in map(sheet_bounds, sheets)),
+        width + height,
+    )
+
+
+def _pack(
+    sizes, items, params, *, orders=None, scoring_modes=("short", "area", "compact"), max_sheets=200
+):
     width = params.sheet_width - 2 * params.margin
     height = params.sheet_height - 2 * params.margin
     for index, (w, h) in enumerate(sizes):
@@ -89,15 +120,15 @@ def pack(sizes, items, params):
                 f"imprimable de {width:g} × {height:g} mm. Agrandissez la planche "
                 "ou réduisez la marge (ou la largeur de l’image)."
             )
-    orders = [
+    orders = orders or [
         sorted(range(len(sizes)), key=lambda i: (-sizes[i][0] * sizes[i][1], i)),
         sorted(range(len(sizes)), key=lambda i: (-max(sizes[i]), -min(sizes[i]), i)),
         sorted(range(len(sizes)), key=lambda i: (-sum(sizes[i]), i)),
     ]
     best = None
     for order in dict.fromkeys(tuple(order) for order in orders):
-        for scoring in ("short", "area"):
-            sheets, spaces = [], []
+        for scoring in scoring_modes:
+            sheets, spaces, extents = [], [], []
             for index in order:
                 w, h = sizes[index]
                 for copy in range(items[index].quantity):
@@ -113,10 +144,20 @@ def pack(sizes, items, params):
                                     continue
                                 short = min(rect.width - rw, rect.height - rh)
                                 area = rect.width * rect.height - rw * rh
+                                if scoring == "compact":
+                                    right = max(extents[sheet_index][0], rect.x + pw)
+                                    top = max(extents[sheet_index][1], rect.y + ph)
+                                    priority = (
+                                        (right + 2 * params.margin) * (top + 2 * params.margin),
+                                        right + top,
+                                    )
+                                else:
+                                    priority = (
+                                        (short, area) if scoring == "short" else (area, short)
+                                    )
                                 score = (
                                     sheet_index,
-                                    short if scoring == "short" else area,
-                                    area if scoring == "short" else short,
+                                    *priority,
                                     rect.y,
                                     rect.x,
                                     rotation,
@@ -129,10 +170,11 @@ def pack(sizes, items, params):
                     if selected is None:
                         sheet_index = len(sheets)
                         # More than 200 sheets cannot beat an already valid solution.
-                        if sheet_index >= 200:
+                        if sheet_index >= max_sheets:
                             break
                         spaces.append([Rect(0, 0, width + params.gap, height + params.gap)])
                         sheets.append([])
+                        extents.append((0, 0))
                         orientations = [(w, h, 0)]
                         if params.rotation == "auto":
                             orientations.append((h, w, 90))
@@ -142,7 +184,11 @@ def pack(sizes, items, params):
                                 for o in orientations
                                 if o[0] <= width + EPS and o[1] <= height + EPS
                             ),
-                            key=lambda o: (min(width - o[0], height - o[1]), o[1], o[2]),
+                            key=lambda o: (
+                                0 if scoring == "compact" else min(width - o[0], height - o[1]),
+                                o[1],
+                                o[2],
+                            ),
                         )
                         rect = spaces[-1][0]
                     else:
@@ -161,21 +207,56 @@ def pack(sizes, items, params):
                     spaces[sheet_index] = split_free(
                         spaces[sheet_index], Rect(rect.x, rect.y, pw + params.gap, ph + params.gap)
                     )
+                    extents[sheet_index] = (
+                        max(extents[sheet_index][0], rect.x + pw),
+                        max(extents[sheet_index][1], rect.y + ph),
+                    )
                 else:
                     continue
                 break
             else:
-                # Fewer sheets first, then leave the largest possible unused final area.
-                score = (
-                    len(sheets),
-                    sum(p.width * p.height for p in sheets[-1]),
-                    sum(max(p.y + p.height for p in sheet) for sheet in sheets),
-                )
+                score = layout_score(sheets, params.margin)
                 if best is None or score < best[0]:
                     best = score, sheets
     if best is None:
         raise ValueError("Le travail dépasse 200 planches. Réduisez les quantités.")
     return best[1]
+
+
+def pack(sizes, items, params):
+    best = _pack(sizes, items, params)
+    available = params.sheet_width - 2 * params.margin
+    count = sum(item.quantity for item in items)
+    target = sqrt(
+        sum(w * h * item.quantity for (w, h), item in zip(sizes, items, strict=True)) / len(best)
+    )
+    sides = {w for w, _ in sizes}
+    if params.rotation == "auto":
+        sides.update(h for _, h in sizes)
+    candidates = {
+        side * n + params.gap * (n - 1) for side in sides for n in range(1, min(count, 12) + 1)
+    }
+    candidates.update(a + b + params.gap for a in sides for b in sides)
+    candidates = sorted(
+        (w for w in candidates if EPS < w < available - EPS), key=lambda w: (abs(w - target), w)
+    )[: 8 if count <= 200 else 4]
+    order = sorted(range(len(sizes)), key=lambda i: (-sizes[i][0] * sizes[i][1], i))
+    for width in candidates:
+        trial = params.model_copy(update={"sheet_width": width + 2 * params.margin})
+        try:
+            candidate = _pack(
+                sizes,
+                items,
+                trial,
+                orders=[order],
+                scoring_modes=("short", "compact"),
+                max_sheets=len(best),
+            )
+        except ValueError:
+            continue
+        if layout_score(candidate, params.margin) < layout_score(best, params.margin):
+            best = candidate
+    return best
 
 
 def page_geometry(page):
@@ -261,10 +342,32 @@ def impose(folder, files, params, *, preview=False):
                 }
             )
         sheets = pack(sizes, items, params)
-        for poses in sheets[:2] if preview else sheets:
-            sheet = out.add_blank_page(
-                page_size=(params.sheet_width * mm, params.sheet_height * mm)
+        with_margin = tight_size(sheets, params.margin)
+        without_margin = tight_size(sheets, 0)
+        # Never enlarge a fractional input format because of outward rounding.
+        with_margin = tuple(
+            min(v, limit)
+            for v, limit in zip(with_margin, (params.sheet_width, params.sheet_height), strict=True)
+        )
+        without_margin = tuple(
+            min(v, limit)
+            for v, limit in zip(
+                without_margin, (params.sheet_width, params.sheet_height), strict=True
             )
+        )
+        output_width, output_height = params.sheet_width, params.sheet_height
+        if params.crop != "none":
+            output_width, output_height = with_margin if params.crop == "margin" else without_margin
+            outer = params.margin if params.crop == "margin" else 0
+            cropped = []
+            for poses in sheets:
+                left, bottom, _, _ = sheet_bounds(poses)
+                cropped.append(
+                    [replace(p, x=p.x - left + outer, y=p.y - bottom + outer) for p in poses]
+                )
+            sheets = cropped
+        for poses in sheets[:2] if preview else sheets:
+            sheet = out.add_blank_page(page_size=(output_width * mm, output_height * mm))
             commands, resources = [], {}
             for pose in poses:
                 form, normalization = forms[pose.file]
@@ -287,12 +390,17 @@ def impose(folder, files, params, *, preview=False):
         out.save(path)
     out.close()
     area = sum(w * h * item.quantity for (w, h), item in zip(sizes, items, strict=True))
-    occupancy = area / (len(sheets) * params.sheet_width * params.sheet_height) * 100
+    occupancy = area / (len(sheets) * output_width * output_height) * 100
     metrics = {
         "Fichiers": len(files),
         "Exemplaires": sum(item.quantity for item in items),
         "Planches": len(sheets),
         "Surface utilisée (%)": round(occupancy, 1),
+        "Format exporté": f"{output_width:g} × {output_height:g} mm",
+        "Largeur avec marge (mm)": with_margin[0],
+        "Hauteur avec marge (mm)": with_margin[1],
+        "Largeur sans marge (mm)": without_margin[0],
+        "Hauteur sans marge (mm)": without_margin[1],
     }
     manifest = folder / "plan-imposition.json"
     write_json(
@@ -303,6 +411,12 @@ def impose(folder, files, params, *, preview=False):
             "origin": "bottom_left",
             "unit": "mm",
             "metrics": metrics,
+            "sheet_format": {
+                "original": {"width": params.sheet_width, "height": params.sheet_height},
+                "suggested": {"width": with_margin[0], "height": with_margin[1]},
+                "output": {"width": output_width, "height": output_height},
+                "crop": params.crop,
+            },
             "sheets": [[asdict(pose) for pose in sheet] for sheet in sheets],
         },
     )

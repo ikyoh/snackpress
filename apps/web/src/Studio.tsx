@@ -50,6 +50,7 @@ import { sushiField, visibleSushiField } from './sushi'
 import { ClubEstimate } from './ClubEstimate'
 import { SettingsSection } from './SettingsSection'
 import { GranolaFile, granolaDefaults, type GranolaItem } from './GranolaFile'
+import { GranolaCrop, granolaGeometryMetric, granolaSheetValues } from './GranolaCrop'
 import './studio.css'
 
 type Tool = components['schemas']['ToolDefinition']
@@ -718,6 +719,10 @@ function ToolWorkspace({
     valid: () =>
       Object.keys(pizzaValidation).length === 0 && (formRef.current?.matches(':valid') ?? false),
   })
+  const displayedValues =
+    tool.id === 'granola'
+      ? granolaSheetValues(values, (result ?? livePreview.preview)?.metrics)
+      : values
   useEffect(() => {
     if (testingPizza && livePreview.preview) {
       // Burger groups six faces per page; start on the first page with guides.
@@ -732,6 +737,17 @@ function ToolWorkspace({
   function change(key: string, value: string | number) {
     setValues((old) => {
       const next = { ...old, [key]: value }
+      if (
+        tool.id === 'granola' &&
+        old.crop !== 'none' &&
+        ['sheet_width', 'sheet_height'].includes(key)
+      ) {
+        next.sheet_width = displayedValues.sheet_width
+        next.sheet_height = displayedValues.sheet_height
+        next.margin = old.crop === 'poses' ? 0 : old.margin
+        next.crop = 'none'
+        next[key] = value
+      }
       if (tool.id === 'sushi' && key === 'lines') delete next.creases
       if (
         tool.id === 'sushi' &&
@@ -1366,7 +1382,14 @@ function ToolWorkspace({
                 {tool.id !== 'pizza' && !testingPizza && tool.fields.length > 0 && (
                   <ToolSettings
                     onChange={(patch) => {
-                      setValues((old) => ({ ...old, ...patch }))
+                      setValues((old) => ({
+                        ...old,
+                        ...patch,
+                        ...(tool.id === 'granola' &&
+                        ('sheet_width' in patch || 'sheet_height' in patch)
+                          ? { crop: 'none' }
+                          : {}),
+                      }))
                       setResult(null)
                       setError('')
                     }}
@@ -1391,7 +1414,7 @@ function ToolWorkspace({
                           field.key === 'paper'
                         ),
                     )}
-                    values={values}
+                    values={displayedValues}
                     renderField={(field) =>
                       tool.id === 'sushi' && field.type === 'lines' ? (
                         <SushiLines
@@ -1404,8 +1427,22 @@ function ToolWorkspace({
                       ) : (
                         <Setting
                           required={tool.id === 'granola'}
-                          field={tool.id === 'sushi' ? sushiField(field, values) : field}
-                          value={values[field.key] ?? field.default}
+                          field={
+                            tool.id === 'sushi'
+                              ? sushiField(field, values)
+                              : tool.id === 'granola' &&
+                                  values.crop !== 'none' &&
+                                  ['sheet_width', 'sheet_height'].includes(field.key)
+                                ? {
+                                    ...field,
+                                    min: Math.min(
+                                      field.min ?? 0,
+                                      Number(displayedValues[field.key]),
+                                    ),
+                                  }
+                                : field
+                          }
+                          value={displayedValues[field.key] ?? field.default}
                           update={(value) => change(field.key, value)}
                           disabled={
                             tool.id === 'sushi' &&
@@ -1544,6 +1581,20 @@ function ToolWorkspace({
               </button>
             )}
           </div>
+          {tool.id === 'granola' && (result || livePreview.preview) && (
+            <GranolaCrop
+              metrics={(result || livePreview.preview)!.metrics}
+              mode={String(values.crop ?? 'none')}
+              sheetWidth={Number(values.sheet_width)}
+              sheetHeight={Number(values.sheet_height)}
+              margin={Number(values.margin)}
+              pending={
+                !result && (livePreview.updating || livePreview.stale || !!livePreview.error)
+              }
+              disabled={busy}
+              onChange={(mode) => change('crop', mode)}
+            />
+          )}
           {testingPizza &&
             ready &&
             (result ||
@@ -1599,16 +1650,18 @@ function ToolWorkspace({
               </div>
               {result.metrics && Object.keys(result.metrics).length > 0 && (
                 <div className="tool-metrics">
-                  {Object.entries(result.metrics).map(([key, value]) => (
-                    <div key={key}>
-                      <span>{key}</span>
-                      <strong>
-                        {typeof value === 'number'
-                          ? value.toLocaleString('fr-FR', { maximumFractionDigits: 3 })
-                          : value}
-                      </strong>
-                    </div>
-                  ))}
+                  {Object.entries(result.metrics)
+                    .filter(([key]) => tool.id !== 'granola' || !granolaGeometryMetric(key))
+                    .map(([key, value]) => (
+                      <div key={key}>
+                        <span>{key}</span>
+                        <strong>
+                          {typeof value === 'number'
+                            ? value.toLocaleString('fr-FR', { maximumFractionDigits: 3 })
+                            : value}
+                        </strong>
+                      </div>
+                    ))}
                 </div>
               )}
               {previewable.length > 0 && (

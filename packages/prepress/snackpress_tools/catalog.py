@@ -185,6 +185,7 @@ class Granola(Params):
     margin: float = Field(default=10, ge=0, le=100)
     gap: float = Field(default=3, ge=0, le=100)
     rotation: Literal["auto", "none"] = "auto"
+    crop: Literal["none", "margin", "poses"] = "none"
     items: list[GranolaItem] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")
@@ -887,6 +888,15 @@ DEFINITIONS = [
                 "rotation",
                 "Rotation des poses",
                 [("auto", "Automatique · 0° ou 90°"), ("none", "Conserver l’orientation")],
+            ),
+            choice(
+                "crop",
+                "Format d’export",
+                [
+                    ("none", "Conserver le format initial"),
+                    ("margin", "Recadrer · conserver la marge extérieure"),
+                    ("poses", "Recadrer · au bord des poses"),
+                ],
             ),
         ],
     ),

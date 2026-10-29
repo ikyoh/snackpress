@@ -32,3 +32,49 @@
   color: #693474;
   font-variant-numeric: tabular-nums;
 }
+.granola-crop {
+  padding: 20px 22px;
+  border-bottom: 1px solid #ead4f3;
+  color: #693474;
+}
+.granola-crop h2 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 12px;
+  font-size: var(--text-body);
+}
+.granola-crop p {
+  margin: 0 0 14px;
+  font-size: var(--text-small);
+  line-height: 1.6;
+}
+.granola-crop-size {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-variant-numeric: tabular-nums;
+}
+.granola-crop-size strong {
+  font-size: 1.25rem;
+}
+.granola-crop-margin {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-bottom: 12px;
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+.granola-crop-margin input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  accent-color: #8a327e;
+}
+.granola-crop button {
+  max-width: 100%;
+  white-space: normal;
+}

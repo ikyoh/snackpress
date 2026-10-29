@@ -258,3 +258,144 @@ def test_api_import_preview_export_download_and_invalid_quantity(tmp_path, monke
         assert invalid.status_code == 422
         assert client.delete(f"/api/tool-previews/{preview_id}").status_code == 204
         assert client.delete(f"/api/tool-jobs/{result['id']}").status_code == 204
+
+
+def test_compact_search_reduces_the_common_sheet_area():
+    from snackpress_tools.granola import tight_size
+
+    params = Granola(sheet_width=320, sheet_height=450, margin=10, gap=3)
+    sizes, items = [(80, 40)], [GranolaItem(quantity=4)]
+    sheets = pack(sizes, items, params)
+    assert len(sheets) == 1
+    width, height = tight_size(sheets, params.margin)
+    # A two-by-two arrangement needs at most 183 × 103 mm, margins included.
+    assert width * height <= 183 * 103
+    check_layout(sheets, sizes, items, params)
+
+
+@pytest.mark.parametrize("crop,outer", [("none", 10), ("margin", 10), ("poses", 0)])
+def test_crop_preserves_native_artwork_and_exact_geometry(tmp_path, source, crop, outer):
+    from snackpress_tools.granola import Pose
+
+    folder = tmp_path / crop
+    folder.mkdir()
+    settings = {
+        "rotation": "none",
+        "margin": 10,
+        "gap": 3,
+        "crop": crop,
+        "items": [{"quantity": 4, "page": 2}],
+    }
+    result = run(folder, "granola", [source], settings)
+    data = json.loads((folder / "plan-imposition.json").read_text())
+    expected = data["sheet_format"]["output"]
+    assert data["sheet_format"]["original"] == {"width": 320, "height": 450}
+    assert result.metrics["Exemplaires"] == 4
+    check_layout(
+        [[Pose(**p) for p in sheet] for sheet in data["sheets"]],
+        [(91, 61)],
+        [GranolaItem(quantity=4)],
+        Granola(
+            sheet_width=expected["width"], sheet_height=expected["height"], margin=outer, gap=3
+        ),
+    )
+    with pikepdf.open(folder / "imposition.pdf") as pdf:
+        assert not pdf.check_pdf_syntax()
+        for page in pdf.pages:
+            assert list(map(float, page.mediabox)) == pytest.approx(
+                [0, 0, expected["width"] * mm, expected["height"] * mm]
+            )
+    with pdfium.PdfDocument(str(folder / "imposition.pdf")) as pdf:
+        assert sum(p.get_textpage().get_text_range().count("VERSO") for p in pdf) == 4
+    if crop != "none":
+        assert expected["width"] * expected["height"] < 320 * 450
+        assert min(p["x"] for s in data["sheets"] for p in s) == pytest.approx(outer)
+        assert min(p["y"] for s in data["sheets"] for p in s) == pytest.approx(outer)
+        pose_width = max(p["x"] + p["width"] for s in data["sheets"] for p in s)
+        pose_height = max(p["y"] + p["height"] for s in data["sheets"] for p in s)
+        assert expected["width"] == pytest.approx(pose_width + outer, abs=0.01)
+        assert expected["height"] == pytest.approx(pose_height + outer, abs=0.01)
+
+
+def test_crop_does_not_repack_or_change_the_quantities(tmp_path, source):
+    plans = []
+    for crop in ("none", "margin", "poses"):
+        folder = tmp_path / crop
+        folder.mkdir()
+        run(folder, "granola", [source], {"crop": crop, "items": [{"quantity": 18}]})
+        plans.append(json.loads((folder / "plan-imposition.json").read_text()))
+    assert plans[0]["sheets"] == plans[1]["sheets"]
+    for before, after in zip(plans[0]["sheets"], plans[2]["sheets"], strict=True):
+        for a, b in zip(before, after, strict=True):
+            assert {k: v for k, v in a.items() if k not in ("x", "y")} == {
+                k: v for k, v in b.items() if k not in ("x", "y")
+            }
+            assert b["x"] == pytest.approx(a["x"] - 10)
+            assert b["y"] == pytest.approx(a["y"] - 10)
+
+
+def test_cropped_preview_and_all_output_pages_share_the_same_format(tmp_path):
+    from snackpress_tools.granola import Pose
+
+    big, small = tmp_path / "big.png", tmp_path / "small.png"
+    Image.new("RGB", (90, 60), "red").save(big)
+    Image.new("RGB", (35, 50), "blue").save(small)
+    settings = {
+        "sheet_width": 120,
+        "sheet_height": 100,
+        "margin": 5,
+        "gap": 3,
+        "crop": "margin",
+        "rotation": "none",
+        "items": [{"quantity": 3, "image_width": 90}, {"quantity": 8, "image_width": 35}],
+    }
+    folders = [tmp_path / "final", tmp_path / "preview"]
+    for folder in folders:
+        folder.mkdir()
+    run(folders[0], "granola", [big, small], settings)
+    render(folders[1], "granola", [big, small], settings)
+    plan = json.loads((folders[0] / "plan-imposition.json").read_text())
+    assert plan == json.loads((folders[1] / "plan-imposition.json").read_text())
+    assert len(plan["sheets"]) > 2
+    size = plan["sheet_format"]["output"]
+    check_layout(
+        [[Pose(**p) for p in s] for s in plan["sheets"]],
+        [(90, 60), (35, 50)],
+        [GranolaItem(quantity=3), GranolaItem(quantity=8)],
+        Granola(sheet_width=size["width"], sheet_height=size["height"], margin=5, gap=3),
+    )
+    for index, folder in enumerate(folders):
+        with pikepdf.open(folder / "imposition.pdf") as pdf:
+            assert len(pdf.pages) == (len(plan["sheets"]) if index == 0 else 2)
+            for page in pdf.pages:
+                assert list(map(float, page.mediabox)) == pytest.approx(
+                    [0, 0, size["width"] * mm, size["height"] * mm]
+                )
+
+
+@pytest.mark.parametrize("crop", ["margin", "poses"])
+def test_fractional_crop_rounds_outward_and_never_exceeds_the_input_sheet(tmp_path, crop):
+    source = tmp_path / "fractional.pdf"
+    with pikepdf.Pdf.new() as pdf:
+        page = pdf.add_blank_page(page_size=(210.001 * mm, 29.123456 * mm))
+        page.Contents = pikepdf.Stream(pdf, b"0 0 1 rg 0 0 1000 1000 re f")
+        pdf.save(source)
+    folder = tmp_path / "out"
+    folder.mkdir()
+    result = run(
+        folder,
+        "granola",
+        [source],
+        {
+            "sheet_width": 210.001,
+            "sheet_height": 297,
+            "margin": 0,
+            "rotation": "none",
+            "crop": crop,
+        },
+    )
+    assert result.metrics["Largeur avec marge (mm)"] == 210.001
+    assert result.metrics["Hauteur avec marge (mm)"] == 29.13
+    with pikepdf.open(folder / "imposition.pdf") as pdf:
+        assert float(pdf.pages[0].mediabox[2]) / mm == pytest.approx(210.001)
+        assert float(pdf.pages[0].mediabox[3]) / mm >= 29.123456

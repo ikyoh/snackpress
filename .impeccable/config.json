@@ -29,6 +29,15 @@
         ],
         "createdAt": "2026-10-20T18:21:27.093Z",
         "reason": "Agent: Open Sans est explicitement chargée dans le HTML Realisaprint fourni ; cette feuille de style conserve la typographie existante de cet extranet."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "apps/web/src/Studio.css"
+        ],
+        "createdAt": "2026-10-29T05:55:18.964Z",
+        "reason": "Agent review: pre-existing .tool-limit border-left is overridden by candy.css .tool-limit border: 2px solid #fff9e7. main.tsx loads candy.css after Studio and its studio.css import; all four rendered borders are uniform. File-scoped false positive for the exact path reported by the hook."
       }
     ]
   }
