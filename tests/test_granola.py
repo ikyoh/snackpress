@@ -263,7 +263,7 @@ def test_api_import_preview_export_download_and_invalid_quantity(tmp_path, monke
 def test_compact_search_reduces_the_common_sheet_area():
     from snackpress_tools.granola import tight_size
 
-    params = Granola(sheet_width=320, sheet_height=450, margin=10, gap=3)
+    params = Granola(sheet_width=320, sheet_height=450, margin=10, gap=3, optimization="area")
     sizes, items = [(80, 40)], [GranolaItem(quantity=4)]
     sheets = pack(sizes, items, params)
     assert len(sheets) == 1
@@ -281,6 +281,7 @@ def test_crop_preserves_native_artwork_and_exact_geometry(tmp_path, source, crop
     folder.mkdir()
     settings = {
         "rotation": "none",
+        "optimization": "area",
         "margin": 10,
         "gap": 3,
         "crop": crop,
@@ -399,3 +400,66 @@ def test_fractional_crop_rounds_outward_and_never_exceeds_the_input_sheet(tmp_pa
     with pikepdf.open(folder / "imposition.pdf") as pdf:
         assert float(pdf.pages[0].mediabox[2]) / mm == pytest.approx(210.001)
         assert float(pdf.pages[0].mediabox[3]) / mm >= 29.123456
+
+
+def test_width_optimization_fills_the_row_before_opening_a_new_one():
+    from snackpress_tools.granola import tight_size
+
+    params = Granola(sheet_width=320, sheet_height=450, margin=10, gap=3, rotation="none")
+    sizes, items = [(90, 40)], [GranolaItem(quantity=3)]
+    sheets = pack(sizes, items, params)
+    assert len(sheets) == 1
+    assert [p.y for p in sheets[0]] == [10, 10, 10]
+    assert [p.x for p in sheets[0]] == [10, 103, 196]
+    assert tight_size(sheets, 10)[1] == 60
+    check_layout(sheets, sizes, items, params)
+    # Minimizing area alone would prefer a narrower, taller arrangement here.
+    area = pack(sizes, items, params.model_copy(update={"optimization": "area"}))
+    assert tight_size(area, 10)[1] > tight_size(sheets, 10)[1]
+
+
+def test_width_optimization_compares_rotated_rows():
+    from snackpress_tools.granola import tight_size
+
+    params = Granola(sheet_width=320, sheet_height=450, margin=10, gap=3)
+    sizes, items = [(91, 61)], [GranolaItem(quantity=4)]
+    sheets = pack(sizes, items, params)
+    assert len(sheets) == 1
+    assert all(p.y == 10 and p.rotation == 90 for p in sheets[0])
+    assert tight_size(sheets, 10)[1] == 111
+    check_layout(sheets, sizes, items, params)
+
+
+@pytest.mark.parametrize("crop,outer", [("none", 10), ("margin", 10), ("poses", 0)])
+def test_width_optimization_preserves_sheet_width_in_preview_and_pdf(tmp_path, crop, outer):
+    source = tmp_path / "wide-label.png"
+    Image.new("RGB", (90, 40), "blue").save(source)
+    settings = {
+        "sheet_width": 320,
+        "sheet_height": 450,
+        "margin": 10,
+        "gap": 3,
+        "rotation": "none",
+        "crop": crop,
+        "items": [{"quantity": 3, "image_width": 90}],
+    }
+    final, preview = tmp_path / "final", tmp_path / "preview"
+    final.mkdir()
+    preview.mkdir()
+    result = run(final, "granola", [source], settings)
+    render(preview, "granola", [source], settings)
+    plan = json.loads((final / "plan-imposition.json").read_text())
+    assert plan == json.loads((preview / "plan-imposition.json").read_text())
+    assert result.metrics["Largeur avec marge (mm)"] == 320
+    assert result.metrics["Largeur sans marge (mm)"] == 320
+    assert plan["settings"]["optimization"] == "width"
+    assert plan["sheet_format"]["output"]["width"] == 320
+    expected_height = 450 if crop == "none" else 40 + 2 * outer
+    assert plan["sheet_format"]["output"]["height"] == expected_height
+    assert len(plan["sheets"][0]) == 3
+    assert len({p["y"] for p in plan["sheets"][0]}) == 1
+    for folder in (final, preview):
+        with pikepdf.open(folder / "imposition.pdf") as pdf:
+            assert list(map(float, pdf.pages[0].mediabox)) == pytest.approx(
+                [0, 0, 320 * mm, expected_height * mm]
+            )

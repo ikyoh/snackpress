@@ -115,7 +115,8 @@ test('Granola : proposition de surface minimale, recadrage réversible et export
   await expect(proposal).toContainText('recadrage appliqué', { timeout: 20000 })
   await expect(proposal).toBeVisible({ timeout: 20000 })
   await expect(page.getByLabel('Format d’export', { exact: true })).toHaveValue('margin')
-  await expect(page.getByLabel('Largeur de la planche', { exact: true })).not.toHaveValue('320')
+  await expect(page.getByLabel('Optimisation', { exact: true })).toHaveValue('width')
+  await expect(page.getByLabel('Largeur de la planche', { exact: true })).toHaveValue('320')
   await expect(page.getByLabel('Hauteur de la planche', { exact: true })).not.toHaveValue('450')
   await expect(page.locator('canvas[data-ready=true]')).toBeVisible({ timeout: 15000 })
   await page.screenshot({ path: 'test-results/granola-crop-desktop.png', fullPage: true })
@@ -128,6 +129,9 @@ test('Granola : proposition de surface minimale, recadrage réversible et export
     await page.request.get(`/api/tool-jobs/${result.id}/files/plan-imposition.json`)
   ).json()
   expect(plan.settings.crop).toBe('margin')
+  expect(plan.settings.optimization).toBe('width')
+  expect(plan.sheet_format.output.width).toBe(320)
+  expect(new Set(plan.sheets.flat().map((p: { y: number }) => p.y)).size).toBe(1)
   await expect(page.getByLabel('Largeur de la planche', { exact: true })).toHaveValue(
     String(plan.sheet_format.output.width),
   )
@@ -149,7 +153,7 @@ test('Granola : proposition de surface minimale, recadrage réversible et export
   const borderlessPlan = await (
     await page.request.get(`/api/tool-jobs/${second.id}/files/plan-imposition.json`)
   ).json()
-  expect(borderlessPlan.sheet_format.output.width).toBeCloseTo(plan.sheet_format.output.width - 20)
+  expect(borderlessPlan.sheet_format.output.width).toBe(plan.sheet_format.output.width)
   expect(borderlessPlan.sheet_format.output.height).toBeCloseTo(
     plan.sheet_format.output.height - 20,
   )
@@ -190,7 +194,7 @@ test('Granola : modifier le format recadré conserve les dimensions réelles de 
   const height = page.getByLabel('Hauteur de la planche', { exact: true })
   const actualWidth = Number(await width.inputValue())
   const actualHeight = await height.inputValue()
-  expect(actualWidth).toBeLessThan(320)
+  expect(actualWidth).toBe(320)
   expect(Number(actualHeight)).toBeLessThan(450)
   await width.fill(String(actualWidth + 10))
   await expect(height).toHaveValue(actualHeight)
@@ -211,4 +215,10 @@ test('Granola : modifier le format recadré conserve les dimensions réelles de 
   await expect(height).toHaveValue('297')
   await expect(page.getByLabel('Format d’export', { exact: true })).toHaveValue('none')
   await page.request.delete(`/api/tool-jobs/${result.id}`)
+  await page.getByLabel('Optimisation', { exact: true }).selectOption('area')
+  await expect(proposal).toBeVisible({ timeout: 20000 })
+  await proposal.getByRole('button', { name: 'Appliquer le recadrage' }).click()
+  await expect(proposal).toBeVisible({ timeout: 20000 })
+  await expect(proposal).toContainText('recadrage appliqué')
+  expect(Number(await width.inputValue())).toBeLessThan(210)
 })

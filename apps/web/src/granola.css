@@ -23,6 +23,12 @@
   min-width: 0;
   width: 100%;
 }
+.granola-file-fields input:disabled {
+  background: #eee5f1;
+  border-color: #ded0e3;
+  color: #74577d;
+  cursor: not-allowed;
+}
 .granola-file-settings .field-hint {
   margin: 10px 0 0;
   color: #693474;

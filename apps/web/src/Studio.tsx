@@ -1585,6 +1585,7 @@ function ToolWorkspace({
             <GranolaCrop
               metrics={(result || livePreview.preview)!.metrics}
               mode={String(values.crop ?? 'none')}
+              optimization={String(values.optimization ?? 'width')}
               sheetWidth={Number(values.sheet_width)}
               sheetHeight={Number(values.sheet_height)}
               margin={Number(values.margin)}

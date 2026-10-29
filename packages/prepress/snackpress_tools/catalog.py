@@ -185,6 +185,7 @@ class Granola(Params):
     margin: float = Field(default=10, ge=0, le=100)
     gap: float = Field(default=3, ge=0, le=100)
     rotation: Literal["auto", "none"] = "auto"
+    optimization: Literal["width", "area"] = "width"
     crop: Literal["none", "margin", "poses"] = "none"
     items: list[GranolaItem] = Field(default_factory=list, max_length=20)
 
@@ -877,6 +878,14 @@ DEFINITIONS = [
             number("sheet_width", "Largeur de la planche", 320, low=10, high=1200),
             number("sheet_height", "Hauteur de la planche", 450, low=10, high=1200),
             number("margin", "Marge extérieure", 10, high=100),
+            choice(
+                "optimization",
+                "Optimisation",
+                [
+                    ("width", "Sur la largeur de la planche"),
+                    ("area", "Surface minimale · largeur et hauteur libres"),
+                ],
+            ),
             number(
                 "gap",
                 "Espacement entre les poses",

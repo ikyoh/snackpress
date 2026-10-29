@@ -19,7 +19,9 @@ export function GranolaFile({
 }) {
   const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
   const [info, setInfo] = useState<{ width: number; height: number; pages: number } | null>(null)
+  const [pageCount, setPageCount] = useState<number | null>(null)
   const [error, setError] = useState('')
+  useEffect(() => setPageCount(null), [file])
   useEffect(() => {
     let disposed = false
     let release: (() => void) | undefined
@@ -35,6 +37,7 @@ export function GranolaFile({
             void task.destroy().catch(() => {})
           }
           const pdf = await task.promise
+          if (!disposed) setPageCount(pdf.numPages)
           const page = await pdf.getPage(Number(value.page) || 1)
           const viewport = page.getViewport({ scale: 1 })
           if (!disposed)
@@ -98,7 +101,9 @@ export function GranolaFile({
               type="number"
               required
               min="1"
-              max={info?.pages ?? 80}
+              max={pageCount ?? 80}
+              disabled={pageCount === null || pageCount === 1}
+              title={pageCount === 1 ? 'Ce PDF contient une seule page.' : undefined}
               step="1"
               aria-label={`Page du fichier ${index + 1}`}
               value={value.page}

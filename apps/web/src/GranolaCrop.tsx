@@ -20,6 +20,7 @@ export function granolaSheetValues(
 export function GranolaCrop({
   metrics,
   mode,
+  optimization,
   sheetWidth,
   sheetHeight,
   margin,
@@ -29,6 +30,7 @@ export function GranolaCrop({
 }: {
   metrics: Record<string, string | number>
   mode: string
+  optimization: string
   sheetWidth: number
   sheetHeight: number
   margin: number
@@ -46,10 +48,12 @@ export function GranolaCrop({
   if (!(width > 0 && height > 0 && sheetWidth > 0 && sheetHeight > 0)) return null
   const saving = Math.max(0, 100 * (1 - (width * height) / (sheetWidth * sheetHeight)))
   const applied = mode !== 'none'
+  const alongWidth = optimization !== 'area'
   return (
     <section className="granola-crop" aria-label="Recadrage de la planche" hidden={pending}>
       <h2>
-        <Crop size={19} aria-hidden="true" /> Format au plus près
+        <Crop size={19} aria-hidden="true" />
+        {alongWidth ? 'Optimisé sur la largeur' : 'Format au plus près'}
       </h2>
       <p className="granola-crop-size" aria-live="polite">
         <strong>
@@ -60,7 +64,9 @@ export function GranolaCrop({
         </span>
       </p>
       <p>
-        Le plus petit rectangle autour de cette disposition, sans changer la taille des poses.
+        {alongWidth
+          ? `Largeur conservée : ${format(sheetWidth)} mm. La hauteur est réduite autour des poses, sans changer leur taille.`
+          : 'Le plus petit rectangle autour de cette disposition, sans changer la taille des poses.'}
         {Number(metrics.Planches) > 1 && ' Un même format est conservé pour toutes les planches.'}
       </p>
       {applied && (

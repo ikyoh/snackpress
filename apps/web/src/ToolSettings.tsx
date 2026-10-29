@@ -8,7 +8,7 @@ type Group = { title: string; keys: string[] }
 const groups: Record<string, Group[]> = {
   granola: [
     { title: 'Planche d’impression', keys: ['sheet_width', 'sheet_height', 'margin'] },
-    { title: 'Placement et export', keys: ['gap', 'rotation', 'crop'] },
+    { title: 'Placement et export', keys: ['optimization', 'gap', 'rotation', 'crop'] },
   ],
   burger: [
     { title: 'Projet', keys: ['title', 'client', 'paper'] },

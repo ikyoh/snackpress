@@ -96,8 +96,16 @@ def tight_size(sheets, margin):
     )
 
 
-def layout_score(sheets, margin):
+def layout_score(sheets, margin, optimization="area"):
     width, height = tight_size(sheets, margin)
+    if optimization == "width":
+        bounds = [sheet_bounds(sheet) for sheet in sheets]
+        return (
+            len(sheets),
+            height,
+            sum(b[3] - b[1] for b in bounds),
+            -sum(b[2] - b[0] for b in bounds),
+        )
     return (
         len(sheets),
         width * height,
@@ -106,9 +114,7 @@ def layout_score(sheets, margin):
     )
 
 
-def _pack(
-    sizes, items, params, *, orders=None, scoring_modes=("short", "area", "compact"), max_sheets=200
-):
+def _pack(sizes, items, params, *, orders=None, scoring_modes=None, max_sheets=200):
     width = params.sheet_width - 2 * params.margin
     height = params.sheet_height - 2 * params.margin
     for index, (w, h) in enumerate(sizes):
@@ -120,11 +126,24 @@ def _pack(
                 f"imprimable de {width:g} × {height:g} mm. Agrandissez la planche "
                 "ou réduisez la marge (ou la largeur de l’image)."
             )
-    orders = orders or [
+    default_orders = [
         sorted(range(len(sizes)), key=lambda i: (-sizes[i][0] * sizes[i][1], i)),
         sorted(range(len(sizes)), key=lambda i: (-max(sizes[i]), -min(sizes[i]), i)),
         sorted(range(len(sizes)), key=lambda i: (-sum(sizes[i]), i)),
     ]
+    if params.optimization == "width":
+        default_orders.extend(
+            [
+                sorted(range(len(sizes)), key=lambda i: (-sizes[i][1], -sizes[i][0], i)),
+                sorted(range(len(sizes)), key=lambda i: (-sizes[i][0], -sizes[i][1], i)),
+            ]
+        )
+    orders = orders or default_orders
+    scoring_modes = scoring_modes or (
+        ("width", "width_rotated", "short", "area")
+        if params.optimization == "width"
+        else ("short", "area", "compact")
+    )
     best = None
     for order in dict.fromkeys(tuple(order) for order in orders):
         for scoring in scoring_modes:
@@ -144,7 +163,15 @@ def _pack(
                                     continue
                                 short = min(rect.width - rw, rect.height - rh)
                                 area = rect.width * rect.height - rw * rh
-                                if scoring == "compact":
+                                if scoring in {"width", "width_rotated"}:
+                                    priority = (
+                                        max(extents[sheet_index][1], rect.y + ph),
+                                        rect.y,
+                                        rect.x,
+                                        -ph,
+                                        short,
+                                    )
+                                elif scoring == "compact":
                                     right = max(extents[sheet_index][0], rect.x + pw)
                                     top = max(extents[sheet_index][1], rect.y + ph)
                                     priority = (
@@ -185,7 +212,11 @@ def _pack(
                                 if o[0] <= width + EPS and o[1] <= height + EPS
                             ),
                             key=lambda o: (
-                                0 if scoring == "compact" else min(width - o[0], height - o[1]),
+                                -o[1]
+                                if scoring == "width_rotated"
+                                else 0
+                                if scoring in {"compact", "width"}
+                                else min(width - o[0], height - o[1]),
                                 o[1],
                                 o[2],
                             ),
@@ -215,7 +246,7 @@ def _pack(
                     continue
                 break
             else:
-                score = layout_score(sheets, params.margin)
+                score = layout_score(sheets, params.margin, params.optimization)
                 if best is None or score < best[0]:
                     best = score, sheets
     if best is None:
@@ -225,6 +256,8 @@ def _pack(
 
 def pack(sizes, items, params):
     best = _pack(sizes, items, params)
+    if params.optimization == "width":
+        return best
     available = params.sheet_width - 2 * params.margin
     count = sum(item.quantity for item in items)
     target = sqrt(
@@ -254,7 +287,9 @@ def pack(sizes, items, params):
             )
         except ValueError:
             continue
-        if layout_score(candidate, params.margin) < layout_score(best, params.margin):
+        if layout_score(candidate, params.margin, params.optimization) < layout_score(
+            best, params.margin, params.optimization
+        ):
             best = candidate
     return best
 
@@ -355,6 +390,9 @@ def impose(folder, files, params, *, preview=False):
                 without_margin, (params.sheet_width, params.sheet_height), strict=True
             )
         )
+        if params.optimization == "width":
+            with_margin = (params.sheet_width, with_margin[1])
+            without_margin = (params.sheet_width, without_margin[1])
         output_width, output_height = params.sheet_width, params.sheet_height
         if params.crop != "none":
             output_width, output_height = with_margin if params.crop == "margin" else without_margin
