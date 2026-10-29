@@ -8,8 +8,10 @@ import pikepdf
 from reportlab.lib.units import mm
 from reportlab.lib.utils import ImageReader
 
-from .catalog import GranolaItem, ToolResult
+from .catalog import DetectedShape, GranolaItem, ToolResult
 from .common import artifact, load_image, new_canvas, open_pdf, write_json
+from .granola_nesting import nest
+from .granola_shapes import detect, rings
 
 EPS = 1e-7
 
@@ -333,12 +335,22 @@ def transform(outer, inner):
     )
 
 
+def placement_matrix(pose):
+    x, y, width, height = (v * mm for v in (pose.x, pose.y, pose.width, pose.height))
+    return {
+        0: (1, 0, 0, 1, x, y),
+        90: (0, 1, -1, 0, x + width, y),
+        180: (-1, 0, 0, -1, x + width, y + height),
+        270: (0, -1, 1, 0, x, y + height),
+    }[pose.rotation]
+
+
 def impose(folder, files, params, *, preview=False):
     items = params.items or [GranolaItem() for _ in files]
     if len(items) != len(files):
         raise ValueError("Renseignez une quantité pour chaque fichier importé.")
     out = pikepdf.Pdf.new()
-    forms, sizes, sources = [], [], []
+    forms, sizes, sources, geometries, detected = [], [], [], [], []
     with ExitStack() as stack:
         for index, (path, item) in enumerate(zip(files, items, strict=True)):
             source = path
@@ -361,6 +373,29 @@ def impose(folder, files, params, *, preview=False):
                 raise ValueError(f"Fichier {index + 1} : la page {item.page} n’existe pas.")
             page = pdf.pages[item.page - 1]
             size, box, matrix = page_geometry(page)
+            original_size = size
+            geometry, offset, precision, kind = None, (0, 0), 0, "rectangle"
+            if item.shape == "auto":
+                geometry, offset, size, precision, kind = detect(
+                    path, item.page - 1, size, params.background_tolerance
+                )
+                matrix = transform((1, 0, 0, 1, -offset[0] * mm, -offset[1] * mm), matrix)
+            geometries.append(geometry)
+            outline = (
+                rings(geometry)
+                if geometry is not None
+                else [[(0, 0), (size[0], 0), (size[0], size[1]), (0, size[1])]]
+            )
+            detected.append(
+                DetectedShape(
+                    file=index,
+                    kind=kind,
+                    width=size[0],
+                    height=size[1],
+                    polygons=outline,
+                    precision=precision,
+                )
+            )
             form = out.copy_foreign(page.as_form_xobject())
             form.BBox = pikepdf.Array(box)
             form.Matrix = pikepdf.Array([1, 0, 0, 1, 0, 0])
@@ -374,9 +409,18 @@ def impose(folder, files, params, *, preview=False):
                     "width": size[0],
                     "height": size[1],
                     "type": "pdf" if path.suffix == ".pdf" else "image",
+                    "shape": item.shape,
+                    "detected_shape": kind,
+                    "outline": outline,
+                    "original_width": original_size[0],
+                    "original_height": original_size[1],
                 }
             )
-        sheets = pack(sizes, items, params)
+        sheets, paired = (
+            nest(sizes, items, geometries, params)
+            if any(geometry is not None for geometry in geometries)
+            else (pack(sizes, items, params), 0)
+        )
         with_margin = tight_size(sheets, params.margin)
         without_margin = tight_size(sheets, 0)
         # Never enlarge a fractional input format because of outward rounding.
@@ -411,28 +455,39 @@ def impose(folder, files, params, *, preview=False):
                 form, normalization = forms[pose.file]
                 if pose.file not in resources:
                     resources[pose.file] = sheet.add_resource(form, pikepdf.Name.XObject)
-                x, y = pose.x * mm, pose.y * mm
-                placement = (
-                    (1, 0, 0, 1, x, y)
-                    if pose.rotation == 0
-                    else (0, 1, -1, 0, x + pose.width * mm, y)
-                )
-                matrix = transform(placement, normalization)
+                placement = placement_matrix(pose)
+                if geometries[pose.file] is not None:
+                    commands.append("q " + " ".join(f"{n:.10f}" for n in placement) + " cm")
+                    for polygon in rings(geometries[pose.file]):
+                        commands.append(
+                            " ".join(
+                                f"{x * mm:.10f} {y * mm:.10f} {'m' if n == 0 else 'l'}"
+                                for n, (x, y) in enumerate(polygon)
+                            )
+                            + " h"
+                        )
+                    commands.append("W n")
+                    matrix = normalization
+                else:
+                    commands.append("q")
+                    matrix = transform(placement, normalization)
                 commands.append(
-                    "q "
-                    + " ".join(f"{n:.10f}" for n in matrix)
-                    + f" cm {resources[pose.file]} Do Q"
+                    " ".join(f"{n:.10f}" for n in matrix) + f" cm {resources[pose.file]} Do Q"
                 )
             sheet.contents_add("\n".join(commands).encode("ascii"))
         path = folder / "imposition.pdf"
         out.save(path)
     out.close()
-    area = sum(w * h * item.quantity for (w, h), item in zip(sizes, items, strict=True))
+    area = sum(
+        (geometry.area if geometry is not None else w * h) * item.quantity
+        for (w, h), item, geometry in zip(sizes, items, geometries, strict=True)
+    )
     occupancy = area / (len(sheets) * output_width * output_height) * 100
     metrics = {
         "Fichiers": len(files),
         "Exemplaires": sum(item.quantity for item in items),
         "Planches": len(sheets),
+        "Paires imbriquées": paired,
         "Surface utilisée (%)": round(occupancy, 1),
         "Format exporté": f"{output_width:g} × {output_height:g} mm",
         "Largeur avec marge (mm)": with_margin[0],
@@ -464,7 +519,9 @@ def impose(folder, files, params, *, preview=False):
         f"{len(sheets)} planche(s), sans exemplaire supplémentaire.",
         metrics=metrics,
         warnings=[
-            "Imprimer à 100 %. La zone visible des PDF est conservée, fonds perdus inclus. "
+            "Imprimer à 100 %. En mode automatique, le fond blanc ou transparent extérieur "
+            "est masqué selon le contour détecté ; contrôlez-le dans l’aperçu. "
+            "Le mode rectangle conserve toute la zone visible du fichier, fonds perdus inclus. "
             "Les images sont incorporées en RVB ; contrôlez leur résolution et leurs couleurs. "
             "Aucun repère de coupe n’est ajouté."
         ],
@@ -472,4 +529,5 @@ def impose(folder, files, params, *, preview=False):
             artifact(path, "Planches imposées"),
             artifact(manifest, "Plan de placement JSON"),
         ],
+        shapes=detected,
     )

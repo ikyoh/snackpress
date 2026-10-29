@@ -177,6 +177,7 @@ class GranolaItem(Params):
     quantity: int = Field(default=1, ge=1, le=2000)
     page: int = Field(default=1, ge=1, le=80)
     image_width: float = Field(default=85, gt=0, le=1200)
+    shape: Literal["auto", "rectangle"] = "auto"
 
 
 class Granola(Params):
@@ -187,6 +188,7 @@ class Granola(Params):
     rotation: Literal["auto", "none"] = "auto"
     optimization: Literal["width", "area"] = "width"
     crop: Literal["none", "margin", "poses"] = "none"
+    background_tolerance: int = Field(default=5, ge=0, le=50)
     items: list[GranolaItem] = Field(default_factory=list, max_length=20)
 
     @model_validator(mode="after")
@@ -869,8 +871,11 @@ DEFINITIONS = [
         accept=".pdf,.png,.jpg,.jpeg",
         description="Mélanger formats et fichiers sur des planches optimisées, avec vos quantités.",
         limit=(
-            "Recto uniquement : une page au choix par PDF, à taille réelle, fonds perdus inclus. "
-            "Images proportionnelles à la largeur choisie. Placement optimisé sans garantie "
+            "Recto uniquement : une page au choix par PDF, à taille réelle. "
+            "Contour estimé d’après le contenu sur fond blanc ou transparent ; "
+            "rectangle complet disponible par fichier. "
+            "Images proportionnelles à la largeur choisie. "
+            "Imbrication par paires et placement optimisé sans garantie "
             "d’optimum absolu ni contrainte de coupe au massicot. "
             "2 000 poses, 200 planches maximum."
         ),
@@ -891,12 +896,15 @@ DEFINITIONS = [
                 "Espacement entre les poses",
                 3,
                 high=100,
-                help="Distance minimale entre les bords des fichiers, fonds perdus inclus.",
+                help=(
+                    "Distance minimale entre les contours détectés ; "
+                    "mesurée entre les diagonales des triangles imbriqués."
+                ),
             ),
             choice(
                 "rotation",
                 "Rotation des poses",
-                [("auto", "Automatique · 0° ou 90°"), ("none", "Conserver l’orientation")],
+                [("auto", "Automatique · quarts de tour"), ("none", "Conserver l’orientation")],
             ),
             choice(
                 "crop",
@@ -906,6 +914,18 @@ DEFINITIONS = [
                     ("margin", "Recadrer · conserver la marge extérieure"),
                     ("poses", "Recadrer · au bord des poses"),
                 ],
+            ),
+            number(
+                "background_tolerance",
+                "Tolérance du fond blanc",
+                5,
+                "",
+                0,
+                50,
+                1,
+                help=(
+                    "0 conserve toutes les teintes ; augmentez pour ignorer un fond presque blanc."
+                ),
             ),
         ],
     ),
@@ -943,6 +963,15 @@ class Artifact(BaseModel):
     pages: int | None = None
 
 
+class DetectedShape(BaseModel):
+    file: int
+    kind: Literal["rectangle", "triangle", "contour"]
+    width: float
+    height: float
+    polygons: list[list[tuple[float, float]]]
+    precision: float
+
+
 class ToolResult(BaseModel):
     id: str = ""
     tool: str
@@ -950,3 +979,4 @@ class ToolResult(BaseModel):
     metrics: dict[str, str | float | int] = {}
     warnings: list[str] = []
     artifacts: list[Artifact] = []
+    shapes: list[DetectedShape] = []

@@ -1,20 +1,28 @@
 import { useEffect, useState } from 'react'
 import { getDocument } from 'pdfjs-dist'
 import './granola.css'
+import type { components } from '../../../packages/api-client/schema'
 
-export type GranolaItem = { quantity: number | ''; page: number | ''; image_width: number | '' }
-export const granolaDefaults: GranolaItem = { quantity: 1, page: 1, image_width: 85 }
+export type GranolaItem = {
+  quantity: number | ''
+  page: number | ''
+  image_width: number | ''
+  shape: 'auto' | 'rectangle'
+}
+export const granolaDefaults: GranolaItem = { quantity: 1, page: 1, image_width: 85, shape: 'auto' }
 const format = (value: number) => value.toLocaleString('fr-FR', { maximumFractionDigits: 2 })
 
 export function GranolaFile({
   file,
   index,
   value,
+  outline,
   onChange,
 }: {
   file: File
   index: number
   value: GranolaItem
+  outline?: components['schemas']['DetectedShape']
   onChange: (value: GranolaItem) => void
 }) {
   const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name)
@@ -128,7 +136,58 @@ export function GranolaFile({
             </span>
           </label>
         )}
+        <label className="field granola-shape-choice">
+          <span>Contour de la pose</span>
+          <select
+            aria-label={`Contour du fichier ${index + 1}`}
+            value={value.shape ?? 'auto'}
+            onChange={(event) =>
+              onChange({ ...value, shape: event.target.value as GranolaItem['shape'] })
+            }
+          >
+            <option value="auto">Automatique · d’après le contenu</option>
+            <option value="rectangle">Conserver le rectangle du fichier</option>
+          </select>
+        </label>
       </div>
+      {outline && value.shape !== 'rectangle' && (
+        <figure className="granola-detected-shape">
+          <svg
+            viewBox={`0 0 ${outline.width} ${outline.height}`}
+            role="img"
+            aria-label={`Contour détecté du fichier ${index + 1}`}
+          >
+            {outline.polygons.map((polygon, i) => (
+              <polygon
+                key={i}
+                points={polygon.map(([x, y]) => `${x},${outline.height - y}`).join(' ')}
+                fill="#a44fb4"
+                stroke="#593064"
+                strokeWidth="1"
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </svg>
+          <figcaption>
+            <strong>
+              {outline.kind === 'triangle'
+                ? 'Triangle détecté'
+                : outline.kind === 'rectangle'
+                  ? 'Rectangle détecté'
+                  : 'Contour détecté'}
+            </strong>
+            <span>
+              {format(outline.width)} × {format(outline.height)} mm
+            </span>
+          </figcaption>
+        </figure>
+      )}
+      {(value.shape ?? 'auto') === 'auto' && (
+        <p className="field-hint">
+          Le fond blanc ou transparent extérieur est masqué pour imbriquer les formes. Contrôlez le
+          contour détecté ; l’export PDF conserve les objets natifs.
+        </p>
+      )}
       <p className="field-hint" aria-live="polite">
         {error ||
           (info && width && height

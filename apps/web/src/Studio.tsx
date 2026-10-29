@@ -785,7 +785,7 @@ function ToolWorkspace({
     setError('')
     if (testingPizza) setMobileView('preview')
   }
-  async function example() {
+  async function example(triangles = false) {
     setError('')
     setBusy(true)
     try {
@@ -821,11 +821,13 @@ function ToolWorkspace({
         return
       }
       const name =
-        tool.id === 'layer-cake' && values.mode === 'booklet'
-          ? 'exemple-livret.pdf'
-          : tool.id === 'fortune-cookie'
-            ? 'exemple-fond.pdf'
-            : 'exemple-carte.pdf'
+        tool.id === 'granola' && triangles
+          ? 'exemple-triangle.pdf'
+          : tool.id === 'layer-cake' && values.mode === 'booklet'
+            ? 'exemple-livret.pdf'
+            : tool.id === 'fortune-cookie'
+              ? 'exemple-fond.pdf'
+              : 'exemple-carte.pdf'
       const response = await fetch(`/${name}`)
       if (!response.ok) throw new Error('Exemple indisponible.')
       const first = new File([await response.blob()], name, { type: 'application/pdf' })
@@ -838,7 +840,19 @@ function ToolWorkspace({
         )
       }
       setFiles(demo)
-      if (tool.id === 'granola') {
+      if (tool.id === 'granola' && triangles) {
+        setGranolaItems(new Map([[first, { ...granolaDefaults, quantity: 2 }]]))
+        setValues((old) => ({
+          ...old,
+          sheet_width: 130,
+          sheet_height: 100,
+          margin: 5,
+          gap: 3,
+          rotation: 'auto',
+          optimization: 'area',
+          crop: 'margin',
+        }))
+      } else if (tool.id === 'granola') {
         const second = await fetch('/exemple-livret.pdf')
         if (!second.ok) throw new Error('Second exemple indisponible.')
         const large = new File([await second.blob()], 'exemple-grand-format.pdf', {
@@ -1202,6 +1216,12 @@ function ToolWorkspace({
                             file={file}
                             index={i}
                             value={granolaItems.get(file) ?? granolaDefaults}
+                            outline={
+                              result?.shapes?.find((shape) => shape.file === i) ??
+                              (!livePreview.stale && !livePreview.updating
+                                ? livePreview.preview?.shapes?.find((shape) => shape.file === i)
+                                : undefined)
+                            }
                             onChange={(value) => {
                               setGranolaItems((old) => new Map(old).set(file, value))
                               setResult(null)
@@ -1264,6 +1284,16 @@ function ToolWorkspace({
                         onClick={() => void example()}
                       >
                         Charger un exemple <ArrowRight size={13} />
+                      </button>
+                    )}
+                    {tool.id === 'granola' && (
+                      <button
+                        type="button"
+                        className="example-button"
+                        disabled={busy}
+                        onClick={() => void example(true)}
+                      >
+                        Exemple d’imbrication de triangles <ArrowRight size={13} />
                       </button>
                     )}
                   </section>

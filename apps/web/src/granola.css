@@ -29,6 +29,37 @@
   color: #74577d;
   cursor: not-allowed;
 }
+.granola-shape-choice {
+  grid-column: 1 / -1;
+}
+.granola-shape-choice select {
+  width: 100%;
+  min-width: 0;
+}
+.granola-detected-shape {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  margin: 14px 0 0;
+}
+.granola-detected-shape svg {
+  display: block;
+  width: 64px;
+  height: 64px;
+  background: white;
+  border: 1px solid #ded0e3;
+  border-radius: 6px;
+  padding: 4px;
+}
+.granola-detected-shape figcaption span {
+  display: block;
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-small);
+}
+.granola-file .granola-detected-shape strong {
+  white-space: normal;
+}
 .granola-file-settings .field-hint {
   margin: 10px 0 0;
   color: #693474;

@@ -9,6 +9,7 @@ const groups: Record<string, Group[]> = {
   granola: [
     { title: 'Planche d’impression', keys: ['sheet_width', 'sheet_height', 'margin'] },
     { title: 'Placement et export', keys: ['optimization', 'gap', 'rotation', 'crop'] },
+    { title: 'Détection du contour', keys: ['background_tolerance'] },
   ],
   burger: [
     { title: 'Projet', keys: ['title', 'client', 'paper'] },

@@ -4,6 +4,76 @@ import path from 'node:path'
 const source = path.resolve('apps/web/public/exemple-carte.pdf')
 test.setTimeout(60000)
 
+test('Granola : contour automatique et triangles imbriqués dans le PDF final', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1050 })
+  await page.goto('/?tool=granola')
+  await page.getByRole('button', { name: 'Exemple d’imbrication de triangles' }).click()
+  await expect(page.locator('.granola-summary')).toContainText('1 fichier(s) · 2 exemplaire(s)')
+  await expect(page.getByLabel('Page du fichier 1', { exact: true })).toBeDisabled()
+  await expect(page.getByLabel('Contour du fichier 1', { exact: true })).toHaveValue('auto')
+  await expect(page.getByText('Triangle détecté', { exact: true })).toBeVisible({ timeout: 20000 })
+  await expect(page.getByRole('img', { name: 'Contour détecté du fichier 1' })).toBeVisible()
+  await expect(page.locator('.live-preview-status')).toContainText('Aperçu à jour')
+  await expect(page.locator('canvas[data-ready=true]')).toBeVisible({ timeout: 15000 })
+  await page.screenshot({ path: 'test-results/granola-nesting-desktop.png', fullPage: true })
+  const generated = page.waitForResponse((r) => r.url().includes('/api/tools/granola/run'))
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
+  const response = await generated
+  expect(response.status(), await response.text()).toBe(201)
+  const result = await response.json()
+  expect(result.metrics['Paires imbriquées']).toBe(1)
+  expect(result.metrics.Planches).toBe(1)
+  expect(result.shapes[0].kind).toBe('triangle')
+  const plan = await (
+    await page.request.get(`/api/tool-jobs/${result.id}/files/plan-imposition.json`)
+  ).json()
+  expect(plan.sheets[0]).toHaveLength(2)
+  expect(plan.sheets[0].some((p: { rotation: number }) => p.rotation >= 180)).toBe(true)
+  expect(plan.sheet_format.output.width).toBeLessThan(100)
+  expect(plan.settings.gap).toBe(3)
+  await expect(page.getByRole('link', { name: /Planches imposées/ })).toBeVisible()
+  await page.getByLabel('Contour du fichier 1', { exact: true }).selectOption('rectangle')
+  await expect(page.locator('.live-preview-status')).toContainText('Aperçu à jour', {
+    timeout: 20000,
+  })
+  const fullRectangle = page.waitForResponse((r) => r.url().includes('/api/tools/granola/run'))
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
+  const rectangle = await (await fullRectangle).json()
+  expect(rectangle.metrics.Planches).toBe(2)
+  expect(rectangle.metrics['Paires imbriquées']).toBe(0)
+  await page.getByLabel('Contour du fichier 1', { exact: true }).selectOption('auto')
+  await expect(page.getByText('Triangle détecté', { exact: true })).toBeVisible({ timeout: 20000 })
+  await page.getByLabel('Optimisation', { exact: true }).selectOption('width')
+  await expect(page.locator('.live-preview-status')).toContainText('Aperçu à jour', {
+    timeout: 20000,
+  })
+  const widthRun = page.waitForResponse((r) => r.url().includes('/api/tools/granola/run'))
+  await page.getByRole('button', { name: 'Générer le fichier final', exact: true }).click()
+  const widthResult = await (await widthRun).json()
+  expect(widthResult.metrics.Planches).toBe(1)
+  expect(widthResult.metrics['Paires imbriquées']).toBe(1)
+  expect(widthResult.metrics['Largeur avec marge (mm)']).toBe(130)
+  await page.getByLabel('Optimisation', { exact: true }).selectOption('area')
+  await expect(page.locator('.live-preview-status')).toContainText('Aperçu à jour', {
+    timeout: 20000,
+  })
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('tab', { name: 'Réglages', exact: true }).click()
+  await expect(page.getByLabel('Contour du fichier 1', { exact: true })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({
+    path: 'test-results/granola-nesting-mobile-settings.png',
+    fullPage: true,
+  })
+  await page.getByRole('tab', { name: 'Aperçu', exact: true }).click()
+  await expect(page.locator('canvas[data-ready=true]')).toBeVisible({ timeout: 15000 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.screenshot({ path: 'test-results/granola-nesting-mobile-preview.png', fullPage: true })
+  await page.request.delete(`/api/tool-jobs/${result.id}`)
+  await page.request.delete(`/api/tool-jobs/${rectangle.id}`)
+  await page.request.delete(`/api/tool-jobs/${widthResult.id}`)
+})
+
 test('Granola : fichiers mixtes, quantités exactes, aperçu, export et conservation après retrait', async ({
   page,
 }) => {

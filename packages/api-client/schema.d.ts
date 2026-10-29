@@ -643,6 +643,27 @@ export interface components {
             /** Password */
             password: string;
         };
+        /** DetectedShape */
+        DetectedShape: {
+            /** File */
+            file: number;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "rectangle" | "triangle" | "contour";
+            /** Width */
+            width: number;
+            /** Height */
+            height: number;
+            /** Polygons */
+            polygons: [
+                number,
+                number
+            ][][];
+            /** Precision */
+            precision: number;
+        };
         /** DocumentInfo */
         DocumentInfo: {
             /** Pages */
@@ -927,6 +948,11 @@ export interface components {
              * @default []
              */
             artifacts: components["schemas"]["Artifact"][];
+            /**
+             * Shapes
+             * @default []
+             */
+            shapes: components["schemas"]["DetectedShape"][];
             /** Generation */
             generation: string;
             /** Notice */
@@ -1261,6 +1287,11 @@ export interface components {
              * @default []
              */
             artifacts: components["schemas"]["Artifact"][];
+            /**
+             * Shapes
+             * @default []
+             */
+            shapes: components["schemas"]["DetectedShape"][];
         };
         /** ValidationError */
         ValidationError: {

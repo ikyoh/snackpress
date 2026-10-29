@@ -1585,6 +1585,65 @@
         ],
         "title": "Credentials"
       },
+      "DetectedShape": {
+        "properties": {
+          "file": {
+            "type": "integer",
+            "title": "File"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "rectangle",
+              "triangle",
+              "contour"
+            ],
+            "title": "Kind"
+          },
+          "width": {
+            "type": "number",
+            "title": "Width"
+          },
+          "height": {
+            "type": "number",
+            "title": "Height"
+          },
+          "polygons": {
+            "items": {
+              "items": {
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array",
+                "maxItems": 2,
+                "minItems": 2
+              },
+              "type": "array"
+            },
+            "type": "array",
+            "title": "Polygons"
+          },
+          "precision": {
+            "type": "number",
+            "title": "Precision"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file",
+          "kind",
+          "width",
+          "height",
+          "polygons",
+          "precision"
+        ],
+        "title": "DetectedShape"
+      },
       "DocumentInfo": {
         "properties": {
           "pages": {
@@ -2286,6 +2345,14 @@
             "title": "Artifacts",
             "default": []
           },
+          "shapes": {
+            "items": {
+              "$ref": "#/components/schemas/DetectedShape"
+            },
+            "type": "array",
+            "title": "Shapes",
+            "default": []
+          },
           "generation": {
             "type": "string",
             "title": "Generation"
@@ -2952,6 +3019,14 @@
             },
             "type": "array",
             "title": "Artifacts",
+            "default": []
+          },
+          "shapes": {
+            "items": {
+              "$ref": "#/components/schemas/DetectedShape"
+            },
+            "type": "array",
+            "title": "Shapes",
             "default": []
           }
         },
