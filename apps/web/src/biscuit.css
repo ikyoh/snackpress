@@ -246,3 +246,18 @@
     box-shadow: 0 2px 5px #7731a81a;
   }
 }
+.biscuit-cmyk {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+.biscuit-settings input[type='text'] {
+  min-height: 48px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d8c3df;
+  border-radius: 10px;
+  background: white;
+  color: #482157;
+  font: inherit;
+}

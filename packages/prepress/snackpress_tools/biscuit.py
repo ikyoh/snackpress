@@ -1,5 +1,7 @@
 """Biscuit: calibrated silhouettes and closed vector offset contours."""
 
+from xml.sax.saxutils import quoteattr
+
 import numpy as np
 from PIL import Image, ImageOps
 from reportlab.lib.colors import CMYKColorSep, HexColor
@@ -8,19 +10,21 @@ from reportlab.lib.utils import ImageReader
 from shapely import Point, Polygon, box, unary_union
 from shapely.affinity import scale, translate
 
+from .biscuit_pdf import read_pdf
 from .biscuit_svg import read_svg
 from .catalog import ToolResult
 from .common import artifact, new_canvas
 from .granola_shapes import polygons
 
 
-def image_geometry(path, p):
+def image_geometry(path, p, image=None):
     try:
-        with Image.open(path) as original:
-            if original.width * original.height > 20_000_000:
-                raise ValueError("Image trop grande : 20 millions de pixels maximum.")
-            image = ImageOps.exif_transpose(original).convert("RGBA")
-            image.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
+        if image is None:
+            with Image.open(path) as original:
+                if original.width * original.height > 20_000_000:
+                    raise ValueError("Image trop grande : 20 millions de pixels maximum.")
+                image = ImageOps.exif_transpose(original).convert("RGBA")
+                image.thumbnail((1200, 1200), Image.Resampling.LANCZOS)
     except (OSError, Image.DecompressionBombError) as exc:
         raise ValueError("Image illisible ou trop grande. Utilisez un PNG ou JPEG.") from exc
     pixels = np.asarray(image)
@@ -45,10 +49,10 @@ def image_geometry(path, p):
 
 def source_geometry(files, p):
     if p.source != "shape" and len(files) != 1:
-        raise ValueError("Importez une image ou un SVG pour créer le contour.")
+        raise ValueError("Importez un PDF, une image ou un SVG pour créer le contour.")
     if p.source == "shape":
         if files:
-            raise ValueError("Retirez le fichier ou choisissez le mode Image / SVG.")
+            raise ValueError("Retirez le fichier ou choisissez un mode d’import.")
         height = p.width if p.shape == "circle" else p.height
         if p.shape in {"circle", "ellipse"}:
             geometry = scale(
@@ -73,6 +77,13 @@ def source_geometry(files, p):
             geometry = box(0, 0, p.width, height)
         return geometry, None, height, 0
     path = files[0]
+    if p.source == "pdf":
+        if path.suffix.lower() != ".pdf":
+            raise ValueError("Le mode PDF attend un fichier .pdf.")
+        geometry, image, height = read_pdf(path, p)
+        if geometry is None:
+            return image_geometry(path, p, image)
+        return geometry, image, height, 0
     if p.source == "image":
         if path.suffix.lower() not in {".png", ".jpg", ".jpeg"}:
             raise ValueError("Le mode Image attend un PNG ou JPEG.")
@@ -101,7 +112,19 @@ def cut_geometry(files, p):
     if p.source != "shape":
         source = source.simplify(p.smoothing, preserve_topology=True)
     result = source.buffer(p.offset, quad_segs=32, join_style=p.join) if p.offset else source
+    if p.output_mode == "inverse":
+        frame = box(
+            -p.inverse_margin,
+            -p.inverse_margin,
+            p.width + p.inverse_margin,
+            height + p.inverse_margin,
+        )
+        result = frame.difference(result)
     if result.is_empty:
+        if p.output_mode == "inverse":
+            raise ValueError(
+                "La forme inversée est vide. Augmentez sa marge ou réduisez le décalage."
+            )
         raise ValueError("Ce décalage fait disparaître toute la forme. Rapprochez-le de zéro.")
     if len(polygons(result)) > 300:
         raise ValueError(
@@ -124,7 +147,12 @@ def generate(folder, files, p):
     width, page_height = right - left + 2 * margin, bottom - top + 2 * margin
     dx, dy = margin - left, margin - top
 
-    def draw(c, geometry):
+    filled = p.output_mode != "path"
+    colour = CMYKColorSep(
+        *(v / 100 for v in (p.cyan, p.magenta, p.yellow, p.black)), spotName=p.spot_name
+    )
+
+    def draw(c, geometry, fill=False):
         path = c.beginPath()
         for ring in contours(geometry):
             points = list(ring.coords)
@@ -133,7 +161,7 @@ def generate(folder, files, p):
             for x, y in points[1:]:
                 path.lineTo((x + dx) * mm, (page_height - y - dy) * mm)
             path.close()
-        c.drawPath(path, stroke=1, fill=0)
+        c.drawPath(path, stroke=int(not fill), fill=int(fill), fillMode=0)
 
     preview = folder / "apercu.pdf"
     c = new_canvas(preview, width, page_height)
@@ -151,18 +179,23 @@ def generate(folder, files, p):
     c.setDash(1 * mm, 0.7 * mm)
     draw(c, source)
     c.setDash()
-    c.setStrokeColor(HexColor("#e00082"))
+    c.setStrokeColor(colour)
+    c.setFillColor(colour)
+    if filled:
+        c.setFillAlpha(0.45)
     c.setLineWidth(0.25 * mm)
-    draw(c, result)
+    draw(c, result, filled)
     c.showPage()
     c.save()
 
     pdf = folder / "decoupe.pdf"
     c = new_canvas(pdf, width, page_height)
-    c.setStrokeColor(CMYKColorSep(0, 100, 0, 0, spotName="CutContour"))
+    c.setStrokeColor(colour)
+    c.setFillColor(colour)
+    c.setFillOverprint(True)
     c.setStrokeOverprint(True)
     c.setLineWidth(0.1 * mm)
-    draw(c, result)
+    draw(c, result, filled)
     c.showPage()
     c.save()
 
@@ -171,11 +204,16 @@ def generate(folder, files, p):
     for ring in contours(result):
         points = list(ring.coords)[:-1]
         paths.append("M " + " L ".join(f"{x + dx:.6f},{y + dy:.6f}" for x, y in points) + " Z")
+    rgb = [round(255 * (1 - v / 100) * (1 - p.black / 100)) for v in (p.cyan, p.magenta, p.yellow)]
+    hex_colour = "#" + "".join(f"{v:02x}" for v in rgb)
+    svg_fill, svg_stroke = (hex_colour, "none") if filled else ("none", hex_colour)
     svg.write_text(
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{width:.6f}mm" '
         f'height="{page_height:.6f}mm" viewBox="0 0 {width:.6f} {page_height:.6f}">'
-        "<title>Snackpress Biscuit — CutContour</title>"
-        f'<path id="CutContour" d="{" ".join(paths)}" fill="none" stroke="#ff00ff" '
+        f"<title>Snackpress Biscuit</title><metadata>CMJN : {p.cyan:g}, {p.magenta:g}, "
+        f"{p.yellow:g}, {p.black:g}</metadata>"
+        f'<path id="CutContour" data-spot-name={quoteattr(p.spot_name)} '
+        f'd="{" ".join(paths)}" fill="{svg_fill}" stroke="{svg_stroke}" '
         'stroke-width="0.1" fill-rule="evenodd"/></svg>',
         encoding="utf-8",
     )
@@ -193,6 +231,15 @@ def generate(folder, files, p):
             "Courbes SVG approchées en segments ; largeur recalibrée sur la forme. "
             "Les groupes et transformations sont appliqués."
         )
+    warnings.append(
+        "La teinte nommée et ses CMJN sont conservés dans le PDF. Le SVG utilise "
+        "un aperçu RVB avec le nom et les CMJN en métadonnées."
+    )
+    if p.source == "pdf":
+        warnings.append(
+            "Page PDF recalibrée à la largeur source choisie. En mode vectoriel, "
+            "seuls les chemins fermés sont récupérés, sans convertir textes et images."
+        )
     before = sum(1 + len(poly.interiors) for poly in polygons(source))
     after = sum(1 + len(poly.interiors) for poly in polygons(result))
     if before != after:
@@ -207,6 +254,7 @@ def generate(folder, files, p):
             "Largeur de découpe (mm)": round(x1 - x0, 3),
             "Hauteur de découpe (mm)": round(y1 - y0, 3),
             "Décalage (mm)": p.offset,
+            "Teinte nommée": p.spot_name,
             "Contours fermés": after,
             "Points du tracé": sum(len(r.coords) - 1 for r in contours(result)),
         },
@@ -214,6 +262,6 @@ def generate(folder, files, p):
         artifacts=[
             artifact(preview, "Aperçu de contrôle"),
             artifact(svg, "Tracé de découpe SVG"),
-            artifact(pdf, "PDF de découpe · CutContour"),
+            artifact(pdf, f"PDF vectoriel · {p.spot_name}"),
         ],
     )

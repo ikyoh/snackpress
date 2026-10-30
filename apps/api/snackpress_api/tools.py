@@ -53,7 +53,7 @@ async def stage_files(folder, files, tool_id):
         else:
             raise HTTPException(
                 422,
-                "Fichier non reconnu. Importez un PNG, JPEG ou SVG."
+                "Fichier non reconnu. Importez un PDF, PNG, JPEG ou SVG."
                 if tool_id == "biscuit" else "Fichier non reconnu. Importez un PDF"
                 + (", PNG ou JPEG." if tool_id in {"donut", "granola"} else "."),
             )

@@ -201,7 +201,25 @@ class Granola(Params):
 
 
 class Biscuit(Params):
-    source: Literal["shape", "image", "svg"] = "shape"
+    source: Literal["shape", "image", "svg", "pdf"] = "shape"
+    output_mode: Literal["path", "shape", "inverse"] = "path"
+    inverse_margin: float = Field(default=3, ge=0, le=100)
+    page: int = Field(default=1, ge=1, le=80)
+    pdf_method: Literal["vector", "silhouette"] = "vector"
+    pdf_object: int = Field(default=0, ge=0, le=2000)
+    spot_name: str = Field(default="CutContour", min_length=1, max_length=40)
+    cyan: float = Field(default=0, ge=0, le=100)
+    magenta: float = Field(default=100, ge=0, le=100)
+    yellow: float = Field(default=0, ge=0, le=100)
+    black: float = Field(default=0, ge=0, le=100)
+
+    @model_validator(mode="after")
+    def spot(self):
+        self.spot_name = self.spot_name.strip()
+        if self.spot_name in {"", "All", "None"} or any(ord(c) < 32 for c in self.spot_name):
+            raise ValueError("Donnez un nom de teinte non vide, différent de All et None.")
+        return self
+
     shape: Literal["rectangle", "ellipse", "circle"] = "rectangle"
     width: float = Field(default=85, ge=1, le=2000)
     height: float = Field(default=55, ge=1, le=2000)
@@ -952,10 +970,10 @@ DEFINITIONS.append(
         category="Tracer",
         min_files=0,
         max_files=1,
-        accept=".png,.jpg,.jpeg,.svg",
+        accept=".pdf,.png,.jpg,.jpeg,.svg",
         description="Créer ou récupérer une forme de découpe, puis décaler son contour au millimètre.",
         limit=(
-            "Images sur fond blanc ou transparent, SVG fermés ou formes géométriques. "
+            "PDF, images sur fond blanc ou transparent, SVG fermés ou formes géométriques. "
             "Contour vectoriel approché ; contrôler les petits détails avant fabrication."
         ),
         fields=[],

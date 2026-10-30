@@ -65,3 +65,37 @@ test('Biscuit: transparent image, empty state and invalid negative offset', asyn
     timeout: 20000,
   })
 })
+
+test('Biscuit: PDF import, filled and inverted shapes with named CMYK colour', async ({ page }) => {
+  const base = await page.request.post('/api/tools/biscuit/run', {
+    multipart: {
+      settings: JSON.stringify({ width: 100, height: 60, radius: 0, offset: 0 }),
+    },
+  })
+  expect(base.status()).toBe(201)
+  const job = await base.json()
+  const pdf = await page.request.get(`/api/tool-jobs/${job.id}/files/decoupe.pdf`)
+  await page.goto('/?tool=biscuit')
+  await page.getByRole('button', { name: 'PDF', exact: true }).click()
+  await page.getByLabel('Importer une image ou un SVG').setInputFiles({
+    name: 'source.pdf',
+    mimeType: 'application/pdf',
+    buffer: await pdf.body(),
+  })
+  await page.getByLabel('Largeur source', { exact: true }).fill('106')
+  await page.getByLabel('Décalage', { exact: true }).fill('0')
+  await page.getByLabel('Teinte nommée', { exact: true }).fill('Vernis sélectif')
+  await page.getByLabel('Cyan', { exact: true }).fill('30')
+  await page.getByLabel('Magenta', { exact: true }).fill('10')
+  for (const mode of ['shape', 'inverse']) {
+    await page.getByLabel('Type de résultat', { exact: true }).selectOption(mode)
+    await page.getByRole('button', { name: 'Générer les fichiers de découpe' }).click()
+    await expect(page.getByText('Vos fichiers sont prêts')).toBeVisible({ timeout: 20000 })
+    const href = await page.getByRole('link', { name: 'Tracé de découpe SVG' }).getAttribute('href')
+    const svg = await (await page.request.get(href!)).text()
+    expect(svg).toContain('data-spot-name="Vernis sélectif"')
+    expect(svg).toContain('stroke="none"')
+    expect(svg).toContain('CMJN : 30, 10, 0, 0')
+  }
+  await page.request.delete(`/api/tool-jobs/${job.id}`)
+})

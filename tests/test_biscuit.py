@@ -146,3 +146,130 @@ def test_api_upload_preview_download_and_validation(api):  # noqa: F811
         client.post("/api/tools/biscuit/run", data={"settings": '{"offset":101}'}).status_code
         == 422
     )
+
+
+@pytest.mark.parametrize("mode", ["path", "shape", "inverse"])
+def test_pdf_recovery_modes_and_named_cmyk(tmp_path, mode):
+    from reportlab.lib.units import mm
+    from reportlab.pdfgen import canvas
+
+    pdf_path = tmp_path / "source.pdf"
+    c = canvas.Canvas(str(pdf_path), pagesize=(100 * mm, 60 * mm))
+    c.rect(10 * mm, 10 * mm, 30 * mm, 20 * mm, fill=1)
+    c.showPage()
+    c.circle(50 * mm, 30 * mm, 10 * mm, fill=1)
+    c.save()
+    out = tmp_path / "out"
+    out.mkdir()
+    settings = dict(
+        source="pdf",
+        page=1,
+        width=100,
+        offset=0,
+        smoothing=0,
+        output_mode=mode,
+        inverse_margin=0,
+        spot_name="Vernis & blanc",
+        cyan=20,
+        magenta=30,
+        yellow=40,
+        black=50,
+    )
+    result = run(out, "biscuit", [pdf_path], settings)
+    svg = ET.parse(out / "decoupe.svg").getroot()
+    path = svg.find("{http://www.w3.org/2000/svg}path")
+    assert path.get("data-spot-name") == "Vernis & blanc"
+    assert path.get("fill") == ("none" if mode == "path" else "#66594c")
+    assert read_svg(out / "decoupe.svg").area == pytest.approx(5400 if mode == "inverse" else 600)
+    with pikepdf.open(out / "decoupe.pdf") as pdf:
+        page = pdf.pages[0]
+        assert not pdf.check_pdf_syntax()
+        separation = next(value for _, value in page.Resources.ColorSpace.items())
+        assert str(separation[1]) == "/Vernis & blanc"
+        assert str(separation[2]) == "/DeviceCMYK"
+        assert (
+            separation[3].read_bytes()
+            == b"{dup 0.2 mul exch dup 0.3 mul exch dup 0.4 mul exch 0.5 mul}"
+        )
+        ops = [str(op) for _, op in pikepdf.parse_content_stream(page)]
+        assert ("S" in ops) if mode == "path" else ("f*" in ops)
+    assert result.metrics["Contours fermés"] == (2 if mode == "inverse" else 1)
+    with pytest.raises(ValueError, match="page"):
+        run(out, "biscuit", [pdf_path], {**settings, "page": 3})
+    second = run(out, "biscuit", [pdf_path], {**settings, "page": 2, "output_mode": "shape"})
+    assert second.metrics["Largeur de découpe (mm)"] == pytest.approx(20, abs=0.01)
+
+
+def test_pdf_nested_form_and_silhouette(tmp_path):
+    from reportlab.lib.units import mm
+    from reportlab.pdfgen import canvas
+
+    source = tmp_path / "nested.pdf"
+    c = canvas.Canvas(str(source), pagesize=(100 * mm, 60 * mm))
+    c.beginForm("inner")
+    c.rect(0, 0, 10 * mm, 5 * mm, fill=1, stroke=0)
+    c.endForm()
+    c.beginForm("outer")
+    c.translate(5 * mm, 3 * mm)
+    c.doForm("inner")
+    c.endForm()
+    c.translate(10 * mm, 20 * mm)
+    c.scale(2, 2)
+    c.doForm("outer")
+    c.save()
+    p = Biscuit(source="pdf", width=100, offset=0, smoothing=0)
+    _, geometry, _, _, _ = cut_geometry([source], p)
+    assert geometry.bounds == pytest.approx((20, 24, 40, 34), abs=0.001)
+    p.pdf_method = "silhouette"
+    _, geometry, _, _, precision = cut_geometry([source], p)
+    assert geometry.bounds == pytest.approx((20, 24, 40, 34), abs=precision * 2)
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"cyan": -1},
+        {"black": 101},
+        {"spot_name": "All"},
+        {"spot_name": "  "},
+        {"spot_name": "None"},
+    ],
+)
+def test_invalid_spot_parameters(values):
+    with pytest.raises(ValueError):
+        Biscuit(**values)
+
+
+def test_pdf_api_upload_with_filled_result(api, source):  # noqa: F811
+    client, _ = api
+    response = client.post(
+        "/api/tools/biscuit/run",
+        files={"files": ("document.pdf", source.read_bytes(), "application/pdf")},
+        data={
+            "settings": json.dumps(
+                {
+                    "source": "pdf",
+                    "pdf_method": "silhouette",
+                    "output_mode": "shape",
+                    "spot_name": "White",
+                }
+            )
+        },
+    )
+    assert response.status_code == 201, response.text
+    assert response.json()["metrics"]["Teinte nommée"] == "White"
+
+
+def test_pdf_implicit_fill_closure_and_open_stroke(tmp_path):
+    source = tmp_path / "path.pdf"
+    pdf = pikepdf.Pdf.new()
+    page = pdf.add_blank_page(page_size=(100, 60))
+    page.Contents = pikepdf.Stream(pdf, b"10 10 m 40 10 l 40 30 l 10 30 l f")
+    pdf.save(source)
+    settings = Biscuit(source="pdf", width=100, offset=0, smoothing=0)
+    _, geometry, _, _, _ = cut_geometry([source], settings)
+    assert geometry.area == pytest.approx(600)
+    page.Contents = pikepdf.Stream(pdf, b"10 10 m 40 10 l S")
+    pdf.save(source)
+    with pytest.raises(ValueError, match="ouvert"):
+        cut_geometry([source], settings)

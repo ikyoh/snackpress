@@ -20,6 +20,16 @@ type Result = components['schemas']['ToolResult']
 type Values = Record<string, string | number>
 const defaults: Values = {
   source: 'shape',
+  output_mode: 'path',
+  inverse_margin: 3,
+  page: 1,
+  pdf_method: 'vector',
+  pdf_object: 0,
+  spot_name: 'CutContour',
+  cyan: 0,
+  magenta: 100,
+  yellow: 0,
+  black: 0,
   shape: 'rectangle',
   width: 85,
   height: 55,
@@ -70,11 +80,11 @@ export function BiscuitWorkspace() {
       return
     }
     const svg = /\.svg$/i.test(file.name)
-    if (!/\.(png|jpe?g|svg)$/i.test(file.name)) {
-      setError('Importez une image PNG, JPEG ou un tracé SVG.')
+    if (!/\.(pdf|png|jpe?g|svg)$/i.test(file.name)) {
+      setError('Importez un PDF, une image PNG/JPEG ou un tracé SVG.')
       return
     }
-    update({ source: svg ? 'svg' : 'image' })
+    update({ source: /\.pdf$/i.test(file.name) ? 'pdf' : svg ? 'svg' : 'image' })
     setFiles([file])
   }
   async function generate(event: FormEvent) {
@@ -118,7 +128,11 @@ export function BiscuitWorkspace() {
     return (
       <label className="field">
         <span>{label}</span>
-        <select value={values[key]} onChange={(e) => update({ [key]: e.target.value })}>
+        <select
+          aria-label={label}
+          value={values[key]}
+          onChange={(e) => update({ [key]: e.target.value })}
+        >
           {options.map(([value, text]) => (
             <option key={value} value={value}>
               {text}
@@ -215,6 +229,7 @@ export function BiscuitWorkspace() {
                     ['shape', 'Forme'],
                     ['image', 'Image'],
                     ['svg', 'Tracé SVG'],
+                    ['pdf', 'PDF'],
                   ] as const
                 ).map(([value, label]) => (
                   <button
@@ -233,8 +248,8 @@ export function BiscuitWorkspace() {
                     ref={input}
                     type="file"
                     className="sr-only"
-                    accept=".png,.jpg,.jpeg,.svg"
-                    aria-label="Importer une image ou un SVG"
+                    accept=".pdf,.png,.jpg,.jpeg,.svg"
+                    aria-label="Importer une image ou un SVG ou un PDF"
                     onChange={(e) => {
                       importFile(e.target.files?.[0])
                       e.target.value = ''
@@ -260,16 +275,37 @@ export function BiscuitWorkspace() {
                     <span>
                       {files.length ? 'Choisir un autre fichier' : 'ou parcourir les fichiers'}
                     </span>
-                    <small>PNG, JPEG, SVG · 25 Mo maximum</small>
+                    <small>PDF, PNG, JPEG, SVG · 25 Mo maximum</small>
                   </button>
                   <p className="field-hint">
-                    {values.source === 'image'
-                      ? 'Fond blanc ou transparent : le contour suit les pixels visibles. Pour une photo sur fond complexe, détourez le sujet avant l’import.'
-                      : 'Chemins fermés, rectangles, cercles, ellipses et polygones. Convertissez les textes et appliquez les masques avant l’import.'}
+                    {values.source === 'pdf'
+                      ? 'Choisissez la page puis récupérez ses chemins fermés, ou détectez sa silhouette visuelle. La page complète est recalibrée à la largeur choisie.'
+                      : values.source === 'image'
+                        ? 'Fond blanc ou transparent : le contour suit les pixels visibles. Pour une photo sur fond complexe, détourez le sujet avant l’import.'
+                        : 'Chemins fermés, rectangles, cercles, ellipses et polygones. Convertissez les textes et appliquez les masques avant l’import.'}
                   </p>
                   <p className="field-hint">
                     Traitement sur le serveur Snackpress. Fichiers supprimés sous 24 h.
                   </p>
+                </>
+              )}
+              {values.source === 'pdf' && (
+                <>
+                  {number('page', 'Page du PDF', 1, 80, 1, '')}
+                  {select('pdf_method', 'Récupération du PDF', [
+                    ['vector', 'Chemins vectoriels fermés'],
+                    ['silhouette', 'Silhouette visuelle de la page'],
+                  ])}
+                  {values.pdf_method === 'vector' && (
+                    <>
+                      {number('pdf_object', 'Numéro du tracé PDF', 0, 2000, 1, '')}
+                      <p className="field-hint">
+                        0 : tous les chemins. Sinon, numéro du chemin dans l’ordre du PDF. Les
+                        chemins ouverts et masqués nécessitent une préparation ou le mode
+                        silhouette.
+                      </p>
+                    </>
+                  )}
                 </>
               )}
               {values.source === 'shape' &&
@@ -295,7 +331,7 @@ export function BiscuitWorkspace() {
                 <p className="field-hint">
                   {values.source === 'svg'
                     ? 'La forme SVG est recalibrée à cette largeur, hauteur proportionnelle.'
-                    : 'Largeur de l’image complète, hauteur proportionnelle.'}
+                    : 'Largeur de l’image ou de la page PDF complète, hauteur proportionnelle.'}
                 </p>
               )}
               {values.source === 'shape' &&
@@ -306,6 +342,44 @@ export function BiscuitWorkspace() {
                   0,
                   Math.min(Number(values.width), Number(values.height)) / 2,
                 )}
+            </section>
+            <section className="setting-section">
+              <h2>Ce que vous récupérez</h2>
+              {select('output_mode', 'Type de résultat', [
+                ['path', 'Tracé · contour seul'],
+                ['shape', 'Forme · surface pleine'],
+                ['inverse', 'Forme inversée · surface complémentaire'],
+              ])}
+              {values.output_mode === 'inverse' && (
+                <>
+                  {number('inverse_margin', 'Marge du cadre d’inversion', 0, 100)}
+                  <p className="field-hint">
+                    La surface hors de la forme décalée, dans le cadre source augmenté de cette
+                    marge. Les trous deviennent pleins.
+                  </p>
+                </>
+              )}
+              <label className="field">
+                <span>Teinte nommée</span>
+                <input
+                  aria-label="Teinte nommée"
+                  type="text"
+                  required
+                  maxLength={40}
+                  value={values.spot_name}
+                  onChange={(e) => update({ spot_name: e.target.value })}
+                />
+              </label>
+              <div className="biscuit-cmyk">
+                {number('cyan', 'Cyan', 0, 100, 1, '%')}
+                {number('magenta', 'Magenta', 0, 100, 1, '%')}
+                {number('yellow', 'Jaune', 0, 100, 1, '%')}
+                {number('black', 'Noir', 0, 100, 1, '%')}
+              </div>
+              <p className="field-hint">
+                Ton direct et CMJN conservés dans le PDF. Le SVG affiche une approximation RVB et
+                conserve les valeurs en métadonnées.
+              </p>
             </section>
             <section className="setting-section">
               <h2>Le décalage du tracé</h2>
@@ -355,7 +429,8 @@ export function BiscuitWorkspace() {
                 ['largest', 'La plus grande uniquement'],
               ])}
               {number('min_area', 'Surface minimale', 0, 100, 0.1, 'mm²')}
-              {values.source === 'image' && (
+              {(values.source === 'image' ||
+                (values.source === 'pdf' && values.pdf_method === 'silhouette')) && (
                 <>
                   {number('threshold', 'Seuil de détection', 0, 254, 1, '/ 255')}
                   <p className="field-hint">
@@ -389,8 +464,18 @@ export function BiscuitWorkspace() {
               Contour source
             </span>
             <span>
-              <i className="cut" />
-              Tracé de découpe
+              <i
+                className="cut"
+                style={{
+                  borderColor: `rgb(${['cyan', 'magenta', 'yellow'].map((key) => Math.round(255 * (1 - Number(values[key]) / 100) * (1 - Number(values.black) / 100))).join(',')})`,
+                }}
+              />
+              {values.output_mode === 'path'
+                ? 'Tracé'
+                : values.output_mode === 'inverse'
+                  ? 'Forme inversée'
+                  : 'Forme'}{' '}
+              · {values.spot_name}
             </span>
           </div>
           {result ? (
@@ -465,7 +550,8 @@ export function BiscuitWorkspace() {
             </div>
           )}
           <p className="biscuit-export-note">
-            SVG en millimètres · PDF vectoriel en ton direct CutContour · Tracés fermés
+            SVG en millimètres · PDF vectoriel en ton direct {values.spot_name} ·{' '}
+            {values.output_mode === 'path' ? 'Tracés fermés' : 'Surface pleine'}
           </p>
         </section>
       </div>
