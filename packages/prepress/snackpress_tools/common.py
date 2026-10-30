@@ -164,7 +164,12 @@ def report(
 
 
 def artifact(path: Path, label: str) -> Artifact:
-    mime = {".pdf": "application/pdf", ".png": "image/png", ".json": "application/json"}
+    mime = {
+        ".pdf": "application/pdf",
+        ".png": "image/png",
+        ".json": "application/json",
+        ".svg": "image/svg+xml",
+    }
     pages = None
     if path.suffix == ".pdf":
         with pikepdf.open(path) as pdf:

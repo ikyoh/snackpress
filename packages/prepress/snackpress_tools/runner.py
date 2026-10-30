@@ -2,6 +2,7 @@ from pathlib import Path
 
 from . import documents as d
 from . import generators as g
+from .biscuit import generate as biscuit
 from .catalog import CATALOG, MODELS
 from .common import artifact, write_json
 from .granola import impose as granola
@@ -25,6 +26,7 @@ HANDLERS = dict(
             d.layer,
             d.bento,
             granola,
+            biscuit,
         ],
         strict=True,
     )
@@ -39,7 +41,7 @@ def run(folder: Path, tool: str, files: list[Path], values: dict, *, preview=Fal
         raise ValueError(
             f"Cet outil accepte {definition.min_files} à {definition.max_files} fichier(s)."
         )
-    if any(f.suffix != ".pdf" for f in files) and tool not in {"donut", "granola"}:
+    if any(f.suffix != ".pdf" for f in files) and tool not in {"donut", "granola", "biscuit"}:
         raise ValueError("Cet outil accepte uniquement les PDF.")
     params = MODELS[tool].model_validate(values)
     if tool == "burger" and params.product_snapshot is not None:

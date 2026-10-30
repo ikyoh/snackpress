@@ -1,6 +1,6 @@
 # Snackpress
 
-Atelier web local réunissant **15 outils prépresse** : Burger, Chili Dog, Donut, Tiramisu, Taco, Pizza, Burrito, Club Sandwich, Fortune Cookie, Poké, Sushi, Kebab, Layer Cake, Bento et Granola.
+Atelier web local réunissant **16 outils prépresse** : Burger, Chili Dog, Donut, Tiramisu, Taco, Pizza, Burrito, Club Sandwich, Fortune Cookie, Poké, Sushi, Kebab, Layer Cake, Bento, Granola et Biscuit.
 
 La page d’accueil présente le catalogue avec recherche et filtres. Chaque outil dispose de ses réglages, d’un aperçu PDF/image actualisé automatiquement, d’un traitement final et de fichiers téléchargeables. Les fonctions et limites sont détaillées dans [TOOLS.md](TOOLS.md).
 
@@ -291,3 +291,9 @@ Références pour les mécanismes d’authentification : [stockage des mots de p
 ## Validation des aperçus et de l’ovale du 17 octobre 2026
 
 100 tests Python réussis (99 dans la suite complète, puis le test ajouté d’annulation sur déconnexion), 2 tests Vitest, compilation TypeScript/Vite, Ruff et vérification des diffs. Les 27 parcours Playwright principaux et les 2 parcours comptes passent : aperçu automatique sans export implicite, regroupement des saisies rapides, réponse obsolète ignorée, conservation du dernier PDF sur réglage invalide, import unique des fichiers, aperçu réduit de Fortune Cookie avec série finale complète, recto-verso d’imposition et parcours existants. Les tests serveur couvrent les aperçus des 14 outils, les fichiers publiables, le stockage borné à trois générations, l’expiration, les limites et l’indépendance des exports finaux. L’ovale de Pizza est contrôlé en géométrie PDF, rendu raster et interface ordinateur/mobile.
+
+### Biscuit · créer une forme de découpe
+
+Accessible dans le catalogue **Tracer** ou à `/?tool=biscuit`. Importez un PNG/JPEG sur fond blanc ou transparent, un SVG à chemins fermés, ou choisissez une forme géométrique. Réglez la largeur source et le décalage positif/négatif en millimètres ; l’aperçu distingue le contour source et la découpe finale. Les réglages avancés permettent de conserver les trous et de simplifier les petits détails.
+
+Les exports comprennent un SVG en millimètres et un PDF vectoriel en ton direct `CutContour`, séparés du PDF de contrôle. Les photos sur fond complexe doivent être détourées avant import. Les courbes SVG sont approchées en segments et les contraintes de fabrication doivent être validées avec le prestataire. Contrats et limites : [Biscuit dans TOOLS.md](TOOLS.md#biscuit--formes-et-contours-de-découpe).

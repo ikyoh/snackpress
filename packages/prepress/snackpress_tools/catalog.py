@@ -200,6 +200,21 @@ class Granola(Params):
         return self
 
 
+class Biscuit(Params):
+    source: Literal["shape", "image", "svg"] = "shape"
+    shape: Literal["rectangle", "ellipse", "circle"] = "rectangle"
+    width: float = Field(default=85, ge=1, le=2000)
+    height: float = Field(default=55, ge=1, le=2000)
+    radius: float = Field(default=5, ge=0, le=1000)
+    offset: float = Field(default=3, ge=-100, le=100)
+    smoothing: float = Field(default=0.15, ge=0, le=5)
+    join: Literal["round", "mitre", "bevel"] = "round"
+    holes: Literal["keep", "fill"] = "fill"
+    selection: Literal["all", "largest"] = "all"
+    threshold: int = Field(default=20, ge=0, le=254)
+    min_area: float = Field(default=0.2, ge=0, le=100)
+
+
 class CsvData(Params):
     columns: list[Annotated[str, Field(min_length=1, max_length=256)]] = Field(
         min_length=1, max_length=100
@@ -930,6 +945,22 @@ DEFINITIONS = [
         ],
     ),
 ]
+DEFINITIONS.append(
+    ToolDefinition(
+        id="biscuit",
+        name="Biscuit",
+        category="Tracer",
+        min_files=0,
+        max_files=1,
+        accept=".png,.jpg,.jpeg,.svg",
+        description="Créer ou récupérer une forme de découpe, puis décaler son contour au millimètre.",
+        limit=(
+            "Images sur fond blanc ou transparent, SVG fermés ou formes géométriques. "
+            "Contour vectoriel approché ; contrôler les petits détails avant fabrication."
+        ),
+        fields=[],
+    )
+)
 MODELS = dict(
     zip(
         [t.id for t in DEFINITIONS],
@@ -949,6 +980,7 @@ MODELS = dict(
             Layer,
             Bento,
             Granola,
+            Biscuit,
         ],
         strict=True,
     )

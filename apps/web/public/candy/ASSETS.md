@@ -1,5 +1,13 @@
 # Illustrations Snackpress
 
+## Biscuit — 30 octobre 2026
+
+Illustration créée avec l’outil intégré `image_gen.imagegen`, en mode création avec `transparent_background: true`. Fichier utilisé dans le catalogue et l’atelier : `biscuit.webp`, 512 × 512 pixels, qualité 92, transparence conservée. Un biscuit fleuri au glaçage rose et un emporte-pièce violet évoquent la création d’un contour de découpe.
+
+Prompt final :
+
+> Use case: stylized-concept. Asset type: one transparent square food illustration for the Biscuit vector cutting tool in Snackpress, a French prepress app with glossy chunky 3D food game illustrations. Subject: a single delicious golden flower-shaped shortbread biscuit with scalloped edge, a raised raspberry-pink icing flower inside the golden border, and a small shiny purple metal cookie cutter leaning against it to suggest making precise contours. Original premium casual puzzle game collectible art, rounded edible volumes, appetizing golden baked texture, polished pink and purple studio lighting. Front three-quarter slightly elevated view, compact centered composition readable at 100 pixels, all objects entirely inside the canvas with generous clear margins. Truly transparent alpha background, subtle grounded shadow only. No text, no letters, no faces, no logos, no UI, no watermark, no scenery.
+
 Création le 15 octobre 2026 avec l’outil intégré `image_gen.imagegen`, en mode création, `transparent_background: true`. Aucun visuel ou personnage d’un jeu existant n’a été fourni ou copié.
 
 Fichiers utilisés dans l’application :

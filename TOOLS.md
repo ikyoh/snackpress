@@ -73,3 +73,17 @@ Chaque fichier utilise `shape=auto` par défaut. Un rendu d’analyse limité à
 Le moteur compare des paires de silhouettes identiques ou différentes avec rotations de 0°, 90°, 180° et 270°, puis place leurs enveloppes et les exemplaires restants. Les formes concaves simples utilisent une décomposition géométrique ; la recherche des contours complexes est bornée. Les collisions et la distance minimale sont contrôlées sur les contours retenus, y compris entre les diagonales des triangles. La disposition complète est comparée au placement rectangulaire pour conserver la meilleure solution trouvée. Ce n’est pas une recherche exhaustive d’imbrication de toutes les poses. Les PDF restent des objets natifs, avec leurs polices et leurs couleurs ; le rendu d’analyse n’est pas utilisé comme illustration dans l’export.
 
 L’exemple de triangles charge deux exemplaires sur une planche de 130 × 100 mm, avec un écart de 3 mm et le mode surface minimale. Le résultat comporte une paire imbriquée et une planche recadrée. Le JSON expose les dimensions d’origine, le contour détecté et les rotations de chaque pose.
+
+## Biscuit — formes et contours de découpe
+
+Route : `/?tool=biscuit`. Crée une forme géométrique (rectangle à coins arrondis, cercle, ellipse), détecte une silhouette sur une image PNG/JPEG ou récupère la surface de chemins SVG fermés. La largeur source calibre les images complètes et la boîte englobante des formes SVG ; leur hauteur reste proportionnelle. Les formes géométriques ont des dimensions explicites.
+
+- Décalage signé en mm, de −100 à +100 : positif vers l’extérieur, négatif vers l’intérieur. Angles arrondis, droits (mitre limitée) ou biseautés.
+- Simplification en mm, surface minimale des composants, sélection de toutes les formes ou de la plus grande, trous conservés ou comblés. Un décalage qui supprime toute la surface est refusé ; les changements de nombre de contours sont signalés.
+- Images : transparence prioritaire, sinon seuil sur le fond blanc. Analyse limitée à 1 200 pixels de côté et 20 millions de pixels source. Pas de détourage IA des fonds complexes. La précision estimée est affichée.
+- SVG : chemins fermés, rectangles, cercles, ellipses, polygones, groupes et transformations. Courbes approchées en segments, règles de remplissage nonzero/evenodd respectées. Textes, images liées, clones, scripts, masques et effets doivent être convertis ou appliqués avant import ; XML à déclarations externes refusé. SVG limité à 2 Mo et 2 000 éléments.
+- Aperçu automatique après 500 ms : visuel image, contour source gris pointillé, découpe magenta. Les résultats et l’aperçu partagent le même calcul géométrique.
+- Exports : `decoupe.svg` en mm (chemins fermés), `decoupe.pdf` vectoriel sans visuel avec ton direct `CutContour` magenta et surimpression, `apercu.pdf` pour contrôle et `reglages.json`. Les documents ont une marge technique de 3 mm autour de l’ensemble source/découpe ; les dimensions réelles du contour sont données séparément.
+- Configurations personnelles via le compte Snackpress : les réglages sont enregistrés, le fichier source reste à réimporter.
+
+Illustration : `apps/web/public/candy/biscuit.webp` ; provenance et prompt dans `apps/web/public/candy/ASSETS.md`. La validation du tracé avec le fabricant reste nécessaire : la géométrie n’intègre pas les contraintes de matière, de lame ou de machine.

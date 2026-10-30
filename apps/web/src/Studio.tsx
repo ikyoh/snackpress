@@ -52,6 +52,7 @@ import { SettingsSection } from './SettingsSection'
 import { GranolaFile, granolaDefaults, type GranolaItem } from './GranolaFile'
 import { GranolaCrop, granolaGeometryMetric, granolaSheetValues } from './GranolaCrop'
 import './studio.css'
+import { BiscuitWorkspace } from './BiscuitWorkspace'
 
 type Tool = components['schemas']['ToolDefinition']
 type ToolField = components['schemas']['ToolField']
@@ -130,10 +131,10 @@ function ToolIcon({ tool, size = 22 }: { tool: Tool; size?: number }) {
       data-snack={tool.id}
       aria-hidden="true"
     >
-      {tool.id === 'granola' ? (
+      {['granola', 'biscuit'].includes(tool.id) ? (
         <img
           className="food-illustration"
-          src="/candy/granola.webp"
+          src={`/candy/${tool.id}.webp`}
           width="110"
           height="110"
           alt=""
@@ -224,6 +225,8 @@ export default function Studio() {
           <h1>Outil introuvable.</h1>
           <a href="/">Revenir à tous les outils</a>
         </main>
+      ) : selected?.id === 'biscuit' ? (
+        <BiscuitWorkspace />
       ) : selected ? (
         <ToolWorkspace
           key={`${selected.id}:${location.testingPizza}`}
@@ -358,7 +361,13 @@ function Catalog({ tools }: { tools: Tool[] }) {
               key={tool.id}
               href={toolUrl(tool.id)}
               className="tool-card"
-              data-flavour={tool.id === 'granola' ? 'orange' : flavours[foodIds.indexOf(tool.id)]}
+              data-flavour={
+                tool.id === 'biscuit'
+                  ? 'yellow'
+                  : tool.id === 'granola'
+                    ? 'orange'
+                    : flavours[foodIds.indexOf(tool.id)]
+              }
             >
               <div className="tool-card-top">
                 <ToolIcon tool={tool} />
